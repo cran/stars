@@ -1,0 +1,194 @@
+
+R version 3.5.1 (2018-07-02) -- "Feather Spray"
+Copyright (C) 2018 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> suppressPackageStartupMessages(library(stars))
+> library(sf)
+> #jp2 = system.file("jp2/B01.jp2", package = "stars")
+> #(x = read_stars(jp2, options = c("OVERVIEW_LEVEL=3")))
+> tif = system.file("tif/L7_ETMs.tif", package = "stars")
+> (x = read_stars(tif, options = c("OVERVIEW_LEVEL=3")))
+stars object with 3 dimensions and 1 attribute
+attribute(s):
+  L7_ETMs.tif    
+ Min.   : 12.00  
+ 1st Qu.: 58.00  
+ Median : 71.00  
+ Mean   : 69.24  
+ 3rd Qu.: 83.00  
+ Max.   :137.00  
+dimension(s):
+     from to  offset   delta                       refsys point values
+x       1 22  288776 452.114 +proj=utm +zone=25 +south... FALSE   NULL
+y       1 22 9120761    -456 +proj=utm +zone=25 +south... FALSE   NULL
+band    1  6      NA      NA                           NA    NA   NULL
+> # names(x) = "L7_ETM"
+> 
+> # library(abind)
+> # x = adrop(x)
+> image(x)
+> (sfc = st_as_sfc(x, as_points = FALSE))
+Geometry set for 484 features 
+geometry type:  POLYGON
+dimension:      XY
+bbox:           xmin: 288776.3 ymin: 9110729 xmax: 298722.8 ymax: 9120761
+epsg (SRID):    NA
+proj4string:    +proj=utm +zone=25 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs
+First 5 geometries:
+POLYGON ((288776.3 9120761, 289228.4 9120761, 2...
+POLYGON ((289228.4 9120761, 289680.5 9120761, 2...
+POLYGON ((289680.5 9120761, 290132.6 9120761, 2...
+POLYGON ((290132.6 9120761, 290584.7 9120761, 2...
+POLYGON ((290584.7 9120761, 291036.8 9120761, 2...
+> plot(sfc, add  =TRUE)
+> (sfc = st_as_sfc(x, as_points = TRUE))
+Geometry set for 484 features 
+geometry type:  POINT
+dimension:      XY
+bbox:           xmin: 289002.3 ymin: 9110957 xmax: 298496.7 ymax: 9120533
+epsg (SRID):    NA
+proj4string:    +proj=utm +zone=25 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs
+First 5 geometries:
+POINT (289002.3 9120533)
+POINT (289454.4 9120533)
+POINT (289906.5 9120533)
+POINT (290358.6 9120533)
+POINT (290810.8 9120533)
+> plot(sfc, add = TRUE)
+> 
+> sf = st_as_sf(x, as_points = FALSE)
+> plot(sf, border = NA)
+> 
+> sfc1 <- st_as_sfc(x, as_points = TRUE, use_cpp = TRUE, na.rm = FALSE)
+> sfc2 <- st_as_sfc(x, as_points = TRUE, use_cpp = FALSE)
+> identical(sfc1, sfc2)
+[1] TRUE
+> 
+> sfc1 <- st_as_sfc(x, as_points = FALSE, use_cpp = TRUE, na.rm = FALSE)
+> sfc2 <- st_as_sfc(x, as_points = FALSE, use_cpp = FALSE)
+> identical(sfc1, sfc2)
+[1] TRUE
+> 
+> # sf -> stars -> sf
+> x = st_sfc(st_point(0:1), st_point(1:2), st_point(2:3))
+> m = matrix(1:9,3)
+> colnames(m) = c("a", "b", "c")
+> foo = st_sf(m, geom = x)
+> x = st_as_stars(foo)
+> c(x)
+stars object with 2 dimensions and 1 attribute
+attribute(s):
+     attr   
+ Min.   :1  
+ 1st Qu.:3  
+ Median :5  
+ Mean   :5  
+ 3rd Qu.:7  
+ Max.   :9  
+dimension(s):
+        from to offset delta refsys point                        values
+sfc        1  3     NA    NA     NA  TRUE POINT (0 1), ..., POINT (2 3)
+new_dim    1  3     NA    NA     NA    NA                     a, ..., c
+> c(x,x)
+stars object with 1 dimensions and 6 attributes
+attribute(s):
+       a             b             c            a.1           b.1     
+ Min.   :1.0   Min.   :4.0   Min.   :7.0   Min.   :1.0   Min.   :4.0  
+ 1st Qu.:1.5   1st Qu.:4.5   1st Qu.:7.5   1st Qu.:1.5   1st Qu.:4.5  
+ Median :2.0   Median :5.0   Median :8.0   Median :2.0   Median :5.0  
+ Mean   :2.0   Mean   :5.0   Mean   :8.0   Mean   :2.0   Mean   :5.0  
+ 3rd Qu.:2.5   3rd Qu.:5.5   3rd Qu.:8.5   3rd Qu.:2.5   3rd Qu.:5.5  
+ Max.   :3.0   Max.   :6.0   Max.   :9.0   Max.   :3.0   Max.   :6.0  
+      c.1     
+ Min.   :7.0  
+ 1st Qu.:7.5  
+ Median :8.0  
+ Mean   :8.0  
+ 3rd Qu.:8.5  
+ Max.   :9.0  
+dimension(s):
+    from to offset delta refsys point                        values
+sfc    1  3     NA    NA     NA  TRUE POINT (0 1), ..., POINT (2 3)
+> c(x, dim_name = "new")
+stars object with 2 dimensions and 1 attribute
+attribute(s):
+     attr   
+ Min.   :1  
+ 1st Qu.:3  
+ Median :5  
+ Mean   :5  
+ 3rd Qu.:7  
+ Max.   :9  
+dimension(s):
+    from to offset delta refsys point                        values
+sfc    1  3     NA    NA     NA  TRUE POINT (0 1), ..., POINT (2 3)
+new    1  3     NA    NA     NA    NA                     a, ..., c
+> y = c(x, dim_name = "time", values = as.Date("2017-11-27") + 0:2)
+> st_as_sf(y)
+Simple feature collection with 3 features and 3 fields
+geometry type:  POINT
+dimension:      XY
+bbox:           xmin: 0 ymin: 1 xmax: 2 ymax: 3
+epsg (SRID):    NA
+proj4string:    NA
+  attr.a attr.b attr.c    geometry
+1      1      4      7 POINT (0 1)
+2      2      5      8 POINT (1 2)
+3      3      6      9 POINT (2 3)
+> st_as_sf(st_as_stars(foo))
+Simple feature collection with 3 features and 3 fields
+geometry type:  POINT
+dimension:      XY
+bbox:           xmin: 0 ymin: 1 xmax: 2 ymax: 3
+epsg (SRID):    NA
+proj4string:    NA
+  a b c    geometry
+1 1 4 7 POINT (0 1)
+2 2 5 8 POINT (1 2)
+3 3 6 9 POINT (2 3)
+> 
+> c(x,x,along=1) # NEEDS FIXING!
+stars object with 1 dimensions and 3 attributes
+attribute(s):
+       a              b              c       
+ Min.   :1.00   Min.   :4.00   Min.   :7.00  
+ 1st Qu.:1.25   1st Qu.:4.25   1st Qu.:7.25  
+ Median :2.00   Median :5.00   Median :8.00  
+ Mean   :2.00   Mean   :5.00   Mean   :8.00  
+ 3rd Qu.:2.75   3rd Qu.:5.75   3rd Qu.:8.75  
+ Max.   :3.00   Max.   :6.00   Max.   :9.00  
+dimension(s):
+    from to offset delta refsys point                        values
+sfc    1  6     NA    NA     NA  TRUE POINT (0 1), ..., POINT (2 3)
+> # st_as_stars.sfc
+> st_as_stars(st_geometry(st_as_sf(y)), nx = 10, ny = 10, as_points = FALSE)
+stars object with 2 dimensions and 1 attribute
+attribute(s):
+    values     
+ Min.   :0.00  
+ 1st Qu.:0.00  
+ Median :0.00  
+ Mean   :0.06  
+ 3rd Qu.:0.00  
+ Max.   :1.00  
+dimension(s):
+  from to offset delta refsys point values
+x    1 10      0   0.2 NA, NA    NA   NULL
+y    1 10      3  -0.2 NA, NA    NA   NULL
+> 
+> proc.time()
+   user  system elapsed 
+  0.687   0.287   0.648 

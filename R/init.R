@@ -1,0 +1,18 @@
+#' @importFrom graphics image.default image par plot title box text axis plot.new plot.window rasterImage layout lcm
+#' @importFrom grDevices dev.capabilities dev.size grey
+#' @importFrom utils tail
+#' @importFrom stats na.omit runif
+#' @importFrom tools file_ext
+#' @importFrom methods as slotNames new slot
+#' @importFrom abind abind adrop asub
+#' @importFrom classInt classIntervals
+#' @importFrom Rcpp evalCpp
+#' @import sf
+#' @import units
+NULL
+
+setOldClass("stars")
+
+.onLoad = function(libname, pkgname) {
+	register_all_s3_methods() # dynamically registers non-imported pkgs (tidyverse)
+}
