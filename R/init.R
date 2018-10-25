@@ -6,7 +6,7 @@
 #' @importFrom methods as slotNames new slot
 #' @importFrom abind abind adrop asub
 #' @importFrom classInt classIntervals
-#' @importFrom Rcpp evalCpp
+#' @importFrom parallel parApply
 #' @import sf
 #' @import units
 NULL
@@ -14,5 +14,5 @@ NULL
 setOldClass("stars")
 
 .onLoad = function(libname, pkgname) {
-	register_all_s3_methods() # dynamically registers non-imported pkgs (tidyverse)
+	register_all_s3_methods() # dynamically registers non-imported pkgs (tidyverse) # nocov
 }

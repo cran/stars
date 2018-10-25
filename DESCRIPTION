@@ -1,30 +1,47 @@
 Package: stars
-Version: 0.1-1
-Title: Scalable, Spatiotemporal Tidy Arrays for R
-Description: Support for Scalable, Spatiotemporal Tidy Arrays in R, using GDAL bindings.
-Authors@R: c(person("Edzer", "Pebesma", role = c("aut", "cre"), email = "edzer.pebesma@uni-muenster.de", comment = c(ORCID = "0000-0001-8049-7069")),
-	person("Michael", "Sumner", role = "ctb"),
-	person("Etienne", "Racine", role = "ctb"),
-	person("Adriano", "Fantini", role = "ctb")
-	)
-Depends: R (>= 3.3.0), abind, sf (>= 0.6-3)
-Imports: methods, Rcpp, rlang, units, classInt (>= 0.2-2)
-Suggests: lwgeom, covr, ggplot2, ggthemes, gstat, dplyr (>= 0.7-0),
-        knitr, maps, plm, rmarkdown, sp, zoo, xts, spacetime, raster,
-        testthat, viridis
-VignetteBuilder: knitr
+Title: Scalable, Spatiotemporal Tidy Arrays
+Version: 0.2-0
+Authors@R: 
+    c(person(given = "Edzer",
+             family = "Pebesma",
+             role = c("aut", "cre"),
+             email = "edzer.pebesma@uni-muenster.de",
+             comment = c(ORCID = "0000-0001-8049-7069")),
+      person(given = "Michael",
+             family = "Sumner",
+             role = "ctb"),
+      person(given = "Etienne",
+             family = "Racine",
+             role = "ctb"),
+      person(given = "Adriano",
+             family = "Fantini",
+             role = "ctb"))
+Description: Reading, manipulating, writing and plotting
+    spatiotemporal Arrays (including raster data) in R, using GDAL
+    bindings provided by package sf.
 License: Apache License
 URL: https://github.com/r-spatial/stars/
 BugReports: https://github.com/r-spatial/stars/issues/
-Collate: init.R stars.R meta.R sf.R dimensions.R plot.R tidyverse.R
-        transform.R ops.R write.R raster.R spacetime.R
-RoxygenNote: 6.0.1
+Additional_repositories: http://pebesma.staff.ifgi.de
+Depends: abind, R (>= 3.3.0), sf (>= 0.7-0)
+Imports: methods, parallel, classInt (>= 0.2-2), ncdf4, ncmeta, rlang,
+        units
+Suggests: covr, dplyr (>= 0.7-0), ggplot2, ggthemes, gstat, knitr,
+        lwgeom, maps, pbapply, plm, raster, rmarkdown, sp, spacetime,
+        testthat, viridis, zoo, xts, starsdata
+VignetteBuilder: knitr
+Encoding: UTF-8
+RoxygenNote: 6.1.0
+Collate: 'init.R' 'stars.R' 'read.R' 'sf.R' 'dimensions.R' 'plot.R'
+        'tidyverse.R' 'transform.R' 'ops.R' 'write.R' 'raster.R'
+        'spacetime.R' 'ncdf.R' 'proxy.R' 'factors.R' 'rasterize.R'
+        'warp.R'
 NeedsCompilation: no
-Packaged: 2018-07-19 07:39:50 UTC; edzer
+Packaged: 2018-10-25 08:23:59 UTC; edzer
 Author: Edzer Pebesma [aut, cre] (<https://orcid.org/0000-0001-8049-7069>),
   Michael Sumner [ctb],
   Etienne Racine [ctb],
   Adriano Fantini [ctb]
 Maintainer: Edzer Pebesma <edzer.pebesma@uni-muenster.de>
 Repository: CRAN
-Date/Publication: 2018-07-25 16:00:02 UTC
+Date/Publication: 2018-10-25 13:10:07 UTC

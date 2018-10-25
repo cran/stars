@@ -16,7 +16,7 @@ get_dims = function(d_cube, d_stars) {
 			else
 				d_cube[[i]]
 		d_stars[[i]] = create_dimension(values = d_stars[[i]]$values, point = d_stars[[i]]$point, 
-			refsys = d_stars[[i]]$refsys, geotransform = d_stars[[i]]$geotransform, what = names(d_stars)[i])
+			refsys = d_stars[[i]]$refsys)
 	}
 	d_stars
 }
@@ -24,7 +24,7 @@ get_dims = function(d_cube, d_stars) {
 #' dplyr verbs for stars objects
 #' 
 #' dplyr verbs for stars objects
-#' @param .data see \link[dplyr]{filter}
+#' @param .data object of class \code{stars}
 #' @param ... see \link[dplyr]{filter}
 #' @name dplyr
 filter.stars <- function(.data, ...) {
@@ -69,25 +69,39 @@ as.tbl_cube.stars = function(x, ...) {
 	dplyr::tbl_cube(dims, c(unclass(x)))
 }
 
-# example from HW's advanced R:
-#slice <- function(x, along, index) {
-#  #stopifnot(length(index) == 1)
-#    
-#  nd <- length(dim(x))
-#  indices <- rep(list(missing_arg()), nd)
-#  indices[[along]] <- index
-#  
-#  expr(x[!!!indices])
-#}
-#
-#eval(slice(x, 1, 1:3))
+#' @name dplyr
+#' @param along name or index of dimension to which the slice should be applied
+#' @param index integer value(s) for this index
+#' @param drop logical; drop dimensions that only have a single index?
+#' @export
+#' @examples
+#' tif = system.file("tif/L7_ETMs.tif", package = "stars")
+#' x1 = read_stars(tif)
+#' library(dplyr)
+#' x1 %>% slice("band", 2:3)
+#' x1 %>% slice("x", 50:100)
+slice.stars <- function(.data, along, index, ..., drop = length(index) == 1) {
+  #stopifnot(length(index) == 1)
+  if (!requireNamespace("rlang", quietly = TRUE))
+      stop("package rlang required, please install it first") # nocov
+    
+  nd <- length(dim(.data))
+  indices <- rep(list(rlang::missing_arg()), nd + 1)
+  if (is.character(along))
+  	along = which(along == names(st_dimensions(.data)))
+  indices[[along + 1]] <- index
+  indices[["drop"]] <- drop
+  
+  eval(rlang::expr(.data[!!!indices]))
+}
 
 register_all_s3_methods = function() {
-	register_s3_method("dplyr", "filter", "stars")
+	register_s3_method("dplyr", "filter", "stars") # nocov start
 	register_s3_method("dplyr", "select", "stars")
 	register_s3_method("dplyr", "mutate", "stars")
 	register_s3_method("dplyr", "pull", "stars")
 	register_s3_method("dplyr", "as.tbl_cube", "stars")
+	register_s3_method("dplyr", "slice", "stars") # nocov end
 }
 
 # from: https://github.com/tidyverse/hms/blob/master/R/zzz.R

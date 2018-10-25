@@ -1,0 +1,362 @@
+
+R version 3.5.1 (2018-07-02) -- "Feather Spray"
+Copyright (C) 2018 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> suppressPackageStartupMessages(library(sf))
+> suppressPackageStartupMessages(library(stars))
+> tif = system.file("tif/L7_ETMs.tif", package = "stars")
+> (r = read_stars(tif, proxy = TRUE))
+stars_proxy object with 1 attribute in file:
+$L7_ETMs.tif
+[1] "/home/edzer/git/stars.Rcheck/stars/tif/L7_ETMs.tif"
+
+dimension(s):
+     from  to  offset delta                       refsys point values    
+x       1 349  288776  28.5 +proj=utm +zone=25 +south... FALSE   NULL [x]
+y       1 352 9120761 -28.5 +proj=utm +zone=25 +south... FALSE   NULL [y]
+band    1   6      NA    NA                           NA    NA   NULL    
+> plot(r)
+> dim(r)
+   x    y band 
+ 349  352    6 
+> r[,,,2:3]
+stars_proxy object with 1 attribute in file:
+$L7_ETMs.tif
+[1] "/home/edzer/git/stars.Rcheck/stars/tif/L7_ETMs.tif"
+
+dimension(s):
+     from  to  offset delta                       refsys point values    
+x       1 349  288776  28.5 +proj=utm +zone=25 +south... FALSE   NULL [x]
+y       1 352 9120761 -28.5 +proj=utm +zone=25 +south... FALSE   NULL [y]
+band    1   6      NA    NA                           NA    NA   NULL    
+call list:
+[[1]]
+x[, , , 2:3]
+
+> plot(r)
+> (xx = c(r,r))
+stars_proxy object with 2 attributes in files:
+$L7_ETMs.tif
+[1] "/home/edzer/git/stars.Rcheck/stars/tif/L7_ETMs.tif"
+
+$L7_ETMs.tif
+[1] "/home/edzer/git/stars.Rcheck/stars/tif/L7_ETMs.tif"
+
+dimension(s):
+     from  to  offset delta                       refsys point values    
+x       1 349  288776  28.5 +proj=utm +zone=25 +south... FALSE   NULL [x]
+y       1 352 9120761 -28.5 +proj=utm +zone=25 +south... FALSE   NULL [y]
+band    1   6      NA    NA                           NA    NA   NULL    
+> c(xx)
+stars_proxy object with 3 attributes in files:
+                                         L7_ETMs.tif 
+"/home/edzer/git/stars.Rcheck/stars/tif/L7_ETMs.tif" 
+                                         L7_ETMs.tif 
+"/home/edzer/git/stars.Rcheck/stars/tif/L7_ETMs.tif" 
+                                               along 
+                                                 "4" 
+dimension(s):
+        from  to  offset delta                       refsys point
+x          1 349  288776  28.5 +proj=utm +zone=25 +south... FALSE
+y          1 352 9120761 -28.5 +proj=utm +zone=25 +south... FALSE
+band       1   6      NA    NA                           NA    NA
+new_dim    1   2      NA    NA                           NA    NA
+                          values    
+x                           NULL [x]
+y                           NULL [y]
+band                        NULL    
+new_dim L7_ETMs.tif, L7_ETMs.tif    
+> st_as_stars(r)
+stars object with 3 dimensions and 1 attribute
+attribute(s):
+  L7_ETMs.tif    
+ Min.   :  1.00  
+ 1st Qu.: 54.00  
+ Median : 69.00  
+ Mean   : 68.91  
+ 3rd Qu.: 86.00  
+ Max.   :255.00  
+dimension(s):
+     from  to  offset delta                       refsys point values    
+x       1 349  288776  28.5 +proj=utm +zone=25 +south... FALSE   NULL [x]
+y       1 352 9120761 -28.5 +proj=utm +zone=25 +south... FALSE   NULL [y]
+band    1   6      NA    NA                           NA    NA   NULL    
+> (y = st_apply(r, 1:2, max))
+stars_proxy object with 1 attribute in file:
+$L7_ETMs.tif
+[1] "/home/edzer/git/stars.Rcheck/stars/tif/L7_ETMs.tif"
+
+dimension(s):
+     from  to  offset delta                       refsys point values    
+x       1 349  288776  28.5 +proj=utm +zone=25 +south... FALSE   NULL [x]
+y       1 352 9120761 -28.5 +proj=utm +zone=25 +south... FALSE   NULL [y]
+band    1   6      NA    NA                           NA    NA   NULL    
+call list:
+[[1]]
+st_apply(X = X, MARGIN = 1:2, FUN = max)
+
+> (yy = st_as_stars(y))
+stars object with 2 dimensions and 1 attribute
+attribute(s):
+  L7_ETMs.tif    
+ Min.   : 55.00  
+ 1st Qu.: 85.00  
+ Median : 96.00  
+ Mean   : 99.36  
+ 3rd Qu.:113.00  
+ Max.   :255.00  
+dimension(s):
+  from  to  offset delta                       refsys point values    
+x    1 349  288776  28.5 +proj=utm +zone=25 +south... FALSE   NULL [x]
+y    1 352 9120761 -28.5 +proj=utm +zone=25 +south... FALSE   NULL [y]
+> (y = adrop(st_apply(r, 1:2, max)))
+stars_proxy object with 1 attribute in file:
+$L7_ETMs.tif
+[1] "/home/edzer/git/stars.Rcheck/stars/tif/L7_ETMs.tif"
+
+dimension(s):
+     from  to  offset delta                       refsys point values    
+x       1 349  288776  28.5 +proj=utm +zone=25 +south... FALSE   NULL [x]
+y       1 352 9120761 -28.5 +proj=utm +zone=25 +south... FALSE   NULL [y]
+band    1   6      NA    NA                           NA    NA   NULL    
+call list:
+[[1]]
+st_apply(X = X, MARGIN = 1:2, FUN = max)
+
+[[2]]
+adrop(x = x)
+
+> (yy = st_as_stars(y))
+stars object with 2 dimensions and 1 attribute
+attribute(s):
+  L7_ETMs.tif    
+ Min.   : 55.00  
+ 1st Qu.: 85.00  
+ Median : 96.00  
+ Mean   : 99.36  
+ 3rd Qu.:113.00  
+ Max.   :255.00  
+dimension(s):
+  from  to  offset delta                       refsys point values    
+x    1 349  288776  28.5 +proj=utm +zone=25 +south... FALSE   NULL [x]
+y    1 352 9120761 -28.5 +proj=utm +zone=25 +south... FALSE   NULL [y]
+> plot(yy)
+> 
+> (xx = c(r,r))
+stars_proxy object with 2 attributes in files:
+$L7_ETMs.tif
+[1] "/home/edzer/git/stars.Rcheck/stars/tif/L7_ETMs.tif"
+
+$L7_ETMs.tif
+[1] "/home/edzer/git/stars.Rcheck/stars/tif/L7_ETMs.tif"
+
+dimension(s):
+     from  to  offset delta                       refsys point values    
+x       1 349  288776  28.5 +proj=utm +zone=25 +south... FALSE   NULL [x]
+y       1 352 9120761 -28.5 +proj=utm +zone=25 +south... FALSE   NULL [y]
+band    1   6      NA    NA                           NA    NA   NULL    
+> names(xx) = c("a", "b")
+> xx["a"]
+stars_proxy object with 1 attribute in file:
+$a
+[1] "/home/edzer/git/stars.Rcheck/stars/tif/L7_ETMs.tif"
+
+dimension(s):
+     from  to  offset delta                       refsys point values    
+x       1 349  288776  28.5 +proj=utm +zone=25 +south... FALSE   NULL [x]
+y       1 352 9120761 -28.5 +proj=utm +zone=25 +south... FALSE   NULL [y]
+band    1   6      NA    NA                           NA    NA   NULL    
+> pt = st_point(c(x = 290462.103109179, y = 9114202.32594085))
+> buf = st_buffer(st_sfc(pt, crs = st_crs(r)), 1500)
+> buf = st_sfc(st_polygon(list(st_buffer(pt, 1500)[[1]], st_buffer(pt, 1000)[[1]])),
++   crs = st_crs(r))
+> r = r[buf] # crops
+> r = r[buf, epsilon = 1e-5] # crops with shrinked bounding box
+> 
+> # c:
+> f = system.file("netcdf/avhrr-only-v2.19810902.nc", package = "starsdata")
+> if (f != "") {
++   files = c("avhrr-only-v2.19810901.nc",
++   "avhrr-only-v2.19810902.nc",
++   "avhrr-only-v2.19810903.nc",
++   "avhrr-only-v2.19810904.nc",
++   "avhrr-only-v2.19810905.nc",
++   "avhrr-only-v2.19810906.nc",
++   "avhrr-only-v2.19810907.nc",
++   "avhrr-only-v2.19810908.nc",
++   "avhrr-only-v2.19810909.nc")
++   l = list()
++   for (f in files) {
++ 	from = system.file(paste0("netcdf/", f), package = "starsdata")
++   	l[[f]] = read_stars(from, sub = c("sst", "anom"), proxy = TRUE)
++   }
++   ret = do.call(c, l)
++   print(ret)
++   all = system.file(paste0("netcdf/", files), package = "starsdata")
++   ret = read_stars(all, sub = c("sst", "anom"))
++   print(ret)
++   print(c(ret))
++ 
++   try(ret <- c(l[[1]], l[[2]], l[[3]], along = list(times = as.Date("1981-09-01") + 0:2)))
++   #print(ret)
++   ret = adrop(adrop(c(l[[1]], l[[2]], l[[3]], along = "times")))
++   print(ret)
++   ret <- c(l[[1]], along = list(times = as.Date("1981-09-01") + 0:1))
++   print(ret)
++ }
+sst, anom, 
+sst, anom, 
+sst, anom, 
+sst, anom, 
+sst, anom, 
+sst, anom, 
+sst, anom, 
+sst, anom, 
+sst, anom, 
+stars_proxy object with 2 attributes in files:
+$sst
+                                                                                avhrr-only-v2.19810901.nc 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810901.nc\":sst" 
+                                                                                avhrr-only-v2.19810902.nc 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810902.nc\":sst" 
+                                                                                avhrr-only-v2.19810903.nc 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810903.nc\":sst" 
+                                                                                avhrr-only-v2.19810904.nc 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810904.nc\":sst" 
+                                                                                avhrr-only-v2.19810905.nc 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810905.nc\":sst" 
+                                                                                avhrr-only-v2.19810906.nc 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810906.nc\":sst" 
+                                                                                avhrr-only-v2.19810907.nc 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810907.nc\":sst" 
+                                                                                avhrr-only-v2.19810908.nc 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810908.nc\":sst" 
+                                                                                avhrr-only-v2.19810909.nc 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810909.nc\":sst" 
+
+$anom
+                                                                                 avhrr-only-v2.19810901.nc 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810901.nc\":anom" 
+                                                                                 avhrr-only-v2.19810902.nc 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810902.nc\":anom" 
+                                                                                 avhrr-only-v2.19810903.nc 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810903.nc\":anom" 
+                                                                                 avhrr-only-v2.19810904.nc 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810904.nc\":anom" 
+                                                                                 avhrr-only-v2.19810905.nc 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810905.nc\":anom" 
+                                                                                 avhrr-only-v2.19810906.nc 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810906.nc\":anom" 
+                                                                                 avhrr-only-v2.19810907.nc 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810907.nc\":anom" 
+                                                                                 avhrr-only-v2.19810908.nc 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810908.nc\":anom" 
+                                                                                 avhrr-only-v2.19810909.nc 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810909.nc\":anom" 
+
+dimension(s):
+     from   to     offset  delta  refsys point values    
+x       1 1440          0   0.25      NA    NA   NULL [x]
+y       1  720         90  -0.25      NA    NA   NULL [y]
+zlev    1    1      0 [m]     NA      NA    NA   NULL    
+time    1    9 1981-09-01 1 days POSIXct    NA   NULL    
+sst, anom, 
+sst, anom, 
+sst, anom, 
+sst, anom, 
+sst, anom, 
+sst, anom, 
+sst, anom, 
+sst, anom, 
+sst, anom, 
+stars object with 4 dimensions and 2 attributes
+attribute(s), summary of first 1e+05 cells:
+   sst [C*°]       anom [C*°]   
+ Min.   :-1.80   Min.   :-4.69  
+ 1st Qu.:-1.19   1st Qu.:-0.06  
+ Median :-1.05   Median : 0.52  
+ Mean   :-0.32   Mean   : 0.23  
+ 3rd Qu.:-0.20   3rd Qu.: 0.71  
+ Max.   : 9.36   Max.   : 3.70  
+ NA's   :13360   NA's   :13360  
+dimension(s):
+     from   to     offset  delta  refsys point values    
+x       1 1440          0   0.25      NA    NA   NULL [x]
+y       1  720         90  -0.25      NA    NA   NULL [y]
+zlev    1    1      0 [m]     NA      NA    NA   NULL    
+time    1    9 1981-09-01 1 days POSIXct    NA   NULL    
+stars object with 5 dimensions and 1 attribute
+attribute(s), summary of first 1e+05 cells:
+     attr       
+ Min.   :-1.80  
+ 1st Qu.:-1.19  
+ Median :-1.05  
+ Mean   :-0.32  
+ 3rd Qu.:-0.20  
+ Max.   : 9.36  
+ NA's   :13360  
+dimension(s):
+        from   to     offset  delta  refsys point     values    
+x          1 1440          0   0.25      NA    NA       NULL [x]
+y          1  720         90  -0.25      NA    NA       NULL [y]
+zlev       1    1      0 [m]     NA      NA    NA       NULL    
+time       1    9 1981-09-01 1 days POSIXct    NA       NULL    
+new_dim    1    2         NA     NA      NA    NA sst , anom    
+Error in c.stars_proxy(l[[1]], l[[2]], l[[3]], along = list(times = as.Date("1981-09-01") +  : 
+  for proxy ojbects, along argument is not implemented
+stars_proxy object with 2 attributes in files:
+$sst
+[1] "NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810901.nc\":sst"
+[2] "NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810902.nc\":sst"
+[3] "NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810903.nc\":sst"
+
+$anom
+[1] "NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810901.nc\":anom"
+[2] "NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810902.nc\":anom"
+[3] "NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810903.nc\":anom"
+
+dimension(s):
+      from   to     offset delta  refsys point values    
+x        1 1440          0  0.25      NA    NA   NULL [x]
+y        1  720         90 -0.25      NA    NA   NULL [y]
+zlev     1    1      0 [m]    NA      NA    NA   NULL    
+time     1    1 1981-09-01    NA POSIXct    NA   NULL    
+times    1    3         NA    NA      NA    NA   NULL    
+call list:
+[[1]]
+adrop(x = x)
+
+[[2]]
+adrop(x = x)
+
+stars_proxy object with 3 attributes in files:
+                                                                                                       sst 
+ "NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810901.nc\":sst" 
+                                                                                                      anom 
+"NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810901.nc\":anom" 
+                                                                                                     along 
+                                                                                                       "5" 
+dimension(s):
+      from   to     offset  delta  refsys point values    
+x        1 1440          0   0.25      NA    NA   NULL [x]
+y        1  720         90  -0.25      NA    NA   NULL [y]
+zlev     1    1      0 [m]     NA      NA    NA   NULL    
+time     1    1 1981-09-01     NA POSIXct    NA   NULL    
+times    1    2 1981-09-01 1 days    Date    NA   NULL    
+> 
+> proc.time()
+   user  system elapsed 
+  3.323   0.573   3.887 

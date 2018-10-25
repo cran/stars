@@ -40,13 +40,19 @@ Math.stars = function(x, ...) {
 	st_as_stars(ret, dimensions = st_dimensions(x))
 }
 
+#' @export
+st_apply = function(X, MARGIN, FUN, ...) UseMethod("st_apply")
+
 #' st_apply apply a function to one or more array dimensions
 #' 
 #' st_apply apply a function to array dimensions: aggregate over space, time, or something else
+#' @name st_apply
 #' @param X object of class \code{stars}
-#' @param MARGIN see \link[base]{apply}
+#' @param MARGIN see \link[base]{apply}; if \code{MARGIN} is a character vector, 
 #' @param FUN see \link[base]{apply}
 #' @param ... arguments passed on to \code{FUN}
+#' @param CLUSTER cluster to use for parallel apply; see \link[parallel]{makeCluster}
+#' @param PROGRESS logical; if \code{TRUE}, use \code{pbapply::pbapply} to show progress bar
 #' @return object of class \code{stars} with accordingly reduced number of dimensions; in case \code{FUN} returns more than one value, a new dimension is created carrying the name of the function used; see the examples.
 #' @examples
 #' tif = system.file("tif/L7_ETMs.tif", package = "stars")
@@ -55,11 +61,24 @@ Math.stars = function(x, ...) {
 #' st_apply(x, 3, mean)   # mean of all pixels for each band
 #' st_apply(x, 1:2, range) # min and max band value for each pixel
 #' @export
-st_apply = function(X, MARGIN, FUN, ...) {
+st_apply.stars = function(X, MARGIN, FUN, ..., CLUSTER = NULL, PROGRESS = FALSE) {
 	fname <- paste(deparse(substitute(FUN), 50), collapse = "\n")
+	if (is.character(MARGIN))
+		MARGIN = match(MARGIN, names(dim(X)))
 	dX = dim(X)[MARGIN]
+
+	if (PROGRESS && !requireNamespace("pbapply", quietly = TRUE))
+		stop("package pbapply required, please install it first")
+
 	fn = function(y, ...) {
-		ret = apply(y, MARGIN, FUN, ...)
+		ret = if (PROGRESS)
+				pbapply::pbapply(y, MARGIN, FUN, ..., cl = CLUSTER)
+			else {
+				if (is.null(CLUSTER))
+					apply(y, MARGIN, FUN, ...)
+				else
+					parallel::parApply(CLUSTER, y, MARGIN, FUN, ...)
+			}
 		if (is.array(ret))
 			ret
 		else
@@ -68,18 +87,15 @@ st_apply = function(X, MARGIN, FUN, ...) {
 	ret = lapply(X, fn, ...) 
 	dim_ret = dim(ret[[1]])
 	if (length(dim_ret) == length(MARGIN)) # FUN returned a single value
-		st_as_stars(ret, dimensions = st_dimensions(X)[MARGIN])
+		st_stars(ret, st_dimensions(X)[MARGIN])
 	else { # FUN returned multiple values:
 		orig = st_dimensions(X)[MARGIN]
+		r = attr(orig, "raster")
 		dims = c(structure(list(list()), names = fname), orig)
 		dims[[1]] = if (!is.null(dimnames(ret[[1]])[[1]])) # FUN returned named vector:
 				create_dimension(values = dimnames(ret[[1]])[[1]])
 			else
 				create_dimension(to = dim_ret[1])
-		ret = st_as_stars(ret, dimensions = structure(dims, class = "dimensions")) # FIXME: better to use constructor?
-		if (all(c("x", "y") %in% names(dims)))
-			ret = aperm(ret, c("x", "y", setdiff(names(dims), c("x", "y"))))
-		ret
+		st_stars(ret, dimensions = create_dimensions(dims, r))
 	}
 }
-

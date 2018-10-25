@@ -10,7 +10,7 @@
 #' @param nbreaks number of color breaks; should be one more than number of colors. If missing and \code{col} is specified, it is derived from that.
 #' @param breaks actual color breaks, or a method name used for \link[classInt]{classIntervals}.
 #' @param col colors to use for grid cells
-#' @param ... for \code{plot}, passed on to \code{image.stars}; for \code{image}, passed on to \code{image.default} or \code{rasterImage}.
+#' @param ... further arguments: for \code{plot}, passed on to \code{image.stars}; for \code{image}, passed on to \code{image.default} or \code{rasterImage}.
 #' @param key.pos integer; side to plot a color key: 1 bottom, 2 left, 3 top, 4 right; set to \code{NULL} to omit key. Ignored if multiple columns are plotted in a single function call. Default depends on plot size, map aspect, and, if set, parameter \code{asp}.
 #' @param key.width amount of space reserved for width of the key (labels); relative or absolute (using lcm)
 #' @param key.length amount of space reserved for length of the key (labels); relative or absolute (using lcm)
@@ -24,18 +24,22 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = names(x)[1], axes = FA
 
 	flatten = function(x, i) { # collapse all non-x/y dims into one, and select "layer" i
 		d = st_dimensions(x)
+		dxy = attr(d, "raster")$dimensions
 		dims = dim(x)
 		x = x[[1]]
-		aux = setdiff(names(dims), c("x", "y"))
-		newdims = c(dims[c("x", "y")], prod(dims[aux]))
+		aux = setdiff(names(dims), dxy)
+		newdims = c(dims[dxy], prod(dims[aux]))
 		dim(x) = newdims
-		st_as_stars(list(x[,,i]), dimensions = d[c("x", "y")])
+		st_as_stars(list(x[,,i]), dimensions = d[dxy])
 	}
 	key.pos.missing = missing(key.pos)
 	if (missing(nbreaks) && !missing(col))
 		nbreaks = length(col) + 1
 	opar = par()
 	dots = list(...)
+
+	#if (any(dim(x) == 1))
+	#	x = adrop(x)
 
 	if (join_zlim) {
 		breaks = get_breaks(x, breaks, nbreaks)
@@ -45,6 +49,9 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = names(x)[1], axes = FA
 	if (!missing(y))
 		stop("y argument should be missing")
 	if (has_raster(x)) {
+		dxy = attr(st_dimensions(x), "raster")$dimensions
+		loop = setdiff(names(dim(x)), dxy) # dimension (name) over which we loop, if any
+		x = aperm(x, c(dxy, loop))
 		zlim = if (join_zlim)
 				range(unclass(x[[1]]), na.rm = TRUE)
 			else
@@ -52,15 +59,15 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = names(x)[1], axes = FA
 		dims = dim(x)
 		if (downsample) {
 			n = dims * 0 + 1 # keep names
-			n[c("x", "y")] = get_downsample(dims)
+			n[dxy] = get_downsample(dims)
 			x = st_downsample(x, n)
 		}
 		if (length(dims) == 2 || dims[3] == 1 || !is.null(dots$rgb)) { ## ONE IMAGE:
 			# set up key region
-			values = as.vector(x[[1]])
+			values = as.vector_stars(x[[1]])
 			if (! isTRUE(dots$add) && ! is.null(key.pos) && !all(is.na(values)) &&
 					(is.factor(values) || length(unique(na.omit(values))) > 1) &&
-					length(col) > 1 && is.null(dots$rgb)) { # plot key?
+					length(col) > 1 && is.null(dots$rgb) && !is_curvilinear(x)) { # plot key?
 				switch(key.pos,
 					layout(matrix(c(2,1), nrow = 2, ncol = 1), widths = 1, heights = c(1, key.width)),  # 1 bottom
 					layout(matrix(c(1,2), nrow = 1, ncol = 2), widths = c(key.width, 1), heights = 1),  # 2 left
@@ -79,7 +86,7 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = names(x)[1], axes = FA
 			par(mar = c(axes * 2.1, axes * 2.1, 1 * !is.null(main), 0))
 
 			# plot the map:
-			image(x, ..., axes = axes, breaks = breaks, col = col)
+			image(x, ..., axes = axes, breaks = breaks, col = col, key.pos = key.pos, main = NULL)
 			if (!is.null(main))
 				title(main)
 
@@ -103,7 +110,7 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = names(x)[1], axes = FA
 					br = get_breaks(im, breaks, nbreaks)
 				} else
 					br = breaks
-				image(im, xlab = "", ylab = "", axes = axes, zlim = zlim, breaks = br, col = col, ...)
+				image(im, xlab = "", ylab = "", axes = axes, zlim = zlim, breaks = br, col = col, key.pos = NULL, main = NULL, ...)
 				if (!is.null(main)) {
 					if (length(main) == dims[3])
 						title(main[i])
@@ -115,7 +122,7 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = names(x)[1], axes = FA
 			for (i in seq_len(prod(lt$mfrow) - dims[3])) # empty panels:
 				plot.new()
 			if (draw.key) {
-				values = as.vector(x[[1]])
+				values = as.vector_stars(x[[1]])
 				if (is.factor(values))
 					.image_scale_factor(levels(values), col, key.pos = lt$key.pos,
 						key.width = key.width, key.length = key.length, axes = axes,...)
@@ -161,30 +168,43 @@ get_breaks = function(x, breaks, nbreaks) {
 #' @param ylim y axis limits
 #' @param text_values logical; print values as text on image?
 #' @param interpolate logical; when using \link{rasterImage} (rgb), should pixels be interpolated?
+#' @param as_points logical; for curvilinear or sheared grids: parameter passed on to \link{st_as_sf}, determining whether raster cells will be plotted as symbols (fast, approximate) or small polygons (slow, exact)
 #' @export
 #' @examples
 #' tif = system.file("tif/L7_ETMs.tif", package = "stars")
 #' x = read_stars(tif)
 #' image(x, col = grey((3:9)/10))
 #' image(x, rgb = c(1,3,5)) # rgb composite
-image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL, maxColorValue = max(x[[attr]]),
-		xlab = if (!axes) "" else names(dims)[1], ylab = if (!axes) "" else names(dims)[2],
+image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL, 
+		maxColorValue = max(x[[attr]]),
+		xlab = if (!axes) "" else names(d)[1], ylab = if (!axes) "" else names(d)[2],
 		xlim = st_bbox(x)$xlim, ylim = st_bbox(x)$ylim, text_values = FALSE, axes = FALSE,
-		interpolate = FALSE) {
+		interpolate = FALSE, as_points = FALSE, key.pos = NULL) {
 
 	dots = list(...)
-	stopifnot(!has_rotate_or_shear(x)) # FIXME: use rasterImage() with rotate, if only rotate & no shear
+
+	#stopifnot(!has_rotate_or_shear(x)) # FIXME: use rasterImage() with rotate, if only rotate & no shear
 
 	if (any(dim(x) == 1))
 		x = adrop(x)
 
 	force(xlim)
 	force(ylim)
-	dims = expand_dimensions(x)
 
-	y_is_neg = all(diff(dims$y) < 0)
-	if (y_is_neg)
-		dims[[2]] = rev(dims[[2]])
+	d = st_dimensions(x)
+
+	dimxy = attr(d, "raster")$dimensions
+	dimx =  dimxy[1]
+	dimy =  dimxy[2]
+	dimxn = match(dimx, names(d))
+	dimyn = match(dimy, names(d))
+
+	if (!is_curvilinear(x)) {
+		dims = expand_dimensions(x)
+		y_is_neg = all(diff(dims[[ dimy ]]) < 0)
+		if (y_is_neg)
+			dims[[ dimy ]] = rev(dims[[ dimy ]])
+	}
 
 	if (is.null(asp)) {
 		bb = st_bbox(x)
@@ -192,9 +212,19 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL, maxCo
 	}
 
 	ar = unclass(x[[ attr ]]) # raw data matrix/array
-	if (!is.null(rgb)) {
+
+	# rearrange ar:
+	third = setdiff(1:3, c(dimxn, dimyn))[1]
+	ar = if (length(dim(x)) == 3) # FIXME: deal with more than 3 dims here?
+			aperm(ar, c(dimxn, dimyn, third))
+		else
+			aperm(ar, c(dimxn, dimyn))
+
+	if (! is.null(rgb)) {
 		if (is_rectilinear(x))
-			warning("rectilinear rgb grid is plotted as regular grid")
+			warning("when using rgb, rectilinear grid is plotted as regular grid")
+		if (is_curvilinear(x))
+			warning("when using rgb, curvilinear grid is plotted as regular grid")
 		xy = dim(ar)[1:2]
 		ar = structure(ar[ , , rgb], dim = c(prod(xy), 3)) # flattens x/y
 		nas = apply(ar, 1, function(x) any(is.na(x)))
@@ -211,15 +241,25 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL, maxCo
 		myRasterImage = function(x, xmin, ymin, xmax, ymax, interpolate, ..., breaks, add) # absorbs breaks & add
 			rasterImage(x, xmin, ymin, xmax, ymax, interpolate = interpolate, ...)
 		myRasterImage(t(mat), xlim[1], ylim[1], xlim[2], ylim[2], interpolate = interpolate, ...)
-	} else { 
-		if (y_is_neg) {
+	} else if (is_curvilinear(x) || has_rotate_or_shear(x)) { 
+		x = st_as_sf(x[1], as_points = as_points)
+		mplot = function(x, col, ...) {
+			if (missing(col))
+				plot(x, ...)
+			else
+				plot(x, pal = col, ...) # need to swap arg names: FIXME:?
+		}
+		mplot(x, xlab = xlab, ylab = ylab, xlim = xlim, ylim = ylim, axes = axes, reset = FALSE, 
+			key.pos = key.pos, ...)
+	} else { # regular grid, no RGB:
+		if (y_is_neg) { # need to flip y?
 			ar = if (length(dim(x)) == 3) # FIXME: deal with more than 3 dims here?
 				ar[ , rev(seq_len(dim(ar)[2])), band]
 			else
 				ar[ , rev(seq_len(dim(ar)[2]))]
 		}
-		image.default(dims[[1]], dims[[2]], unclass(ar), asp = asp, xlab = xlab, ylab = ylab, 
-			xlim = xlim, ylim = ylim, axes = FALSE,...)
+		image.default(dims[[ dimx ]], dims[[ dimy ]], ar, asp = asp, xlab = xlab, ylab = ylab, 
+			xlim = xlim, ylim = ylim, axes = FALSE, ...)
 	}
 	if (text_values)
 		text(do.call(expand.grid, dims[1:2]), labels = as.character(as.vector(ar))) # xxx
@@ -237,13 +277,16 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL, maxCo
 # reduce resolution of x, keeping (most of) extent
 st_downsample = function(x, n) {
 	stopifnot(all(n >= 0))
-	d = dim(x)
-	n = rep(n, length.out = length(d))
-	args = rep(list(rlang::missing_arg()), length(d)+1)
-	for (i in seq_along(d))
-		if (n[i] > 1)
-			args[[i+1]] = seq(1, d[i], n[i])
-	eval(rlang::expr(x[!!!args]))
+	if (! all(n <= 1)) {
+		d = dim(x)
+		n = rep(n, length.out = length(d))
+		args = rep(list(rlang::missing_arg()), length(d)+1)
+		for (i in seq_along(d))
+			if (n[i] > 1)
+				args[[i+1]] = seq(1, d[i], n[i])
+		eval(rlang::expr(x[!!!args]))
+	} else
+		x
 }
 
 # compute the degree of downsampling allowed to still have more than 

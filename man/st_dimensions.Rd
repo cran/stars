@@ -2,13 +2,9 @@
 % Please edit documentation in R/dimensions.R
 \name{st_dimensions}
 \alias{st_dimensions}
-\alias{st_dimensions}
 \alias{st_dimensions.stars}
-\alias{st_dimensions}
 \alias{st_dimensions.array}
-\alias{st_dimensions}
 \alias{st_dimensions.default}
-\alias{st_dimensions}
 \alias{st_set_dimensions}
 \title{get dimensions from stars object}
 \usage{
@@ -18,20 +14,22 @@ st_dimensions(.x, ...)
 
 \method{st_dimensions}{array}(.x, ...)
 
-\method{st_dimensions}{default}(.x, ..., geotransform = rep(NA_real_, 6))
+\method{st_dimensions}{default}(.x, ..., .raster = rep(NA_character_, 2))
 
-st_set_dimensions(.x, which, values)
+st_set_dimensions(.x, which, values, names)
 }
 \arguments{
 \item{.x}{object to retrieve dimensions information from}
 
 \item{...}{further arguments}
 
-\item{geotransform}{(if not missing): geotransform for x and y dimensions}
+\item{.raster}{length 2 character array with names (if any) of the raster dimensions}
 
 \item{which}{integer which dimension to change}
 
 \item{values}{values for this dimension (e.g. \code{sfc} list-column)}
+
+\item{names}{character; new names vector for (all) dimensions, ignoring \code{which}}
 }
 \value{
 the \code{dimensions} attribute of \code{x}, of class \code{dimensions}

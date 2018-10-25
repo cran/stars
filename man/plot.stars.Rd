@@ -2,28 +2,28 @@
 % Please edit documentation in R/plot.R
 \name{plot.stars}
 \alias{plot.stars}
-\alias{plot.stars}
 \alias{image.stars}
 \title{plot stars object, with subplots for each level of first non-spatial dimension}
 \usage{
 \method{plot}{stars}(x, y, ..., join_zlim = TRUE, main = names(x)[1],
-  axes = FALSE, downsample = TRUE, nbreaks = 11, breaks = "quantile",
-  col = grey(1:(nbreaks - 1)/nbreaks), key.pos = get_key_pos(x, ...),
-  key.width = lcm(1.8), key.length = 0.618, reset = TRUE,
-  box_col = grey(0.8))
+  axes = FALSE, downsample = TRUE, nbreaks = 11,
+  breaks = "quantile", col = grey(1:(nbreaks - 1)/nbreaks),
+  key.pos = get_key_pos(x, ...), key.width = lcm(1.8),
+  key.length = 0.618, reset = TRUE, box_col = grey(0.8))
 
 \method{image}{stars}(x, ..., band = 1, attr = 1, asp = NULL,
-  rgb = NULL, maxColorValue = max(x[[attr]]), xlab = if (!axes) "" else
-  names(dims)[1], ylab = if (!axes) "" else names(dims)[2],
-  xlim = st_bbox(x)$xlim, ylim = st_bbox(x)$ylim, text_values = FALSE,
-  axes = FALSE, interpolate = FALSE)
+  rgb = NULL, maxColorValue = max(x[[attr]]), xlab = if (!axes) ""
+  else names(d)[1], ylab = if (!axes) "" else names(d)[2],
+  xlim = st_bbox(x)$xlim, ylim = st_bbox(x)$ylim,
+  text_values = FALSE, axes = FALSE, interpolate = FALSE,
+  as_points = FALSE, key.pos = NULL)
 }
 \arguments{
 \item{x}{object of class \code{stars}}
 
 \item{y}{ignored}
 
-\item{...}{for \code{plot}, passed on to \code{image.stars}; for \code{image}, passed on to \code{image.default} or \code{rasterImage}.}
+\item{...}{further arguments: for \code{plot}, passed on to \code{image.stars}; for \code{image}, passed on to \code{image.default} or \code{rasterImage}.}
 
 \item{join_zlim}{logical; if \code{TRUE}, compute a single, joint zlim (color scale) for all subplots from \code{x}}
 
@@ -70,6 +70,8 @@
 \item{text_values}{logical; print values as text on image?}
 
 \item{interpolate}{logical; when using \link{rasterImage} (rgb), should pixels be interpolated?}
+
+\item{as_points}{logical; for curvilinear or sheared grids: parameter passed on to \link{st_as_sf}, determining whether raster cells will be plotted as symbols (fast, approximate) or small polygons (slow, exact)}
 }
 \description{
 plot stars object, with subplots for each level of first non-spatial dimension
