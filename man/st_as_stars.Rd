@@ -21,14 +21,16 @@ st_as_stars(.x, ...)
   crs = st_crs(4326))
 
 \method{st_as_stars}{bbox}(.x, ..., nx = 360, ny = 180,
+  deltax = diff(xlim)/nx, deltay = -diff(ylim)/ny,
   xlim = .x[c("xmin", "xmax")], ylim = .x[c("ymin", "ymax")],
-  values = runif(nx * ny))
+  values = 0)
 
-\method{st_as_stars}{sf}(.x, ...)
+\method{st_as_stars}{sf}(.x, ..., name = attr(.x, "sf_column"))
 
 \method{st_as_stars}{Raster}(.x, ...)
 
-\method{st_as_stars}{stars_proxy}(.x, ..., downsample = 0)
+\method{st_as_stars}{stars_proxy}(.x, ..., downsample = 0,
+  url = attr(.x, "url"), env = parent.frame())
 }
 \arguments{
 \item{.x}{object to convert}
@@ -47,13 +49,23 @@ st_as_stars(.x, ...)
 
 \item{ny}{integer; number of cells in y direction}
 
-\item{xlim}{length 2 numeric vector with extent in x direction}
+\item{deltax}{numeric; cell size in x direction}
 
-\item{ylim}{length 2 numeric vector with extent in y direction}
+\item{deltay}{numeric; cell size in y direction (negative)}
+
+\item{xlim}{length 2 numeric vector with extent (min, max) in x direction}
+
+\item{ylim}{length 2 numeric vector with extent (min, max) in y direction}
 
 \item{values}{value(s) to populate the raster values with}
 
-\item{downsample}{integer: if larger than 0, downsample with this rate (number of pixels to skip in every row/column)}
+\item{name}{character; name for the geometry dimensions}
+
+\item{downsample}{integer: if larger than 0, downsample with this rate (number of pixels to skip in every row/column); if length 2, specifies downsampling rate in x and y.}
+
+\item{url}{character; URL of the stars endpoint where the data reside}
+
+\item{env}{environment at the data endpoint to resolve objects in}
 }
 \description{
 convert objects into a stars object

@@ -40,7 +40,13 @@ transform_grid_grid = function(x, target) {
 	xy_names = attr(target, "raster")$dimensions
 	new_pts = st_coordinates(target[xy_names])
 	dxy = attr(target, "raster")$dimensions
-	pts = sf_project(from = target[[ dxy[1] ]]$refsys, to = st_crs(x)$proj4string, pts = new_pts)
+
+	from = if (inherits(target[[ dxy[1] ]]$refsys, "crs")) # FIXME: drop support for this?
+			target[[ dxy[1] ]]$refsys$proj4string
+		else
+			target[[ dxy[1] ]]$refsys
+
+	pts = sf_project(from = from, to = st_crs(x)$proj4string, pts = new_pts)
 
 	# at xy (target) locations, get values from x, or put NA
 	# to array:
@@ -67,7 +73,7 @@ transform_grid_grid = function(x, target) {
 		}
 	}
 	d[dxy] = target[1:2]
-	structure(x, dimensions = create_dimensions(d, attr(target, "raster")))
+	st_stars(x, dimensions = create_dimensions(d, attr(target, "raster")))
 }
 
 
@@ -82,7 +88,9 @@ transform_grid_grid = function(x, target) {
 #' @param options character vector with options, passed on to gdalwarp
 #' @param no_data_value value used by gdalwarp for no_data (NA) when writing to temporaray file
 #' @param debug logical; if \code{TRUE}, do not remove the temporary gdalwarp destination file, and print its name
+#' @param method character; see details for options; methods other than \code{near} only work when \code{use_gdal=TRUE} 
 #' @param ... ignored
+#' @details \code{method} should be one of \code{near}, \code{bilinear}, \code{cubic}, \code{cubicspline}, \code{lanczos}, \code{average}, \code{mode}, \code{max}, \code{min}, \code{med}, \code{q1} or \code{q3}; see https://github.com/r-spatial/stars/issues/109
 #' @examples
 #' geomatrix = system.file("tif/geomatrix.tif", package = "stars")
 #' (x = read_stars(geomatrix))
@@ -95,36 +103,52 @@ transform_grid_grid = function(x, target) {
 #' plot(st_transform(st_as_sfc(x, as_points=FALSE), new_crs), add = TRUE)
 #' @details For gridded spatial data (dimensions \code{x} and \code{y}), see figure; the existing grid is transformed into a regular grid defined by \code{dest}, possibly in a new coordinate reference system. If \code{dest} is not specified, but \code{crs} is, the procedure used to choose a target grid is similar to that of \link[raster]{projectRaster} (currently only with \code{method='ngb'}). This entails: (i) the envelope (bounding box polygon) is transformed into the new crs, possibly after segmentation (red box); (ii) a grid is formed in this new crs, touching the transformed envelope on its East and North side, with (if cellsize is not given) a cellsize similar to the cell size of \code{src}, with an extent that at least covers \code{x}; (iii) for each cell center of this new grid, the matching grid cell of \code{x} is used; if there is no match, an \code{NA} value is used.
 #' @export
-st_warp = function(src, dest, ..., crs, cellsize = NA_real_, segments = 100, use_gdal = FALSE, 
-		options = character(0), no_data_value = -9999, debug = FALSE) {
+st_warp = function(src, dest, ..., crs = NA_crs_, cellsize = NA_real_, segments = 100, 
+		use_gdal = FALSE, options = character(0), no_data_value = NA_real_, debug = FALSE,
+		method = "near") {
+
+	if (!is.na(crs))
+		crs = st_crs(crs)
+
 	if (use_gdal) {
-		options = c(options, "-dstnodata", no_data_value)
-		src = st_as_stars_proxy(src)
-		on.exit(unlink(src[[1]]))
-		if (missing(dest) && missing(crs)) {
+		options = c(options, "-dstnodata", no_data_value, "-r", method)
+		if (! inherits(src, "stars_proxy")) {
+			src = st_as_stars_proxy(src, NA_value = no_data_value)
+			if (debug)
+				cat("Writing input to: ", src[[1]], "\n")
+			else
+				on.exit(unlink(src[[1]])) # temp file
+		}
+		if (missing(dest) && is.na(crs)) {
+			delete = TRUE
 			dest = tempfile(fileext = ".tif")
 			sf::gdal_utils("warp", src[[1]], dest, options = options)
-			if (!debug)
-				on.exit(unlink(dest))
-			else	
-				cat("Writing to: ", dest, "\n")
-			read_stars(dest)
-		} else {
-			dest = st_as_stars_proxy(dest)
-			if (!debug)
-				on.exit(unlink(dest[[1]]))
-			else
-				cat("Writing to: ", dest[[1]], "\n")
-			sf::gdal_utils("warp", src[[1]], dest[[1]], options = options)
-			st_as_stars(dest)
+		} else {  # dest exists, and should be used: should use warper rather than warp
+			dest = if (! inherits(dest, "stars_proxy")) {
+					dest[[1]] = NA_real_ * dest[[1]] # blank out values
+					delete = !debug
+					st_as_stars_proxy(dest, NA_value = no_data_value)[[1]]
+				} else {
+					delete = FALSE
+					dest[[1]] # the file name of the stars_proxy, not to be deleted
+				}
+			if (utils::packageVersion("sf") <= "0.7-2")
+				sf::gdal_utils("warp", src[[1]], dest, options = options)
+			else 
+				sf::gdal_utils("warper", src[[1]], dest, options = method) # not "warp"!
 		}
+		if (debug)
+			cat("Writing result to: ", dest, "\n")
+		else if (delete)
+			on.exit(unlink(dest)) # a temp file
+		read_stars(dest)
 	} else {
 		if (missing(dest)) {
-			if (missing(crs))
+			if (is.na(crs))
 				stop("either dest or crs should be specified")
 			dest = default_target_grid(src, crs = crs, cellsize = cellsize, segments = segments)
 		} else if (!inherits(dest, "stars") && !inherits(dest, "dimensions"))
 			stop("dest should be a stars object, or a dimensions object")
-		transform_grid_grid(src, st_dimensions(dest))
+		transform_grid_grid(st_as_stars(src), st_dimensions(dest))
 	}
 }

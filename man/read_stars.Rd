@@ -7,7 +7,7 @@
 read_stars(.x, ..., options = character(0), driver = character(0),
   sub = TRUE, quiet = FALSE, NA_value = NA_real_,
   along = NA_integer_, RasterIO = list(), proxy = FALSE,
-  curvilinear = character(0))
+  curvilinear = character(0), normalize_path = TRUE)
 }
 \arguments{
 \item{.x}{character vector with name(s) of file(s) or data source(s) to be read}
@@ -16,7 +16,7 @@ read_stars(.x, ..., options = character(0), driver = character(0),
 
 \item{options}{character; opening options}
 
-\item{driver}{character; driver to use for opening file}
+\item{driver}{character; driver to use for opening file. To override fixing for subdatasets and autodetect them as well, use \code{NULL}.}
 
 \item{sub}{integer or logical; sub-datasets to be read}
 
@@ -31,6 +31,8 @@ read_stars(.x, ..., options = character(0), driver = character(0),
 \item{proxy}{logical; if \code{TRUE}, an object of class \code{stars_proxy} is read which contains array metadata only; if \code{FALSE} the full array data is read in memory.}
 
 \item{curvilinear}{length two character vector with names of subdatasets holding longitude and latitude values for all raster cells.}
+
+\item{normalize_path}{logical; if \code{FALSE}, suppress a call to \link{normalizePath} on \code{.x}}
 }
 \value{
 object of class \code{stars}
@@ -69,7 +71,7 @@ attr(st, "dimensions")$y$delta = -1
 attr(st, "dimensions")$y$offset = 12
 st
 tmp = tempfile(fileext = ".tif")
-st_write(st, tmp)
+write_stars(st, tmp)
 (red <- read_stars(tmp))
 read_stars(tmp, RasterIO = list(nXOff = 1, nYOff = 1, nXsize = 10, nYSize = 12, 
    nBufXSize = 2, nBufYSize = 2))[[1]]

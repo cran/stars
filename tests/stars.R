@@ -8,6 +8,16 @@ gdal_crs(tif)
 plot(x)
 plot(x, join_zlim = FALSE)
 x %>% st_set_dimensions(names = c('a', 'b', 'c'))
+st_get_dimension_values(x, 3)
+
+(x1 = st_set_dimensions(x, "band", values = c(1,2,3,4,5,7), names = "band_number", point = TRUE))
+rbind(c(0.45,0.515), c(0.525,0.605), c(0.63,0.69), c(0.775,0.90), c(1.55,1.75), c(2.08,2.35)) %>%
+	units::set_units(um) -> bw # units::set_units(µm) -> bw
+# set bandwidth midpoint:
+(x2 = st_set_dimensions(x, "band", values = 0.5 * (bw[,1]+bw[,2]), 
+   names = "bandwidth_midpoint", point = TRUE))
+# set bandwidth intervals:
+(x3 = st_set_dimensions(x, "band", values = make_intervals(bw), names = "bandwidth"))
 
 x + x
 x * x
@@ -26,17 +36,18 @@ st_coordinates(x)[1:10,]
 nc = system.file("nc/tos_O1_2001-2002.nc", package = "stars")
 (x = read_stars(nc))
 st_as_stars(st_bbox(x))
+st_as_stars(st_bbox(x), deltax = 20, deltay = 20)
 df = as.data.frame(x)
-
-st_as_stars()
 
 dimnames(x)
 dimnames(x) <- letters[1:3]
 dimnames(x)
+st_as_stars()
 
 # multiple sub-datasets:
 nc_red = system.file("nc/reduced.nc", package = "stars")
-(red = read_stars(nc_red))
+red = read_stars(nc_red)
+red
 plot(red)
 
 x = st_xy2sfc(read_stars(tif)[,1:10,1:10,], as_points = FALSE)
@@ -86,4 +97,31 @@ if (f != "") {
   print(ret)
 }
 
-st_dimensions(list(matrix(1, 4,4))) # st_dimensions.default
+st_dimensions(list(matrix(1, 4, 4))) # st_dimensions.default
+
+if (FALSE && require("starsdata")) {
+  # curvilinear:
+  s5p = system.file(
+      "sentinel5p/S5P_NRTI_L2__NO2____20180717T120113_20180717T120613_03932_01_010002_20180717T125231.nc",
+      package = "starsdata")
+  print(s5p)
+  lat_ds = paste0("HDF5:\"", s5p, "\"://PRODUCT/latitude")
+  lon_ds = paste0("HDF5:\"", s5p, "\"://PRODUCT/longitude")
+  nit_ds = paste0("HDF5:\"", s5p, "\"://PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_summed_total_column")
+  lat = read_stars(lat_ds)
+  lon = read_stars(lon_ds)
+  nit = read_stars(nit_ds)
+  nit[[1]][nit[[1]] > 9e+36] = NA
+  
+  ll = setNames(c(lon, lat), c("x", "y"))
+  nit.c = st_as_stars(nit, curvilinear = ll)
+  print(nit.c)
+
+  s5p = system.file(
+      "sentinel5p/S5P_NRTI_L2__NO2____20180717T120113_20180717T120613_03932_01_010002_20180717T125231.nc",
+      package = "starsdata")
+  nit.c2 = read_stars(s5p, 
+  	sub = "//PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_summed_total_column",
+    curvilinear = c("//PRODUCT/latitude", "//PRODUCT/longitude"))
+  print(all.equal(nit.c, nit.c2))
+}

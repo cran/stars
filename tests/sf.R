@@ -3,7 +3,8 @@ library(sf)
 #jp2 = system.file("jp2/B01.jp2", package = "stars")
 #(x = read_stars(jp2, options = c("OVERVIEW_LEVEL=3")))
 tif = system.file("tif/L7_ETMs.tif", package = "stars")
-(x = read_stars(tif, options = c("OVERVIEW_LEVEL=3")))
+#(x = read_stars(tif, options = c("OVERVIEW_LEVEL=3"))) # FIXME: breaks on windows
+(x = read_stars(tif)[,1:20,1:20])
 # names(x) = "L7_ETM"
 
 # library(abind)
@@ -15,6 +16,8 @@ plot(sfc, add  =TRUE)
 plot(sfc, add = TRUE)
 
 sf = st_as_sf(x, as_points = FALSE)
+plot(sf, border = NA)
+sf = st_as_sf(x[,,,1], as_points = FALSE, merge = TRUE)
 plot(sf, border = NA)
 
 sfc1 <- st_as_sfc(x, as_points = TRUE, use_cpp = TRUE, na.rm = FALSE)
@@ -32,8 +35,9 @@ colnames(m) = c("a", "b", "c")
 foo = st_sf(m, geom = x)
 x = st_as_stars(foo)
 c(x)
+st_redimension(x)
 c(x, x)
-(y = c(x, along = list(time = as.Date("2017-11-27") + 0:2)))
+(y = st_redimension(x, along = list(time = as.Date("2017-11-27") + 0:2)))
 st_as_sf(y)
 st_as_sf(st_as_stars(foo))
 

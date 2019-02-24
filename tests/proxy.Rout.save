@@ -46,6 +46,49 @@ call list:
 [[1]]
 x[, , , 2:3]
 
+> r+r
+stars_proxy object with 1 attribute in file:
+$L7_ETMs.tif
+[1] "/home/edzer/git/stars.Rcheck/stars/tif/L7_ETMs.tif"
+
+dimension(s):
+     from  to  offset delta                       refsys point values    
+x       1 349  288776  28.5 +proj=utm +zone=25 +south... FALSE   NULL [x]
+y       1 352 9120761 -28.5 +proj=utm +zone=25 +south... FALSE   NULL [y]
+band    1   6      NA    NA                           NA    NA   NULL    
+call list:
+[[1]]
+e1 + r
+
+> st_as_stars(sin(r), downsample = 2)
+stars object with 3 dimensions and 1 attribute
+attribute(s):
+  L7_ETMs.tif      
+ Min.   :-0.99999  
+ 1st Qu.:-0.67677  
+ Median : 0.03540  
+ Mean   : 0.01865  
+ 3rd Qu.: 0.68326  
+ Max.   : 0.99991  
+dimension(s):
+     from  to  offset    delta                       refsys point values    
+x       1 116  288776  85.7457 +proj=utm +zone=25 +south... FALSE   NULL [x]
+y       1 117 9120761 -85.7436 +proj=utm +zone=25 +south... FALSE   NULL [y]
+band    1   6      NA       NA                           NA    NA   NULL    
+> aperm(r, c(3,2,1))
+stars_proxy object with 1 attribute in file:
+$L7_ETMs.tif
+[1] "/home/edzer/git/stars.Rcheck/stars/tif/L7_ETMs.tif"
+
+dimension(s):
+     from  to  offset delta                       refsys point values    
+x       1 349  288776  28.5 +proj=utm +zone=25 +south... FALSE   NULL [x]
+y       1 352 9120761 -28.5 +proj=utm +zone=25 +south... FALSE   NULL [y]
+band    1   6      NA    NA                           NA    NA   NULL    
+call list:
+[[1]]
+aperm(a = a, perm = c(3, 2, 1))
+
 > plot(r)
 > (xx = c(r,r))
 stars_proxy object with 2 attributes in files:
@@ -60,14 +103,14 @@ dimension(s):
 x       1 349  288776  28.5 +proj=utm +zone=25 +south... FALSE   NULL [x]
 y       1 352 9120761 -28.5 +proj=utm +zone=25 +south... FALSE   NULL [y]
 band    1   6      NA    NA                           NA    NA   NULL    
-> c(xx)
-stars_proxy object with 3 attributes in files:
+> st_redimension(xx)
+stars_proxy object with 1 attribute in files:
+$L7_ETMs.tif.L7_ETMs.tif
                                          L7_ETMs.tif 
 "/home/edzer/git/stars.Rcheck/stars/tif/L7_ETMs.tif" 
                                          L7_ETMs.tif 
 "/home/edzer/git/stars.Rcheck/stars/tif/L7_ETMs.tif" 
-                                               along 
-                                                 "4" 
+
 dimension(s):
         from  to  offset delta                       refsys point
 x          1 349  288776  28.5 +proj=utm +zone=25 +south... FALSE
@@ -108,21 +151,21 @@ call list:
 [[1]]
 st_apply(X = X, MARGIN = 1:2, FUN = max)
 
-> (yy = st_as_stars(y))
+> (yy = st_as_stars(y, downsample = 1))
 stars object with 2 dimensions and 1 attribute
 attribute(s):
-  L7_ETMs.tif    
- Min.   : 55.00  
- 1st Qu.: 85.00  
- Median : 96.00  
- Mean   : 99.36  
- 3rd Qu.:113.00  
- Max.   :255.00  
+  L7_ETMs.tif   
+ Min.   : 56.0  
+ 1st Qu.: 85.0  
+ Median : 96.0  
+ Mean   : 98.5  
+ 3rd Qu.:111.0  
+ Max.   :255.0  
 dimension(s):
-  from  to  offset delta                       refsys point values    
-x    1 349  288776  28.5 +proj=utm +zone=25 +south... FALSE   NULL [x]
-y    1 352 9120761 -28.5 +proj=utm +zone=25 +south... FALSE   NULL [y]
-> (y = adrop(st_apply(r, 1:2, max)))
+  from  to  offset   delta                       refsys point values    
+x    1 174  288776 57.1638 +proj=utm +zone=25 +south... FALSE   NULL [x]
+y    1 176 9120761     -57 +proj=utm +zone=25 +south... FALSE   NULL [y]
+> (y = adrop(st_apply(r, c("x", "y"), max)))
 stars_proxy object with 1 attribute in file:
 $L7_ETMs.tif
 [1] "/home/edzer/git/stars.Rcheck/stars/tif/L7_ETMs.tif"
@@ -134,26 +177,61 @@ y       1 352 9120761 -28.5 +proj=utm +zone=25 +south... FALSE   NULL [y]
 band    1   6      NA    NA                           NA    NA   NULL    
 call list:
 [[1]]
-st_apply(X = X, MARGIN = 1:2, FUN = max)
+st_apply(X = X, MARGIN = c("x", "y"), FUN = max)
 
 [[2]]
 adrop(x = x)
 
-> (yy = st_as_stars(y))
+> (yy = st_as_stars(y, downsample = 1))
 stars object with 2 dimensions and 1 attribute
 attribute(s):
-  L7_ETMs.tif    
- Min.   : 55.00  
- 1st Qu.: 85.00  
- Median : 96.00  
- Mean   : 99.36  
- 3rd Qu.:113.00  
- Max.   :255.00  
+  L7_ETMs.tif   
+ Min.   : 56.0  
+ 1st Qu.: 85.0  
+ Median : 96.0  
+ Mean   : 98.5  
+ 3rd Qu.:111.0  
+ Max.   :255.0  
 dimension(s):
-  from  to  offset delta                       refsys point values    
-x    1 349  288776  28.5 +proj=utm +zone=25 +south... FALSE   NULL [x]
-y    1 352 9120761 -28.5 +proj=utm +zone=25 +south... FALSE   NULL [y]
+  from  to  offset   delta                       refsys point values    
+x    1 174  288776 57.1638 +proj=utm +zone=25 +south... FALSE   NULL [x]
+y    1 176 9120761     -57 +proj=utm +zone=25 +south... FALSE   NULL [y]
 > plot(yy)
+> (y = adrop(st_apply(r, c("x", "band"), max)))
+stars_proxy object with 1 attribute in file:
+$L7_ETMs.tif
+[1] "/home/edzer/git/stars.Rcheck/stars/tif/L7_ETMs.tif"
+
+dimension(s):
+     from  to  offset delta                       refsys point values    
+x       1 349  288776  28.5 +proj=utm +zone=25 +south... FALSE   NULL [x]
+y       1 352 9120761 -28.5 +proj=utm +zone=25 +south... FALSE   NULL [y]
+band    1   6      NA    NA                           NA    NA   NULL    
+call list:
+[[1]]
+st_apply(X = X, MARGIN = c("x", "band"), FUN = max)
+
+[[2]]
+adrop(x = x)
+
+> (yy = st_as_stars(y, downsample = 1))
+stars object with 2 dimensions and 1 attribute
+attribute(s):
+  L7_ETMs.tif   
+ Min.   : 71.0  
+ 1st Qu.:102.8  
+ Median :119.0  
+ Mean   :123.2  
+ 3rd Qu.:139.0  
+ Max.   :255.0  
+dimension(s):
+     from  to offset   delta                       refsys point values
+x       1 174 288776 57.1638 +proj=utm +zone=25 +south... FALSE   NULL
+band    1   6     NA      NA                           NA    NA   NULL
+Warning message:
+In FUN(X[[i]], ...) :
+  st_apply on x/y dimensions applied to downsampled image(s)
+> rm(yy)
 > 
 > (xx = c(r,r))
 stars_proxy object with 2 attributes in files:
@@ -208,13 +286,13 @@ band    1   6      NA    NA                           NA    NA   NULL
 +   all = system.file(paste0("netcdf/", files), package = "starsdata")
 +   ret = read_stars(all, sub = c("sst", "anom"))
 +   print(ret)
-+   print(c(ret))
++   print(st_redimension(ret)) # collapse the two attributes into new dimension
 + 
 +   try(ret <- c(l[[1]], l[[2]], l[[3]], along = list(times = as.Date("1981-09-01") + 0:2)))
 +   #print(ret)
 +   ret = adrop(adrop(c(l[[1]], l[[2]], l[[3]], along = "times")))
 +   print(ret)
-+   ret <- c(l[[1]], along = list(times = as.Date("1981-09-01") + 0:1))
++   ret <- st_redimension(l[[1]], along = list(times = as.Date("1981-09-01") + 0:1))
 +   print(ret)
 + }
 sst, anom, 
@@ -300,7 +378,7 @@ zlev    1    1      0 [m]     NA      NA    NA   NULL
 time    1    9 1981-09-01 1 days POSIXct    NA   NULL    
 stars object with 5 dimensions and 1 attribute
 attribute(s), summary of first 1e+05 cells:
-     attr       
+   sst.anom     
  Min.   :-1.80  
  1st Qu.:-1.19  
  Median :-1.05  
@@ -316,7 +394,7 @@ zlev       1    1      0 [m]     NA      NA    NA       NULL
 time       1    9 1981-09-01 1 days POSIXct    NA       NULL    
 new_dim    1    2         NA     NA      NA    NA sst , anom    
 Error in c.stars_proxy(l[[1]], l[[2]], l[[3]], along = list(times = as.Date("1981-09-01") +  : 
-  for proxy ojbects, along argument is not implemented
+  for proxy objects, along argument is not implemented
 stars_proxy object with 2 attributes in files:
 $sst
 [1] "NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810901.nc\":sst"
@@ -342,13 +420,13 @@ adrop(x = x)
 [[2]]
 adrop(x = x)
 
-stars_proxy object with 3 attributes in files:
+stars_proxy object with 1 attribute in files:
+$sst.anom
                                                                                                        sst 
  "NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810901.nc\":sst" 
                                                                                                       anom 
 "NETCDF:\"/home/edzer/R/x86_64-pc-linux-gnu-library/3.5/starsdata/netcdf/avhrr-only-v2.19810901.nc\":anom" 
-                                                                                                     along 
-                                                                                                       "5" 
+
 dimension(s):
       from   to     offset  delta  refsys point values    
 x        1 1440          0   0.25      NA    NA   NULL [x]
@@ -359,4 +437,4 @@ times    1    2 1981-09-01 1 days    Date    NA   NULL
 > 
 > proc.time()
    user  system elapsed 
-  3.323   0.573   3.887 
+  3.473   0.531   4.002 

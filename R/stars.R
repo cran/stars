@@ -16,16 +16,34 @@ st_as_stars = function(.x, ...) UseMethod("st_as_stars")
 #' @param dimensions object of class dimensions
 #' @export
 st_as_stars.list = function(.x, ..., dimensions = NULL) {
-	if (length(.x) > 1) {
+	if (length(.x)) {
 		for (i in seq_along(.x)[-1])
 			if (!identical(dim(.x[[1]]), dim(.x[[i]])))
 				stop("dim attributes not identical")
 		if (!is.null(names(.x)))
 			names(.x) = make.names(names(.x), unique = TRUE)
+
+		# check dimensions, if set:
+		if (!is.null(dimensions)) {
+			dx = dim(.x[[1]])
+			dd = dim(dimensions)
+			stopifnot(!is.null(dx), !is.null(dd))
+			for (i in seq_along(dimensions)) {
+				if (dx[i] < dd[i]) { # create_dimension was called with $values one longer than corresponding array dim,
+					v = dimensions[[i]]$values
+					if (is.null(v)) # regularly spaced, meaning offset/delta have replaced $values:
+						dimensions[[i]]$to = dimensions[[i]]$to - 1
+					else if (length(v) == dx[i] + 1) { # convert the one-too-long values into an intervals object:
+						dimensions[[i]]$values = head(v, -1)
+						dimensions[[i]]$to = dimensions[[i]]$to - 1
+					} else
+						stop(paste("incorrect length of dimensions values for dimension", i))
+					dimensions[[i]]$point = FALSE
+				}
+			}
+		}
 	}
-	if (is.null(dimensions))
-		dimensions = create_dimensions(dim(.x[[1]]))
-	st_stars(.x, dimensions)
+	st_stars(.x, dimensions %||% create_dimensions(dim(.x[[1]])))
 }
 
 st_stars = function(x, dimensions) {
@@ -55,8 +73,13 @@ st_as_stars.default = function(.x = NULL, ..., raster = NULL) {
 				st_dimensions(args[[1]])
 			else
 				do.call(st_dimensions, lapply(dim(args[[1]]), function(x) seq_len(x) - 1))
-		} else
-			args[[ which(isdim)[1] ]]
+		} else {
+			d = args[[ which(isdim)[1] ]]
+			if (is.null(raster))
+				raster = attr(d, "raster")
+			d
+		}
+
 	if (is.null(raster) && !has_sfc(dimensions)) {
 		w = which(sapply(dimensions, function(x) is.null(x$values)))
 		raster = get_raster(dimensions = names(dimensions)[w[1:2]])
@@ -92,22 +115,32 @@ st_as_stars.stars = function(.x, ..., curvilinear = NULL, crs = st_crs(4326)) {
 
 #' @param nx integer; number of cells in x direction
 #' @param ny integer; number of cells in y direction
-#' @param xlim length 2 numeric vector with extent in x direction
-#' @param ylim length 2 numeric vector with extent in y direction
+#' @param deltax numeric; cell size in x direction
+#' @param deltay numeric; cell size in y direction (negative)
+#' @param xlim length 2 numeric vector with extent (min, max) in x direction
+#' @param ylim length 2 numeric vector with extent (min, max) in y direction
 #' @param values value(s) to populate the raster values with
 #' @export
 #' @name st_as_stars
-st_as_stars.bbox = function(.x, ..., nx = 360, ny = 180,
-		xlim = .x[c("xmin", "xmax")], ylim = .x[c("ymin", "ymax")], values = runif(nx * ny)) {
-	x = create_dimension(from = 1, to = nx, offset = xlim[1], delta =  diff(xlim)/nx, 
+st_as_stars.bbox = function(.x, ..., nx = 360, ny = 180, 
+		deltax = diff(xlim)/nx, deltay = -diff(ylim)/ny,
+		xlim = .x[c("xmin", "xmax")], ylim = .x[c("ymin", "ymax")], values = 0.) {
+	if (missing(nx) && !missing(deltax))
+		nx = ceiling(diff(xlim) / deltax)
+	if (missing(ny) && !missing(deltay)) {
+		if (deltay > 0)
+			deltay = -deltay
+		ny = ceiling(-diff(ylim) / deltay)
+	}
+	x = create_dimension(from = 1, to = nx, offset = xlim[1], delta = deltax, 
 		refsys = st_crs(.x))
-	y = create_dimension(from = 1, to = ny, offset = ylim[2], delta = -diff(ylim)/ny, 
+	y = create_dimension(from = 1, to = ny, offset = ylim[2], delta = deltay, 
 		refsys = st_crs(.x))
 	st_as_stars(values = array(values, c(x = nx, y = ny)),
 		dims = create_dimensions(list(x = x, y = y), get_raster()))
 }
 
-## @param x two-column matrix with columns and rows, as understood by GDAL; 0.5 refers to the first cell's center; 
+## @param x two-column matrix with columns and rows, as understood by GDAL; 0.5 refers to the first cell's centre; 
 xy_from_colrow = function(x, geotransform, inverse = FALSE) {
 # http://www.gdal.org/classGDALDataset.html , search for geotransform:
 # 0-based indices:
@@ -131,7 +164,7 @@ has_rotate_or_shear = function(x) {
 	dimensions = st_dimensions(x)
 	if (has_raster(x)) {
 		r = attr(dimensions, "raster")
-		!any(is.na(r$affine)) && r$affine != 0.0
+		!any(is.na(r$affine)) && any(r$affine != 0.0)
 	} else
 		FALSE
 }
@@ -140,6 +173,10 @@ has_raster = function(x) {
 	if (inherits(x, "stars"))
 		x = st_dimensions(x)
 	!is.null(r <- attr(x, "raster")) && all(r$dimensions %in% names(x))
+}
+
+is_regular = function(x) {
+	has_raster(x) && !(has_rotate_or_shear(x) || is_rectilinear(x) || is_curvilinear(x))
 }
 
 is_rectilinear = function(x) {
@@ -155,62 +192,85 @@ is_rectilinear = function(x) {
 
 is_curvilinear = function(x) {
 	d = st_dimensions(x)
-	has_raster(x) && attr(d, "raster")$curvilinear
+	has_raster(x) && isTRUE(attr(d, "raster")$curvilinear)
+}
+
+which_sfc = function(x) {
+	if (inherits(x, "stars"))
+		x = st_dimensions(x)
+	which(sapply(x, function(i) inherits(i$values, "sfc")))
+}
+
+which_time = function(x) {
+	if (inherits(x, "stars"))
+		x = st_dimensions(x)
+	which(sapply(x, function(i) 
+		inherits(i$values, c("POSIXct", "Date", "PCICt")) || 
+		i$refsys %in% c("POSIXct", "Date", "PCICt")))
 }
 
 has_sfc = function(x) {
-	if (inherits(x, "stars"))
-		x = st_dimensions(x)
-	any(sapply(x, function(i) inherits(i$values, "sfc")))
+	length(which_sfc(x)) > 0
 }
 
-
+#' retrieve coordinates for raster or vector cube cells
+#'
+#' retrieve coordinates for raster or vector cube cells
+#' @param x object of class \code{stars}
+#' @param add_max logical; if \code{TRUE}, dimensions are given with a min (x) and max (x_max) value
+#' @name st_coordinates
+#' @param ... ignored
 #' @export
-st_coordinates.stars = function(x, ...) {
+st_coordinates.stars = function(x, ..., add_max = FALSE) {
+	dims = st_dimensions(x)
+	xy = attr(dims, "raster")$dimensions
 	if (has_rotate_or_shear(x)) {
+		if (add_max)
+			stop("add_max will not work for rotated/shared rasters")
 		d = dim(x)
-		xy = attr(st_dimensions(x), "raster")$dimensions
 		nx = d[ xy[1] ]
 		ny = d[ xy[2] ]
-		as.data.frame(xy_from_colrow(as.matrix(expand.grid(seq_len(nx), seq_len(ny))) - 0.5,
-			get_geotransform(x)))
-	} else
-		do.call(expand.grid, expand_dimensions(x))
+		setNames(as.data.frame(xy_from_colrow(as.matrix(expand.grid(seq_len(nx), seq_len(ny))) - 0.5,
+			get_geotransform(x))), xy) # gives cell centers
+	} else {
+		if (add_max) {
+			cbind(
+				do.call(expand.grid, expand_dimensions(x, center = FALSE)), # cell offsets
+				setNames(do.call(expand.grid, expand_dimensions(dims[xy], max = TRUE)),
+					paste0(xy, "_max"))
+			)
+		} else
+			do.call(expand.grid, expand_dimensions(x)) # cell centers for x/y if raster
+	}
 }
 
+#' @export
 st_coordinates.dimensions = function(x, ...) {
 	st_coordinates(st_as_stars(list(), dimensions = x))
 }
 
+#' @name st_coordinates
 #' @export
-as.data.frame.stars = function(x, ...) {
-	data.frame(st_coordinates(x), lapply(x, as.vector_stars))
-}
-
-as.vector_stars = function(x) {
-	l = attr(x, "levels")
-	if (!is.null(l))
-		structure(as.vector(x), class = "factor", levels = l)
-	else
-		as.vector(x)
+as.data.frame.stars = function(x, ..., add_max = FALSE) {
+	data.frame(st_coordinates(x, add_max = add_max), lapply(x, function(y) structure(y, dim = NULL)))
 }
 
 
 #' @export
 print.stars = function(x, ..., n = 1e5) {
 	add_units = function(x) {
-		f = function(obj) if (inherits(obj, "units")) paste0("[", as.character(units(obj)), "]") else ""
+		f = function(obj) if (inherits(obj, "units")) paste0("[", enc2utf8(as.character(units(obj))), "]") else ""
 		paste(names(x), sapply(x, f))
 	}
 	cat("stars object with", length(dim(x)), "dimensions and", 
-		length(x), if (length(x) > 1) "attributes\n" else "attribute\n")
+		length(x), if (length(x) != 1) "attributes\n" else "attribute\n")
 	cat("attribute(s)")
 	df = if (prod(dim(x)) > 10 * n) {
 		cat(paste0(", summary of first ", n, " cells:\n"))                       # nocov
-		as.data.frame(lapply(x, function(y) as.vector_stars(y)[1:n]), optional = TRUE) # nocov
+		as.data.frame(lapply(x, function(y) structure(y, dim = NULL)[1:n]), optional = TRUE) # nocov
 	} else {
 		cat(":\n")
-		as.data.frame(lapply(x, as.vector_stars), optional = TRUE)
+		as.data.frame(lapply(x, function(y) structure(y, dim = NULL)), optional = TRUE)
 	}
 	names(df) = add_units(x)
 	print(summary(df))
@@ -267,11 +327,15 @@ propagate_units = function(new, old) {
 #' c(x, x, along = 3)
 c.stars = function(..., along = NA_integer_) {
 	dots = list(...)
-	# Case 1: merge attributes of several objects by simply putting them together in a single stars object;
-	# dim does not change:
-	if (is.na(along) && length(dots) > 1) { 
+	if (length(dots) == 1) {
+		if (!missing(along))
+			warning("along argument ignored; maybe you wanted to use st_redimension?")
+		dots[[1]]
+	} else if (identical(along, NA_integer_)) { 
+		# Case 1: merge attributes of several objects by simply putting them together in a single stars object;
+		# dim does not change:
 		if (identical_dimensions(dots))
-			st_as_stars(do.call(c, lapply(dots, unclass)), dimensions = attr(dots[[1]], "dimensions"))
+			st_as_stars(do.call(c, lapply(dots, unclass)), dimensions = st_dimensions(dots[[1]]))
 		else {
 			# currently catches only the special case of ... being a broken up time series:
 			along = sort_out_along(dots)
@@ -280,23 +344,7 @@ c.stars = function(..., along = NA_integer_) {
 			do.call(c, c(dots, along = along))
 		}
 	} else {
-		# Case 2: single stars object, collapse attributes into new array dimension:
-		if (length(dots) == 1) {
-			if (length(dots[[1]]) == 1) # only one attribute: do nothing
-				return(dots[[1]])
-			if (is.list(along)) {
-				values = along[[1]]
-				dim_name = names(along)[1]
-			} else {
-				values = names(dots[[1]])
-				dim_name = "new_dim"
-			}
-			old_dim = st_dimensions(dots[[1]])
-			new_dim = create_dimension(values = values)
-			dims = create_dimensions(c(old_dim, new_dim = list(new_dim)), attr(old_dim, "raster"))
-			names(dims)[names(dims) == "new_dim"] = dim_name
-			st_stars(list(attr = do.call(abind, c(dots, along = length(dim(dots[[1]])) + 1))), dimensions = dims)
-		} else if (is.list(along)) { # custom ordering of ... over dimension(s) with values specified
+		if (is.list(along)) { # custom ordering of ... over dimension(s) with values specified
 			if (prod(lengths(along)) != length(dots))
 				stop("number of objects does not match the product of lenghts of the along argument", call. = FALSE)
 			# abind all:
@@ -333,7 +381,7 @@ c.stars = function(..., along = NA_integer_) {
 #' @export
 adrop.stars = function(x, drop = which(dim(x) == 1), ...) {
 	if (length(drop) > 0)
-		st_as_stars(lapply(x, adrop, drop = drop, ...), dimensions = st_dimensions(x)[-drop])
+		st_as_stars(lapply(x, adrop, drop = drop, one.d.array = TRUE, ...), dimensions = st_dimensions(x)[-drop])
 	else 
 		x
 }
@@ -364,9 +412,8 @@ st_bbox.dimensions = function(obj, ...) {
 				if (is_curvilinear(obj))
 					c(xmin = min(x$values), ymin = min(y$values), xmax = max(x$values), ymax = max(y$values))
 				else {
-					e = expand_dimensions(obj)
-					rx = range(e[[ r$dimensions[1] ]])
-					ry = range(e[[ r$dimensions[2] ]])
+					rx = range(x) # dispatches into range.dimension
+					ry = range(y)
 					c(xmin = rx[1], ymin = ry[1], xmax = rx[2], ymax = ry[2])
 				}
 			}
@@ -374,8 +421,10 @@ st_bbox.dimensions = function(obj, ...) {
 	} else {
 		if (! has_sfc(obj))
 			stop("dimensions table does not have x & y, nor an sfc dimension") # nocov
-		ix = which(sapply(obj, function(i) inherits(i$values, "sfc")))
-		st_bbox(obj[[ ix[1] ]]$values) # FIXME: what if there is more than one, e.g. O.D.?
+		ix = which_sfc(obj)
+		if (length(ix) > 1)
+			warning("returning the bounding box of the first geometry dimension")
+		st_bbox(obj[[ ix[1] ]]$values)
 	}
 }
 
@@ -390,13 +439,11 @@ st_crs.stars = function(x, ...) {
 	xy = attr(d, "raster")$dimensions
 	if (!all(is.na(xy)))
 		st_crs(d[[ xy[1] ]]$refsys)
-	else { # search for simple features:
-		i = sapply(d, function(y) inherits(y$values, "sfc"))
-		if (any(i))
-			st_crs(d[[i[1]]]$values)
-		else
-			st_crs(NA)
-	}
+	else if (has_sfc(d)) # search for simple features:
+		#st_crs(d[[ which_sfc(d)[1] ]]$refsys) # -> would (re)interpret proj4string
+		st_crs(d[[ which_sfc(d)[1] ]]$values)
+	else
+		st_crs(NA)
 }
 
 #' @export
@@ -418,203 +465,17 @@ st_crs.stars = function(x, ...) {
 	i = sapply(d, function(y) inherits(y$values, "sfc"))
 	for (j in which(i))
 		d[[ j ]]$refsys = value
-	st_as_stars(unclass(x), dimensions = d)
+	structure(x, dimensions = d)
 }
 
-#' subset stars objects
-#' 
-#' subset stars objects
-#' @name stars_subset
-#' @param x object of class \code{stars}
-#' @param i first selector: integer, logical or character vector indicating attributes to select, or object of class \code{sf} or \code{sfc} used as spatial selector; see details
-#' @param drop 
-#' @param ... further (logical or integer vector) selectors, matched by order, to select on individual dimensions
-#' @param drop logical; if \code{TRUE}, degenerate dimensions (with only one value) are dropped 
-#' @param crop logical; if \code{TRUE} and parameter \code{i} is a spatial geometry (\code{sf} or \code{sfc}) object, the extent (bounding box) of the result is cropped to match the extent of \code{i} using \link{sti_crop}.
-#' @details if \code{i} is an object of class \code{sf}, \code{sfc} or \code{bbox}, the spatial subset covering this geometry is selected, possibly followed by cropping the extent. Array values for which the cell centre is not inside the geometry are assigned \code{NA}.
 #' @export
-#' @examples
-#' tif = system.file("tif/L7_ETMs.tif", package = "stars")
-#' x = read_stars(tif)
-#' x[,,,1:3] # select bands
-#' x[,1:100,100:200,] # select x and y by range
-#' x["L7_ETMs.tif"] # select attribute
-#' xy = structure(list(x = c(293253.999046018, 296400.196497684), y = c(9113801.64775462,
-#' 9111328.49619133)), .Names = c("x", "y"))
-#' pts = st_as_sf(data.frame(do.call(cbind, xy)), coords = c("x", "y"), crs = st_crs(x))
-#' image(x, axes = TRUE)
-#' plot(st_as_sfc(st_bbox(pts)), col = NA, add = TRUE)
-#' bb = st_bbox(pts)
-#' (xx = x[bb])
-#' image(xx)
-#' plot(st_as_sfc(bb), add = TRUE, col = NA)
-#' image(x)
-#' pt = st_point(c(x = 290462.103109179, y = 9114202.32594085))
-#' buf = st_buffer(st_sfc(pt, crs = st_crs(x)), 1500)
-#' plot(buf, add = TRUE)
-#' 
-#' buf = st_sfc(st_polygon(list(st_buffer(pt, 1500)[[1]], st_buffer(pt, 1000)[[1]])),
-#'    crs = st_crs(x))
-#' image(x[buf])
-#' plot(buf, add = TRUE, col = NA)
-#' image(x[buf, crop=FALSE])
-#' plot(buf, add = TRUE, col = NA)
-"[.stars" = function(x, i = TRUE, ..., drop = FALSE, crop = TRUE) {
-  missing.i = missing(i)
-  # special case:
-  if (! missing.i && inherits(i, c("sf", "sfc", "bbox")))
-  	return(st_crop(x, i, crop = crop, ...))
-  mc <- match.call(expand.dots = TRUE)
-  # select list elements from x, based on i:
-  d = st_dimensions(x)
-  ed = expand_dimensions(d)
-  x = unclass(x)[i]
-  # selects also on dimensions:
-  if (length(mc) > 3) {
-    mc[[1]] <- `[`
-    if (! missing(i))
-		mc[[3]] <- NULL # remove i
-	mc[["drop"]] = FALSE
-	for (i in names(x)) {
-		mc[[2]] = as.name(i)
-		lev = attr(x[[i]], "levels")
-		x[[i]] = structure(eval(mc, x, parent.frame()), levels = lev) # subset array
-	}
-	xy = attr(d, "raster")$dimensions
-	if (is_curvilinear(d)) { # subset curvilinear lat/lon matrices/rasters: can't do one-at-a-time!
-		mc[[2]] = as.name("values")
-		d[[ xy[1] ]]$values = eval(mc, d[[ xy[1] ]], parent.frame())
-		d[[ xy[2] ]]$values = eval(mc, d[[ xy[2] ]], parent.frame())
-	}
-	d_backup = d
-	# dimensions:
-	mc0 = mc[1:3] # "[", x, first dim
-	j = 3 # first dim
-	for (i in names(d)) { # one-at-a-time:
-		mc0[[2]] = as.name(i)
-		mc0[[3]] = mc[[j]]
-		if (! (is_curvilinear(d) && i %in% xy))
-			mc0[["values"]] = ed[[i]]
-		d[[i]] = eval(mc0, d, parent.frame()) # subset dimension
-		j = j + 1
-	}
-  }
-  if (drop)
-  	adrop(st_as_stars(x, dimensions = d))
-  else
-  	st_as_stars(x, dimensions = d)
+st_geometry.stars = function(obj,...) {
+	if (!has_sfc(obj))
+		stop("stars object does not have a simple feature dimension")
+	d = st_dimensions(obj)
+	d[[ which_sfc(obj) ]]$values
 }
 
-#' @name stars_subset
-#' @param value array of dimensions equal to those in \code{x}, or a vector or value that will be recycled to such an array
-#' @export
-#' @details in an assignment (or replacement form, \code{[<-}), argument \code{i} needs to be a \code{stars} object with dimensions identical to \code{x}, and \code{value} will be recycled to the dimensions of the arrays in \code{x}.
-"[<-.stars" = function(x, i, value) {
-  if (!inherits(i, "stars"))
-  	stop("selector should be a stars object")
-  fun = function(x, y, value) { x[y] = value; x }
-  st_as_stars(mapply(fun, x, i, value = value, SIMPLIFY = FALSE), dimensions = st_dimensions(x))
-}
-
-
-#' crop a stars object
-#' 
-#' crop a stars object
-#' @name st_crop
-#' @export
-#' @param x object of class \code{stars}
-#' @param y object of class \code{sf}, \code{sfc} or \code{bbox}; see Details below.
-#' @param epsilon numeric; shrink the bounding box of \code{y} to its center with this factor.
-#' @param ... ignored
-#' @param crop logical; if \code{TRUE}, the spatial extent of the returned object is cropped to still cover \code{obj}, if \code{FALSE}, the extent remains the same but cells outside \code{y} are given \code{NA} values.
-#' @details for raster \code{x}, \code{st_crop} selects cells for which the cell centre is inside the bounding box; see the examples below.
-#' @examples
-#' l7 = read_stars(system.file("tif/L7_ETMs.tif", package = "stars"))
-#' d = st_dimensions(l7)
-#' 
-#' # area around cells 3:10 (x) and 4:11 (y):
-#' offset = c(d[["x"]]$offset, d[["y"]]$offset)
-#' res = c(d[["x"]]$delta, d[["y"]]$delta)
-#' bb = st_bbox(c(xmin = offset[1] + 2 * res[1],
-#' 	ymin = offset[2] + 11 * res[2],
-#' 	xmax = offset[1] + 10 * res[1],
-#' 	ymax = offset[2] +  3 * res[2]), crs = st_crs(l7))
-#' l7[bb]
-#' 
-#' plot(l7[,1:13,1:13,1], reset = FALSE)
-#' image(l7[bb,,,1], add = TRUE, col = sf.colors())
-#' plot(st_as_sfc(bb), add = TRUE, border = 'green', lwd = 2)
-#' 
-#' # slightly smaller bbox:
-#' bb = st_bbox(c(xmin = offset[1] + 2.1 * res[1],
-#' 	ymin = offset[2] + 10.9 * res[2],
-#' 	xmax = offset[1] +  9.9 * res[1],
-#' 	ymax = offset[2] +  3.1 * res[2]), crs = st_crs(l7))
-#' l7[bb]
-#' 
-#' plot(l7[,1:13,1:13,1], reset = FALSE)
-#' image(l7[bb,,,1], add = TRUE, col = sf.colors())
-#' plot(st_as_sfc(bb), add = TRUE, border = 'green', lwd = 2)
-#' 
-#' # slightly larger bbox:
-#' bb = st_bbox(c(xmin = offset[1] + 1.9 * res[1],
-#' 	ymin = offset[2] + 11.1 * res[2],
-#' 	xmax = offset[1] + 10.1 * res[1],
-#' 	ymax = offset[2] +  2.9 * res[2]), crs = st_crs(l7))
-#' l7[bb]
-#' 
-#' plot(l7[,1:13,1:13,1], reset = FALSE)
-#' image(l7[bb,,,1], add = TRUE, col = sf.colors())
-#' plot(st_as_sfc(bb), add = TRUE, border = 'green', lwd = 2)
-#' 
-#' # half a cell size larger bbox:
-#' bb = st_bbox(c(xmin = offset[1] + 1.49 * res[1],
-#' 	ymin = offset[2] + 11.51 * res[2],
-#' 	xmax = offset[1] + 10.51 * res[1],
-#' 	ymax = offset[2] +  2.49 * res[2]), crs = st_crs(l7))
-#' l7[bb]
-#' 
-#' plot(l7[,1:13,1:13,1], reset = FALSE)
-#' image(l7[bb,,,1], add = TRUE, col = sf.colors())
-#' plot(st_as_sfc(bb), add = TRUE, border = 'green', lwd = 2)
-st_crop.stars = function(x, y, ..., crop = TRUE, epsilon = 0) {
-	d = dim(x)
-	dm = st_dimensions(x)
-	args = rep(list(rlang::missing_arg()), length(d)+1)
-	if (st_crs(x) != st_crs(y))
-		stop("for cropping, the CRS of both objects has to be identical")
-	if (crop && has_raster(x)) {
-		rastxy = attr(dm, "raster")$dimensions
-		xd = rastxy[1]
-		yd = rastxy[2]
-		bb = if (!inherits(y, "bbox"))
-				st_bbox(y)
-			else
-				y
-		if (epsilon != 0)
-			bb = bb_shrink(bb, epsilon)
-		cr = round(colrow_from_xy(matrix(bb, 2, byrow=TRUE), get_geotransform(dm)) + 0.5)
-		for (i in seq_along(d)) {
-			if (names(d[i]) == xd)
-				args[[i+1]] = seq(max(1, cr[1, 1]), min(d[xd], cr[2, 1]))
-			if (names(d[i]) == yd) {
-				if (dm[[ yd ]]$delta < 0)
-					cr[1:2, 2] = cr[2:1, 2]
-				args[[i+1]] = seq(max(1, cr[1, 2]), min(d[yd], cr[2, 2]))
-			}
-		}
-		x = eval(rlang::expr(x[!!!args]))
-	}
-	if (inherits(y, "bbox"))
-		y = st_as_sfc(y)
-	dxy = attr(dm, "raster")$dimensions
-	xy_grd = st_as_sf(do.call(expand.grid, expand_dimensions.stars(x)[dxy]), coords = dxy, crs = st_crs(x))
-	inside = st_intersects(y, xy_grd)[[1]]
-	d = dim(x) # cropped x
-	mask = rep(NA_real_, prod(d[dxy]))
-	mask[inside] = 1
-	x * array(mask, d) # replicates over secondary dims
-}
 
 #' @export
 split.stars = function(x, f, drop = TRUE, ...) {
@@ -637,7 +498,8 @@ merge.stars = function(x, y, ...) {
 	if (!missing(y))
 		stop("argument y needs to be missing: merging attributes of x")
 	old_dim = st_dimensions(x)
-	out = do.call(abind, c(x, along = length(dim(x[[1]]))+1))
+	#out = do.call(abind, st_redimension(x, along = length(dim(x[[1]]))+1))
+	out = do.call(abind, st_redimension(x))
 	new_dim = if (length(dots))
 			create_dimension(values = dots[[1]])
 		else
@@ -651,7 +513,7 @@ merge.stars = function(x, y, ...) {
 sort_out_along = function(ret) { 
 	d1 = st_dimensions(ret[[1]])
 	d2 = st_dimensions(ret[[2]])
-	if ("time" %in% names(d1) && d1$time$offset != d2$time$offset)
+	if ("time" %in% names(d1) && (isTRUE(d1$time$offset != d2$time$offset) || (d1$time$values != d2$time$values)))
 		"time"
 	else
 		NA_integer_
@@ -660,4 +522,86 @@ sort_out_along = function(ret) {
 #' @export
 is.na.stars = function(x, ...) {
 	st_as_stars(lapply(x, is.na), dimensions = st_dimensions(x))
+}
+
+#' redimension array, or collapse attributes into a new dimension
+#' 
+#' redimension array, or collapse attributes into a new dimension
+#' @name redimension
+#' @export
+st_redimension = function(x, new_dims, along, ...) UseMethod("st_redimension")
+
+#' @export
+#' @name redimension
+#' @param x object of class \code{stars}
+#' @param new_dims target dimensions
+#' @param along named list with new dimension name and values
+#' @param ... ignored
+st_redimension.stars = function(x, new_dims = st_dimensions(x), along = list(new_dim = names(x)), ...) {
+	d = st_dimensions(x)
+	if (! identical(new_dims, d)) {
+		if (prod(dim(d)) != prod(dim(new_dims)))
+			stop("product of dim(new_dim) does not match that of x")
+		for (i in seq_along(x))
+			dim(x[[i]]) = dim(new_dims)
+		st_stars(x, dimensions = new_dims)
+	} else { # collapse attributes into dimension
+		if (length(x) == 1) # only one attribute: do nothing
+			x
+		else {
+			new_dim = create_dimension(values = along[[1]])
+			dims = create_dimensions(c(d, new_dim = list(new_dim)), attr(d, "raster"))
+			if (length(names(along)) == 1)
+				names(dims)[names(dims) == "new_dim"] = names(along)
+			ret = list(attr = do.call(abind, c(unclass(x), along = length(dim(x)) + 1)))
+			st_stars(setNames(ret, paste(names(x), collapse = ".")), dimensions = dims)
+		}
+	}
+}
+
+#' @export
+"$<-.stars" = function(x, i, value) {
+	if (is.null(dim(value)))
+		dim(value) = dim(x)
+	NextMethod()
+}
+
+st_upfront = function(x, xy = attr(st_dimensions(x), "raster")$dimensions) {
+	if (!is.character(xy))
+		xy = names(st_dimensions(x))[xy]
+	aperm(x, c(xy, setdiff(names(st_dimensions(x)), xy)))
+}
+
+#' @export
+st_area.stars = function(x, ...) {
+	crs = st_crs(x)
+	if (is.na(crs))
+		message("Missing coordinate reference system: assuming Cartesian coordinates")
+	d = st_dimensions(st_upfront(x))[1:2]
+	a = if (isTRUE(st_is_longlat(x)) || is_curvilinear(x))
+			st_area(st_as_sfc(x, as_points = FALSE)) # has units
+		else { 
+			a = if (is_regular(x))
+					d[[1]]$delta * d[[2]]$delta
+				else { # rectilinear:
+					x = if (inherits(d[[1]]$values, "intervals"))
+							d[[1]]$values
+						else
+							as_intervals(d[[1]]$values)
+					y = if (inherits(d[[2]]$values, "intervals"))
+							d[[2]]$values
+						else
+							as_intervals(d[[2]]$values)
+					apply(do.call(cbind, x), 1, diff) %o% apply(do.call(cbind, y), 1, diff)
+				}
+			if (!is.na(crs))
+				units::set_units(abs(a), paste0(crs$units, "^2"), mode = "standard")
+			else
+				abs(a)
+		}
+	lst = if (inherits(a, "units"))
+			list(area = `units<-`(array(a, dim(d)), units(a)))
+		else
+			list(area = array(a, dim(d)))
+	st_stars(lst, dimensions = d)
 }

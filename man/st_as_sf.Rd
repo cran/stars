@@ -9,9 +9,9 @@
 \method{st_as_sfc}{stars}(x, ..., as_points,
   which = seq_len(prod(dim(x)[1:2])))
 
-\method{st_as_sf}{stars}(x, ..., as_points = !merge, na.rm = TRUE,
-  merge = has_raster(x) && !(is_curvilinear(x) || is_rectilinear(x)),
-  use_integer = is.logical(x[[1]]) || is.integer(x[[1]]))
+\method{st_as_sf}{stars}(x, ..., as_points = FALSE, merge = FALSE,
+  na.rm = TRUE, use_integer = is.logical(x[[1]]) || is.integer(x[[1]]),
+  long = FALSE, connect8 = FALSE)
 }
 \arguments{
 \item{x}{object of class \code{stars}}
@@ -22,17 +22,21 @@
 
 \item{which}{linear index of cells to keep (this argument is not recommended to be used)}
 
-\item{na.rm}{logical; should missing valued cells be removed, or also be converted to features?}
-
 \item{merge}{logical; if \code{TRUE}, cells with identical values are merged (using \code{GDAL_Polygonize} or \code{GDAL_FPolygonize}); if \code{FALSE}, a polygon for each raster cell is returned; see details}
 
+\item{na.rm}{logical; should missing valued cells be removed, or also be converted to features?}
+
 \item{use_integer}{(relevant only if \code{merge} is \code{TRUE}): if \code{TRUE}, before polygonizing values are rounded to 32-bits signed integer values (GDALPolygonize), otherwise they are converted to 32-bit floating point values (GDALFPolygonize).}
+
+\item{long}{logical; if \code{TRUE}, return a long table form \code{sf}, with geometries and other dimensinos recycled}
+
+\item{connect8}{logical; if \code{TRUE}, use 8 connectedness. Otherwise the 4 connectedness algorithm will be applied (this option can only be made to work after sf 0.7-3 has arrived on CRAN).}
 }
 \description{
 Convert stars object into an sf object
 }
 \details{
-If \code{merge} is \code{TRUE}, only the first attribute is converted into an \code{sf} object. If \code{na.rm} is \code{FALSE}, areas with \code{NA} values are also written out as polygons.
+If \code{merge} is \code{TRUE}, only the first attribute is converted into an \code{sf} object. If \code{na.rm} is \code{FALSE}, areas with \code{NA} values are also written out as polygons. Note that the resulting polygons are typically invalid, and use \link[lwgeom]{st_make_valid} to create valid polygons out of them.
 }
 \examples{
 tif = system.file("tif/L7_ETMs.tif", package = "stars")
@@ -42,7 +46,9 @@ x[[1]][x[[1]] < 30] = NA # set lower values to NA
 x[[1]] = x[[1]] < 100 # make the rest binary
 x
 (p = st_as_sf(x)) # removes NA areas
-plot(p, axes = TRUE)
-(p = st_as_sf(x, na.rm = FALSE)) # includes polygons with NA values
-plot(p, axes = TRUE)
+(p = st_as_sf(x[,,,1], merge = TRUE)) # glues polygons together
+all(st_is_valid(p)) # not all valid, see details
+# plot(p, axes = TRUE)
+(p = st_as_sf(x, na.rm = FALSE, merge = TRUE)) # includes polygons with NA values
+# plot(p, axes = TRUE)
 }

@@ -42,9 +42,12 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = names(x)[1], axes = FA
 	#	x = adrop(x)
 
 	if (join_zlim) {
-		breaks = get_breaks(x, breaks, nbreaks)
+		breaks = get_breaks(x, breaks, nbreaks, dots$logz)
 		nbreaks = length(breaks) # might be shorter than originally intended!
 	}
+
+	if (isTRUE(dots$logz) && !((has_raster(x) && (is_curvilinear(x) || has_rotate_or_shear(x))) || has_sfc(x)))
+		x = log10(x) # otherwise, defer log-transforming to sf::plot.sf
 
 	if (!missing(y))
 		stop("y argument should be missing")
@@ -62,9 +65,9 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = names(x)[1], axes = FA
 			n[dxy] = get_downsample(dims)
 			x = st_downsample(x, n)
 		}
-		if (length(dims) == 2 || dims[3] == 1 || !is.null(dots$rgb)) { ## ONE IMAGE:
+		if (length(dims) == 2 || dims[3] == 1 || (!is.null(dots$rgb) && is.numeric(dots$rgb))) { ## ONE IMAGE:
 			# set up key region
-			values = as.vector_stars(x[[1]])
+			values = structure(x[[1]], dim = NULL) # array -> vector
 			if (! isTRUE(dots$add) && ! is.null(key.pos) && !all(is.na(values)) &&
 					(is.factor(values) || length(unique(na.omit(values))) > 1) &&
 					length(col) > 1 && is.null(dots$rgb) && !is_curvilinear(x)) { # plot key?
@@ -74,10 +77,10 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = names(x)[1], axes = FA
 					layout(matrix(c(1,2), nrow = 2, ncol = 1), widths = 1, heights = c(key.width, 1)),  # 3 top
 					layout(matrix(c(2,1), nrow = 1, ncol = 2), widths = c(1, key.width), heights = 1)   # 4 right
 				)
-				if (is.factor(values)) {
+				if (is.factor(values))
 					.image_scale_factor(levels(values), col, key.pos = key.pos,
 						key.width = key.width, key.length = key.length, axes = axes, ...)
-				} else
+				else
 					.image_scale(values, col, breaks = breaks, key.pos = key.pos, 
 						key.width = key.width, key.length = key.length, axes = axes, ...) 
 			}
@@ -86,7 +89,8 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = names(x)[1], axes = FA
 			par(mar = c(axes * 2.1, axes * 2.1, 1 * !is.null(main), 0))
 
 			# plot the map:
-			image(x, ..., axes = axes, breaks = breaks, col = col, key.pos = key.pos, main = NULL)
+			image(x, ..., axes = axes, breaks = breaks, col = col, key.pos = key.pos, 
+				key.width = key.width, key.length = key.length, main = NULL)
 			if (!is.null(main))
 				title(main)
 
@@ -94,7 +98,7 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = names(x)[1], axes = FA
 			draw.key = !is.null(key.pos) && join_zlim
 			if (! draw.key)
 				key.pos = NULL
-			lt = .get_layout(st_bbox(x), dims[3], par("din"), 
+			lt = .get_layout(st_bbox(x), dims[3], par("din"),
 				if (join_zlim && key.pos.missing) -1 else key.pos, key.width)
 			title_size = if (is.null(main)) 
 					0
@@ -107,7 +111,7 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = names(x)[1], axes = FA
 				im = flatten(x, i)
 				if (! join_zlim) {
 					zlim = range(im[[1]], na.rm = TRUE)
-					br = get_breaks(im, breaks, nbreaks)
+					br = get_breaks(im, breaks, nbreaks, dots$logz)
 				} else
 					br = breaks
 				image(im, xlab = "", ylab = "", axes = axes, zlim = zlim, breaks = br, col = col, key.pos = NULL, main = NULL, ...)
@@ -122,7 +126,7 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = names(x)[1], axes = FA
 			for (i in seq_len(prod(lt$mfrow) - dims[3])) # empty panels:
 				plot.new()
 			if (draw.key) {
-				values = as.vector_stars(x[[1]])
+				values = structure(x[[1]], dim = NULL)
 				if (is.factor(values))
 					.image_scale_factor(levels(values), col, key.pos = lt$key.pos,
 						key.width = key.width, key.length = key.length, axes = axes,...)
@@ -132,7 +136,9 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = names(x)[1], axes = FA
 			}
 		}
 	} else if (has_sfc(x)) {
-		plot(st_as_sf(x), ..., axes = axes)
+		if (key.pos.missing)
+			key.pos = -1
+		plot(st_as_sf(x), ..., key.pos = key.pos, key.length = key.length, key.width = key.width, reset = reset, axes = axes)
 	} else
 		stop("no raster, no features geometries: no default plot method set up yet!")
 	if (reset) {
@@ -142,11 +148,13 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = names(x)[1], axes = FA
 	}
 }
 
-get_breaks = function(x, breaks, nbreaks) {
+get_breaks = function(x, breaks, nbreaks, logz = NULL) {
 	if (is.character(breaks)) { # compute breaks from values in x:
 		pdx = prod(dim(x[[1]]))
 		# take a regular sample from x[[1]]:
-		values = as.numeric(as.vector(x[[1]])[seq(1, pdx, length.out = min(pdx, 10000))])
+		values = as.numeric(structure(x[[1]], dim = NULL)[seq(1, pdx, length.out = min(pdx, 10000))])
+		if (isTRUE(logz))
+			values = log10(values)
 		n.unq = length(unique(na.omit(values)))
 		if (! all(is.na(values)) && n.unq > 1)
 			classInt::classIntervals(na.omit(values), min(nbreaks-1, n.unq), breaks, warnSmallN = FALSE)$brks
@@ -160,7 +168,7 @@ get_breaks = function(x, breaks, nbreaks) {
 #' @param band integer; which band (dimension) to plot
 #' @param attr integer; which attribute to plot
 #' @param asp numeric; aspect ratio of image
-#' @param rgb integer; specify three bands to form an rgb composite
+#' @param rgb integer; specify three bands to form an rgb composite. Experimental: rgb color table; see Details.
 #' @param maxColorValue numeric; passed on to \link{rgb}
 #' @param xlab character; x axis label
 #' @param ylab character; y axis label
@@ -169,6 +177,8 @@ get_breaks = function(x, breaks, nbreaks) {
 #' @param text_values logical; print values as text on image?
 #' @param interpolate logical; when using \link{rasterImage} (rgb), should pixels be interpolated?
 #' @param as_points logical; for curvilinear or sheared grids: parameter passed on to \link{st_as_sf}, determining whether raster cells will be plotted as symbols (fast, approximate) or small polygons (slow, exact)
+#' @param logz logical; if \code{TRUE}, use log10-scale for the attribute variable. In that case, \code{breaks} and \code{at} need to be given as log10-values; see examples.
+#' @details use of an rgb color table is experimental; see https://github.com/r-spatial/mapview/issues/208
 #' @export
 #' @examples
 #' tif = system.file("tif/L7_ETMs.tif", package = "stars")
@@ -176,10 +186,11 @@ get_breaks = function(x, breaks, nbreaks) {
 #' image(x, col = grey((3:9)/10))
 #' image(x, rgb = c(1,3,5)) # rgb composite
 image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL, 
-		maxColorValue = max(x[[attr]]),
+		maxColorValue = ifelse(inherits(rgb, "data.frame"), 255, max(x[[attr]], na.rm = TRUE)),
 		xlab = if (!axes) "" else names(d)[1], ylab = if (!axes) "" else names(d)[2],
 		xlim = st_bbox(x)$xlim, ylim = st_bbox(x)$ylim, text_values = FALSE, axes = FALSE,
-		interpolate = FALSE, as_points = FALSE, key.pos = NULL) {
+		interpolate = FALSE, as_points = FALSE, key.pos = NULL, logz = FALSE,
+		key.width = lcm(1.8), key.length = 0.618) {
 
 	dots = list(...)
 
@@ -199,71 +210,95 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL,
 	dimxn = match(dimx, names(d))
 	dimyn = match(dimy, names(d))
 
-	if (!is_curvilinear(x)) {
-		dims = expand_dimensions(x)
+	if (has_sfc(x) && length(dim(x)) == 2) { # time series of features:
+		ed = lapply(expand_dimensions(x), function(x) if (inherits(x, "sfc")) seq_along(x) else x)
+		names(ed) = c("x", "y")
+		ed$z = x[[attr]]
+		axes = TRUE
+		return(image(ed, ..., xlab = xlab, ylab = ylab))
+	}
+
+	if (! is_curvilinear(x)) {
+		dims = expand_dimensions.stars(x, center = FALSE, max = FALSE)
+		d_max = expand_dimensions.stars(x, center = FALSE, max = TRUE)
+		if (tail(dims[[dimx]], 1) != tail(d_max[[dimx]], 1))
+			dims[[ dimx ]] = c(dims[[dimx]], tail(d_max[[dimx]], 1))
+		if (tail(dims[[dimy]], 1) != tail(d_max[[dimy]], 1))
+			dims[[ dimy ]] = c(dims[[dimy]], tail(d_max[[dimy]], 1))
+
 		y_is_neg = all(diff(dims[[ dimy ]]) < 0)
 		if (y_is_neg)
 			dims[[ dimy ]] = rev(dims[[ dimy ]])
 	}
 
-	if (is.null(asp)) {
-		bb = st_bbox(x)
-		asp <- ifelse(isTRUE(st_is_longlat(x)), 1/cos((mean(bb[c(2,4)]) * pi)/180), 1.0)
-	}
+	if (is.null(asp))
+		asp = if (isTRUE(st_is_longlat(x))) {
+				bb = st_bbox(x)
+				1 / cos((mean(bb[c(2,4)]) * pi)/180)
+			} else
+				1.0
 
 	ar = unclass(x[[ attr ]]) # raw data matrix/array
 
 	# rearrange ar:
-	third = setdiff(1:3, c(dimxn, dimyn))[1]
-	ar = if (length(dim(x)) == 3) # FIXME: deal with more than 3 dims here?
-			aperm(ar, c(dimxn, dimyn, third))
-		else
-			aperm(ar, c(dimxn, dimyn))
+	others = setdiff(seq_along(dim(ar)), c(dimxn, dimyn))
+	ar = aperm(ar, c(dimxn, dimyn, others))
 
 	if (! is.null(rgb)) {
-		if (is_rectilinear(x))
-			warning("when using rgb, rectilinear grid is plotted as regular grid")
 		if (is_curvilinear(x))
 			warning("when using rgb, curvilinear grid is plotted as regular grid")
 		xy = dim(ar)[1:2]
-		ar = structure(ar[ , , rgb], dim = c(prod(xy), 3)) # flattens x/y
-		nas = apply(ar, 1, function(x) any(is.na(x)))
-		ar = rgb(ar[!nas,], maxColorValue = maxColorValue)
-		mat = rep(NA_character_, prod(xy))
-		mat[!nas] = ar
-		dim(mat) = xy
+		if (!y_is_neg) # need to flip y?
+			ar = ar[ , rev(seq_len(dim(ar)[2])), ]
 		if (dev.capabilities("rasterImage")$rasterImage != "yes")
 			stop("rgb plotting not supported on this device")
 		if (! isTRUE(dots$add)) {
 			plot.new()
 			plot.window(xlim = xlim, ylim = ylim, asp = asp)
 		}
-		myRasterImage = function(x, xmin, ymin, xmax, ymax, interpolate, ..., breaks, add) # absorbs breaks & add
+		if (is.numeric(rgb) && length(rgb) == 3) {
+			ar = structure(ar[ , , rgb], dim = c(prod(xy), 3)) # flattens x/y
+			nas = apply(ar, 1, function(x) any(is.na(x)))
+			ar = grDevices::rgb(ar[!nas,], maxColorValue = maxColorValue)
+			mat = rep(NA_character_, prod(xy))
+			mat[!nas] = ar
+			dim(mat) = xy
+		} else {
+			stopifnot(inherits(rgb, "data.frame"))
+			# rgb has col 1: index, col 2: label, col 3-5: R, G, B
+			#ar = as.vector(ar[ , , 1]) # flattens x/y to 1-D index vector
+			ar = as.vector(ar) # flattens x/y to 1-D index vector
+			rgb = grDevices::rgb(rgb[match(ar, rgb[[1]]), 3:5], maxColorValue = maxColorValue)
+			mat = structure(rgb, dim = xy)
+		}
+		myRasterImage = function(x, xmin, ymin, xmax, ymax, interpolate, ..., breaks, add, zlim) # absorbs breaks, add & zlim
 			rasterImage(x, xmin, ymin, xmax, ymax, interpolate = interpolate, ...)
 		myRasterImage(t(mat), xlim[1], ylim[1], xlim[2], ylim[2], interpolate = interpolate, ...)
-	} else if (is_curvilinear(x) || has_rotate_or_shear(x)) { 
+	} else if (is_curvilinear(x) || has_rotate_or_shear(x)) {
 		x = st_as_sf(x[1], as_points = as_points)
-		mplot = function(x, col, ...) {
+		mplot = function(x, col, ..., zlim) {
 			if (missing(col))
 				plot(x, ...)
 			else
 				plot(x, pal = col, ...) # need to swap arg names: FIXME:?
 		}
 		mplot(x, xlab = xlab, ylab = ylab, xlim = xlim, ylim = ylim, axes = axes, reset = FALSE, 
-			key.pos = key.pos, ...)
+			key.pos = key.pos, key.width = key.width, key.length = key.length, logz = logz, ...)
 	} else { # regular grid, no RGB:
 		if (y_is_neg) { # need to flip y?
-			ar = if (length(dim(x)) == 3) # FIXME: deal with more than 3 dims here?
-				ar[ , rev(seq_len(dim(ar)[2])), band]
-			else
-				ar[ , rev(seq_len(dim(ar)[2]))]
+			ar = if (length(dim(ar)) == 2)
+					ar[ , rev(seq_len(dim(ar)[2]))]
+				else
+					ar[ , rev(seq_len(dim(ar)[2])), band] # FIXME: breaks if more than 3?
 		}
 		image.default(dims[[ dimx ]], dims[[ dimy ]], ar, asp = asp, xlab = xlab, ylab = ylab, 
 			xlim = xlim, ylim = ylim, axes = FALSE, ...)
 	}
-	if (text_values)
+	if (text_values) {
+		dims = expand_dimensions.stars(x, center = TRUE)
 		text(do.call(expand.grid, dims[1:2]), labels = as.character(as.vector(ar))) # xxx
-	if (axes) {
+	}
+	if (axes) { # FIXME: see sf::plot.sf for refinements to be ported here?
         if (isTRUE(st_is_longlat(x))) {
             .degAxis(1)
             .degAxis(2)

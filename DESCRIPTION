@@ -1,6 +1,6 @@
 Package: stars
-Title: Scalable, Spatiotemporal Tidy Arrays
-Version: 0.2-0
+Title: Spatiotemporal Arrays, Raster and Vector Data Cubes
+Version: 0.3-0
 Authors@R: 
     c(person(given = "Edzer",
              family = "Pebesma",
@@ -9,39 +9,45 @@ Authors@R:
              comment = c(ORCID = "0000-0001-8049-7069")),
       person(given = "Michael",
              family = "Sumner",
-             role = "ctb"),
+             role = "ctb", 
+             comment=c(ORCID = "0000-0002-2471-7511")),
       person(given = "Etienne",
              family = "Racine",
              role = "ctb"),
       person(given = "Adriano",
              family = "Fantini",
+             role = "ctb"), 
+      person(given = "David", 
+             family = "Blodgett", 
              role = "ctb"))
 Description: Reading, manipulating, writing and plotting
-    spatiotemporal Arrays (including raster data) in R, using GDAL
-    bindings provided by package sf.
+    spatiotemporal arrays (raster and vector data cubes) in R, using GDAL
+    bindings provided by sf, and NetCDF bindings by ncmeta and RNetCDF.
 License: Apache License
 URL: https://github.com/r-spatial/stars/
 BugReports: https://github.com/r-spatial/stars/issues/
 Additional_repositories: http://pebesma.staff.ifgi.de
-Depends: abind, R (>= 3.3.0), sf (>= 0.7-0)
-Imports: methods, parallel, classInt (>= 0.2-2), ncdf4, ncmeta, rlang,
-        units
-Suggests: covr, dplyr (>= 0.7-0), ggplot2, ggthemes, gstat, knitr,
-        lwgeom, maps, pbapply, plm, raster, rmarkdown, sp, spacetime,
-        testthat, viridis, zoo, xts, starsdata
+Depends: R (>= 3.3.0), abind, sf (>= 0.7-2)
+Imports: methods, parallel, classInt (>= 0.2-2), rlang, units
+Suggests: PCICt, RNetCDF (>= 1.8-2), covr, dplyr (>= 0.7-0), ggforce,
+        ggplot2, ggthemes, gstat, httr, jsonlite, knitr, lwgeom, maps,
+        ncmeta (>= 0.0.3), pbapply, plm, raster, rmarkdown, sp,
+        spacetime, testthat, viridis, zoo, xts, starsdata
 VignetteBuilder: knitr
 Encoding: UTF-8
-RoxygenNote: 6.1.0
-Collate: 'init.R' 'stars.R' 'read.R' 'sf.R' 'dimensions.R' 'plot.R'
-        'tidyverse.R' 'transform.R' 'ops.R' 'write.R' 'raster.R'
-        'spacetime.R' 'ncdf.R' 'proxy.R' 'factors.R' 'rasterize.R'
-        'warp.R'
+RoxygenNote: 6.1.1
+Collate: 'init.R' 'stars.R' 'read.R' 'sf.R' 'dimensions.R' 'values.R'
+        'plot.R' 'tidyverse.R' 'transform.R' 'ops.R' 'write.R'
+        'raster.R' 'sp.R' 'spacetime.R' 'ncdf.R' 'proxy.R' 'factors.R'
+        'rasterize.R' 'subset.R' 'warp.R' 'aggregate.R' 'xts.R'
+        'intervals.R'
 NeedsCompilation: no
-Packaged: 2018-10-25 08:23:59 UTC; edzer
+Packaged: 2019-02-24 21:32:08 UTC; edzer
 Author: Edzer Pebesma [aut, cre] (<https://orcid.org/0000-0001-8049-7069>),
-  Michael Sumner [ctb],
+  Michael Sumner [ctb] (<https://orcid.org/0000-0002-2471-7511>),
   Etienne Racine [ctb],
-  Adriano Fantini [ctb]
+  Adriano Fantini [ctb],
+  David Blodgett [ctb]
 Maintainer: Edzer Pebesma <edzer.pebesma@uni-muenster.de>
 Repository: CRAN
-Date/Publication: 2018-10-25 13:10:07 UTC
+Date/Publication: 2019-02-24 22:00:08 UTC

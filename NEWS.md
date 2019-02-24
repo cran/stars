@@ -1,3 +1,39 @@
+# version 0.3-0
+
+* add `st_area` method to return raster grid cell sizes; #99
+
+* fix `st_warp` with `use_gdal=TRUE`, allowing for multi-band warps
+
+* add `st_get_dimension_values` to get the values of a particular dimension (if meaningful); #100
+
+* allow for setting intervals as dimension values; see examples of `st_dimensions`
+
+* add `st_contour`, and clean up `st_as_sf`; #99
+
+* experimental color table support; https://github.com/r-spatial/mapview/issues/208
+
+* rewrote vignettes, added vignettes; #99
+
+* deprecate `st_write.stars` for `write_stars`; #96
+
+* use "native" R array-factor support
+
+* support for `PCICt` 360- and 365-day calendars; #29
+
+* remove import of `ncdf4` in favour of `RNetCDF`, now in line with practice in `ncmeta` package. Thanks to David Blodgett for motivation and testing (see #87, #94). 
+
+* `st_as_sf` uses date/time column names when appropriate
+
+* allow missing trailing comma's when subsetting: `a[1,,]` and `a[1,]` now do the same.
+
+* move `rlang` to Imports: ; rewrite `[` subset using rlang.
+
+* add conversion to and from `Spatial*` classes, including the gridded ones, taking care of `factor` variables
+
+* depend on sf 0.7-2
+
+* add logz support for log-scale keys to `plot` and `image`
+
 # version 0.2-0
 
 * vignettes now use an external package, `starsdata`, for larger dataset examples
