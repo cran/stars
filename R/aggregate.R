@@ -11,14 +11,15 @@
 #' @param as_points see \link[stars]{st_as_sf}: shall raster pixels be taken as points, or small square polygons?
 #' @export
 aggregate.stars = function(x, by, FUN, ..., drop = FALSE, join = st_intersects, 
-		as_points = TRUE, rightmost.closed = FALSE) {
+		as_points = any(st_dimension(by) == 2, na.rm = TRUE), rightmost.closed = FALSE) {
 
 	if (inherits(by, "stars"))
 		by = st_as_sfc(by, as_points = FALSE)
 
 	classes = c("sf", "sfc", "POSIXct", "Date", "PCICt")
-	if (!(inherits(by, classes)))
-		stop(paste("currently, only `by' arguments of class", paste(classes, collapse= ", "), "supported"))
+	if (!inherits(by, classes))
+		stop(paste("currently, only `by' arguments of class", 
+			paste(classes, collapse= ", "), "supported"))
 
 	drop_y = FALSE
 	grps = if (inherits(by, c("sf", "sfc"))) {
@@ -35,17 +36,21 @@ aggregate.stars = function(x, by, FUN, ..., drop = FALSE, join = st_intersects,
 				by = st_geometry(by)
 	
 			# find groups:
-			x_geoms = if (has_raster(x))
-					st_as_sfc(x, as_points = as_points)
-				else
+			x_geoms = if (has_raster(x)) {
+					if (identical(join, st_intersection) && utils::packageVersion("sf") >= "0.7-4")
+						x_geoms
+					else
+						st_as_sfc(x, as_points = as_points)
+				} else
 					d[[ which_sfc(x) ]]$values
 			
-			unlist(join(x_geoms, by))
+			# unlist(join(x_geoms, by))
+			sapply(join(x_geoms, by), function(x) if (length(x)) x[1] else NA)
 		} else { # time:
 			ndims = 1
 			x = st_upfront(x, which_time(x))
 			values = expand_dimensions(x)[[1]]
-			print(values)
+			# print(values)
 			i = findInterval(values, by, rightmost.closed = rightmost.closed)
 			i[ i == 0 | i == length(by) ] = NA
 			i
@@ -56,7 +61,7 @@ aggregate.stars = function(x, by, FUN, ..., drop = FALSE, join = st_intersects,
 
 	agr_grps = function(x, grps, uq, FUN, ...) { 
 		do.call(rbind, lapply(uq, function(i) {
-				sel <- grps == i
+				sel <- which(grps == i)
 				if (!isTRUE(any(sel)))
 					rep(NA_real_, ncol(x))
 				else
@@ -99,3 +104,16 @@ aggregate.stars = function(x, by, FUN, ..., drop = FALSE, join = st_intersects,
 	# now we have |g| rows, with |g| the number of groups
 	# assign each group to the target group of "by"
 	# redimension the matrix such that unaffected dimensions match again
+
+#' @export
+aggregate.stars_proxy = function(x, by, FUN, ...) {
+	if (inherits(by, "stars"))
+		by = st_as_sfc(by, as_points = FALSE)
+	if (!inherits(by, c("sf", "sfc", "sfg")))
+		stop("aggregate.stars_proxy only implemented for spatial `by' arguments")
+	by = st_geometry(by)
+
+	# this assumes the result is small, no need to proxy
+	l = lapply(seq_along(by), function(i) aggregate(st_as_stars(x[by[i]]), by[i], FUN, ...))
+	do.call(c, c(l, along = list(which_sfc(l[[1]]))))
+}

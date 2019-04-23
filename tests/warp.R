@@ -1,4 +1,4 @@
-library(stars)
+suppressPackageStartupMessages(library(stars))
 geomatrix = system.file("tif/geomatrix.tif", package = "stars")
 x = read_stars(geomatrix)
 # can stars reproduce what gdal does, by default?
@@ -9,8 +9,7 @@ plot(y, breaks = "equal", axes=TRUE)
 names(x2) = names(y)
 all.equal(x2, y) # yes?
 
-#if (Sys.getenv("USER") != "travis") {
-if (FALSE) {
+if (FALSE) { # FIXME: to be removed when sf >= 0.7-4 is on CRAN
 # does gdal reproduce with stars template object?
 (x2 = st_warp(x, y, use_gdal = TRUE))
 

@@ -1,6 +1,6 @@
 # convert arrays to data.frame, in long form
 to_df = function(x) {
-	as.data.frame(lapply(x, function(y) structure(y, dim = NULL)))
+	as.data.frame(lapply(x, function(y) structure(y, dim = NULL)), stringsAsFactors = FALSE)
 }
 
 set_dim = function(x, d) {
@@ -11,9 +11,12 @@ get_dims = function(d_cube, d_stars) {
 	xy = attr(d_stars, "raster")$dimensions
 	d_stars = d_stars[names(d_cube)]
 	for (i in seq_along(d_cube)) {
-		d_stars[[i]]$values = if (is.list(d_stars[[i]]$values))
+		d_stars[[i]]$values = if (inherits(d_stars[[i]]$values, "intervals")) {
+				v = d_stars[[i]]$values
+				d_stars[[i]]$values = v[ na.omit(find_interval(d_cube[[i]], v)) ]
+			} else if (is.list(d_stars[[i]]$values)) {
 				d_stars[[i]]$values[ d_cube[[i]] ]
-			else
+			} else
 				d_cube[[i]]
 		d_stars[[i]] = create_dimension(values = d_stars[[i]]$values, point = d_stars[[i]]$point, 
 			refsys = d_stars[[i]]$refsys, is_raster = names(d_stars)[i] %in% xy)
@@ -89,9 +92,17 @@ slice.stars <- function(.data, along, index, ..., drop = length(index) == 1) {
   eval(rlang::expr(.data[!!!indices]))
 }
 
-#fortify.stars = function(model, data, ...) {
-#	as.data.frame(model, ...)
-#}
+#' @name st_coordinates
+#' @export
+#' @param .x object to be converted to a tibble
+as_tibble.stars = function(.x, ..., add_max = FALSE, center = NA) {
+    if (!requireNamespace("dplyr", quietly = TRUE))
+        stop("package dplyr required, please install it first") # nocov
+
+	cc = dplyr::as_tibble(st_coordinates(.x, add_max = add_max, center = center))
+	do.call(dplyr::bind_cols, append(cc, lapply(.x, function(y) structure(y, dim = NULL))))
+}
+
 
 #' ggplot geom for stars objects
 #' 
@@ -134,14 +145,14 @@ geom_stars = function(mapping = NULL, data = NULL, ..., downsample = 1, sf = FAL
 			if (is.null(mapping))
 				mapping = ggplot2::aes(x = !!rlang::sym(xy[1]), y = !!rlang::sym(xy[2]),
 					fill = !!rlang::sym(names(data)[1]))
-			ggplot2::geom_raster(mapping = mapping, data = as.data.frame(data), ...)
+			ggplot2::geom_raster(mapping = mapping, data = dplyr::as_tibble(data), ...)
 		} else {  # rectilinear: use geom_rect, passing on cell boundaries
 			xy_max = paste0(xy, "_max")
 			if (is.null(mapping))
 				mapping = ggplot2::aes(xmin = !!rlang::sym(xy[1]), ymin = !!rlang::sym(xy[2]),
 					xmax = !!rlang::sym(xy_max[1]), ymax = !!rlang::sym(xy_max[2]),
 					fill = !!rlang::sym(names(data)[1]))
-			ggplot2::geom_rect(mapping = mapping, data = as.data.frame(data, add_max = TRUE), ...)
+			ggplot2::geom_rect(mapping = mapping, data = dplyr::as_tibble(data, add_max = TRUE), ...)
 		}
 	} else if (has_sfc(d)) {
 		if (is.null(mapping))
@@ -153,6 +164,7 @@ geom_stars = function(mapping = NULL, data = NULL, ..., downsample = 1, sf = FAL
 
 register_all_s3_methods = function() {
 	register_s3_method("dplyr", "filter", "stars") # nocov start
+	register_s3_method("dplyr", "as_tibble", "stars")
 	register_s3_method("dplyr", "select", "stars")
 	register_s3_method("dplyr", "mutate", "stars")
 	register_s3_method("dplyr", "pull", "stars")

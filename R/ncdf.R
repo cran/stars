@@ -1,5 +1,13 @@
-.is_regular <- function(coords_list) {
-  unlist(lapply(coords_list, function(x) regular_intervals(x)))
+.is_regular <- function(coords_list, eps) {
+  unlist(lapply(coords_list, function(x) regular_intervals(x, epsilon = eps)))
+}
+
+.is_unique <- function(x, eps) {
+  u = unique(x)
+  if (all(diff(sort(u)) < eps))
+    mean(x) # rather than mean(u)
+  else
+    u
 }
 
 
@@ -31,14 +39,13 @@
 #' @param var variable name or names (they must be on matching grids)
 #' @param ncsub matrix of start, count columns (see Details)
 #' @param curvilinear length two character vector with names of subdatasets holding longitude and latitude values for all raster cells.
+#' @param eps numeric; dimension value increases are considered identical when they differ less than \code{eps}
 #' @details
-#' If `var` is not set the first set of variables on a shared grid is used.
-#' It's supposed to be the grid with the most dimensions, but there's no control
-#' yet (see `ncmeta::nc_grids(.x)` for the current assumption).
+#' If \code{var} is not set the first set of variables on a shared grid is used.
 #'
 #' \code{start} and \code{count} columns of ncsub must correspond to the variable dimemsion (nrows)
-#' and be valid index using `RNetCDF::var.get.nc` convention (start is 1-based). If the count value
-#' is `NA` then all steps are included. Axis order must match that of the variable/s being read.
+#' and be valid index using \code{\link[RNetCDF]{var.get.nc}} convention (start is 1-based). If the count value
+#' is \code{NA} then all steps are included. Axis order must match that of the variable/s being read.
 #' @export
 #' @examples
 #' #' precipitation data in a curvilinear NetCDF
@@ -52,11 +59,13 @@
 #'   x = na.omit(x)
 #'   c(0, quantile(x[x > 0], seq(0, 1, length.out = n)))
 #' }
-#' prec_slice = stars::slice.stars(prec, index = 17, along = "time")
+#' library(dplyr)
+#' prec_slice = slice(prec, index = 17, along = "time")
 #' plot(prec_slice, border = NA, breaks = qu_0_omit(prec_slice[[1]]), reset = FALSE)
 #' nc = sf::read_sf(system.file("gpkg/nc.gpkg", package = "sf"), "nc.gpkg")
 #' plot(st_geometry(nc), add = TRUE, reset = FALSE, col = NA)
-read_ncdf = function(.x, ..., var = NULL, ncsub = NULL, curvilinear = character(0)) {
+read_ncdf = function(.x, ..., var = NULL, ncsub = NULL, curvilinear = character(0),
+    eps = 1e-12) {
 
   if (!requireNamespace("ncmeta", quietly = TRUE))
     stop("package ncmeta required, please install it first") # nocov
@@ -75,7 +84,12 @@ read_ncdf = function(.x, ..., var = NULL, ncsub = NULL, curvilinear = character(
 
       if (length(ix) < 1)  stop("only scalar variables found, not yet supported") # nocov
     }
-    var = meta$grid$variable[meta$grid$grid[ix] == meta$grid$grid]
+    if (utils::packageVersion("ncmeta") <= "0.0.3") {
+     var = meta$grid$variable[meta$grid$grid[ix] == meta$grid$grid]
+    } else {
+     grd = meta$grid$grid[which.max(nchar(meta$grid$grid))]
+     var = meta$grid$variables[[match(grd, meta$grid$grid)]]$variable
+    }
   }
   ##
   dims_index = meta$axis$dimension[meta$axis$variable == var[1L]]
@@ -103,6 +117,11 @@ read_ncdf = function(.x, ..., var = NULL, ncsub = NULL, curvilinear = character(
 
   vars = ncmeta::nc_vars(nc)
   out = setNames(out, var)
+  # units:
+  for (i in var)
+    if (is.numeric(out[[i]]) && !is.null(u <- nc_get_attr(nc, i, "units")))
+      units(out[[i]]) = try_as_units(u)
+
   ## cannot assume we have coord dims
   ## - so create them as 1:length if needed
   coords = setNames(vector("list", length(dims$name)), dims$name)
@@ -110,7 +129,6 @@ read_ncdf = function(.x, ..., var = NULL, ncsub = NULL, curvilinear = character(
     subidx <- seq(ncsub[ic, "start"], length = ncsub[ic, "count"])
 
     ## create_dimvar means we can var_get it
-    ##if (nc$dim[[dims$name[ic]]]$create_dimvar) {
     ## test checks if there's actuall a variable of the dim name
     if (dims$name[ic] %in% vars$name) {
       coords[[ic]] <- RNetCDF::var.get.nc(nc, variable = dims$name[ic])[subidx]
@@ -123,20 +141,45 @@ read_ncdf = function(.x, ..., var = NULL, ncsub = NULL, curvilinear = character(
   ## can we create a raster?
   raster = NULL
   ## which coords are regular
-  regular = .is_regular(coords)
+  regular = .is_regular(coords, eps)
   if (length(coords) > 1) {
-    # if (all(regular[1:2])) {
     raster = get_raster(affine = c(0, 0),
                         dimensions = names(coords)[1:2], curvilinear = FALSE)
-    #}
-
   }
+
   dimensions = create_dimensions(setNames(dim(out[[1]]), dims$name), raster)
 
   ## if either x, y rectilinear assume both are
   #if (sum(regular[1:2]) == 1) regular[1:2] <- c(FALSE, FALSE)
+  to_rectilinear = FALSE
   for (i in seq_along(coords)) {
-    if (regular[i]) {
+    var_names = nc_var_names(nc)
+    if (names(coords)[i] %in% var_names &&
+        !is.null(bounds <- nc_get_attr(nc, names(coords)[i], "bounds")) &&
+        bounds %in% var_names) {
+
+      bounds = RNetCDF::var.get.nc(nc, bounds)
+	  if (!is.matrix(bounds)) # single instance, returns a vector
+	  	bounds = matrix(bounds, nrow = 2)
+      is_reg = ncol(bounds) > 1 && length(u <- .is_unique(apply(bounds, 2, diff), eps)) == 1 &&
+        length(v <- .is_unique(diff(bounds[1,]), eps)) == 1
+
+      if (is_reg && abs(u + v) < eps) {
+          warning(paste("bounds for", names(coords)[i], "seem to be reversed; reverting them"))
+		  bounds = apply(bounds, 2, sort) # should not be needed according to CF, but see #133
+          u = v
+      }
+
+      if (is_reg && abs(v - u) < eps) {
+        dimensions[[i]]$offset = bounds[1,1]
+        dimensions[[i]]$delta = v
+      } else {
+        dimensions[[i]]$values = make_intervals(bounds[1,], bounds[2,])
+        dimensions[[i]]$point = FALSE
+        if (i %in% 1:2) # FIXME: ? hard-coding here that lon lat are in the first two dimensions:
+			to_rectilinear = TRUE
+      }
+    } else if (regular[i]) {
       dx <- diff(coords[[i]][1:2])
       dimensions[[i]]$offset[1L] = coords[[i]][ncsub[i, "start"]] - dx/2
       ## NaN for singleton dims, but that seems ok unless we have explicit interval?
@@ -149,7 +192,60 @@ read_ncdf = function(.x, ..., var = NULL, ncsub = NULL, curvilinear = character(
       dimensions[[i]]$delta[1L] = NA
     }
   }
+  if (to_rectilinear)
+    dimensions = as_rectilinear(dimensions)
 
+  # sort out time -> POSIXct:
+  td = which(names(dimensions) == "time")
+  if (length(td) == 1) {
+    tm = RNetCDF::var.get.nc(nc, variable = "time")
+    u = RNetCDF::att.get.nc(nc, variable = "time", attribute = "units")
+    cal = RNetCDF::att.get.nc(nc, variable = "time", attribute = "calendar")
+    if (cal %in% c("360_day", "365_day", "noleap")) {
+      if (!requireNamespace("PCICt", quietly = TRUE))
+        stop("package PCICt required, please install it first") # nocov
+      t01 = set_units(0:1, u, mode = "standard")
+	  delta = if (grepl("months", u)) {
+          if (cal == "360_day")
+		    set_units(30 * 24 * 3600, "s", mode = "standard")
+		  else
+		    set_units((365/12) * 24 * 3600, "s", mode = "standard")
+        } else
+          set_units(as_units(diff(as.POSIXct(t01))), "s", mode = "standard")
+      origin = as.character(as.POSIXct(t01[1]))
+      v.pcict = PCICt::as.PCICt(tm * as.numeric(delta), cal, origin)
+      if (!is.null(dimensions[[td]]$values)) {
+		v = dimensions[[td]]$values
+        if (inherits(v, "intervals")) {
+          start = PCICt::as.PCICt(v$start * as.numeric(delta), cal, origin)
+          end =   PCICt::as.PCICt(v$end   * as.numeric(delta), cal, origin)
+          dimensions[[td]]$values = make_intervals(start, end)
+        } else
+          dimensions[[td]]$values = v.pcict
+      } else {
+        dimensions[[td]]$offset = v.pcict[1]
+        dimensions[[td]]$delta = diff(v.pcict[1:2])
+      }
+      dimensions[[td]]$refsys = "PCICt"
+    } else { # Gregorian/Julian, POSIXct:
+      if (!is.null(dimensions[[td]]$values)) {
+		v = dimensions[[td]]$values
+		if (inherits(v, "intervals")) {
+          start = as.POSIXct(units::set_units(v$start, u, mode = "standard")) # or: RNetCDF::utcal.nc(u, tm, "c")
+          end =   as.POSIXct(units::set_units(v$end,   u, mode = "standard")) # or: RNetCDF::utcal.nc(u, tm, "c")
+          dimensions[[td]]$values = make_intervals(start, end)
+		} else
+          dimensions[[td]]$values = as.POSIXct(units::set_units(tm, u, mode = "standard")) # or: RNetCDF::utcal.nc(u, tm, "c")
+      } else {
+        t0 = dimensions[[td]]$offset
+        t1 = dimensions[[td]]$offset + dimensions[[td]]$delta
+        t.posix = as.POSIXct(units::set_units(c(t0, t1), u, mode = "standard")) # or: utcal.nc(u, c(t0,t1), "c")
+        dimensions[[td]]$offset = t.posix[1]
+        dimensions[[td]]$delta = diff(t.posix)
+      }
+      dimensions[[td]]$refsys = "POSIXct"
+    }
+  }
 
   ret = st_stars(out, dimensions)
 
@@ -162,7 +258,30 @@ read_ncdf = function(.x, ..., var = NULL, ncsub = NULL, curvilinear = character(
                                                                         collapse = FALSE,
                                                                         unpack = TRUE))
     names(curvi_coords)[1:2] <- names(dimensions)[1:2]
-    ret = st_as_stars(ret, curvilinear = curvi_coords)
-  }
-  ret
+    st_as_stars(ret, curvilinear = curvi_coords)
+  } else
+    ret
+}
+
+nc_get_attr = function(nc, var, att) {
+  a = RNetCDF::var.inq.nc(nc, var)
+  for (i in seq_len(a$natts) - 1)
+    if (RNetCDF::att.inq.nc(nc, var, i)$name == att)
+      return(RNetCDF::att.get.nc(nc, var, att))
+  NULL
+}
+
+nc_var_names = function(nc) {
+  sapply(seq_len(RNetCDF::file.inq.nc(nc)$nvars), function(i) RNetCDF::var.inq.nc(nc, i-1)$name)
+}
+
+as_rectilinear = function(d) {
+	ed = expand_dimensions(d, center = FALSE)
+	for (i in attr(d, "raster")$dimensions) {
+		if (!is.na(d[[ i ]]$offset)) {
+			d[[i]]$values = as_intervals(ed[[i]], add_last = TRUE)
+			d[[i]]$offset = d[[i]]$delta = NA
+		}
+	}
+	d
 }

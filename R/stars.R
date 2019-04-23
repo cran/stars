@@ -141,23 +141,43 @@ st_as_stars.bbox = function(.x, ..., nx = 360, ny = 180,
 }
 
 ## @param x two-column matrix with columns and rows, as understood by GDAL; 0.5 refers to the first cell's centre; 
-xy_from_colrow = function(x, geotransform, inverse = FALSE) {
+xy_from_colrow = function(x, geotransform) {
 # http://www.gdal.org/classGDALDataset.html , search for geotransform:
 # 0-based indices:
 # Xp = geotransform[0] + P*geotransform[1] + L*geotransform[2];
 # Yp = geotransform[3] + P*geotransform[4] + L*geotransform[5];
-	if (inverse) {
-		geotransform = gdal_inv_geotransform(geotransform)
-		if (any(is.na(geotransform)))
-			stop("geotransform not invertible")
-	}
-	stopifnot(ncol(x) == 2)
+	stopifnot(ncol(x) == 2, length(geotransform) == 6, !any(is.na(geotransform)))
 	matrix(geotransform[c(1, 4)], nrow(x), 2, byrow = TRUE) + 
 		x %*% matrix(geotransform[c(2, 3, 5, 6)], nrow = 2, ncol = 2)
 }
 
-colrow_from_xy = function(x, geotransform) {
-	xy_from_colrow(x, geotransform, inverse = TRUE) # will return floating point col/row numbers!!
+colrow_from_xy = function(x, obj, NA_outside = FALSE) {
+	if (inherits(obj, "stars"))
+		obj = st_dimensions(obj)
+	xy = attr(obj, "raster")$dimensions
+	if (inherits(obj, "dimensions"))
+		gt = get_geotransform(obj)
+
+	if (!any(is.na(gt))) { # have geotransform
+		inv_gt = gdal_inv_geotransform(gt)
+		if (any(is.na(inv_gt)))
+			stop("geotransform not invertible")
+		ret = floor(xy_from_colrow(x, inv_gt) + 1.)# will return floating point col/row numbers!!
+		if (NA_outside)
+			ret[ ret[,1] < 1 | ret[,1] > obj[[ xy[1] ]]$to | ret[,2] < 1 | ret[,2] > obj[[ xy[2] ]]$to, ] = NA
+		ret
+	} else if (is_rectilinear(obj)) {
+		ix = obj[[ xy[1] ]]$values 
+		if (!inherits(ix, "intervals"))
+			ix = as_intervals(ix, add_last = length(ix) == dim(obj)[ xy[1] ])
+		cols = find_interval(x[,1], ix)
+		iy = obj[[ xy[2] ]]$values 
+		if (!inherits(iy, "intervals"))
+			iy = as_intervals(iy, add_last = length(iy) == dim(obj)[ xy[2] ])
+		rows = find_interval(x[,1], iy) # always NA_outside
+		cbind(cols, rows)
+	} else
+		stop("colrow_from_xy not supported for this object")
 }
 
 has_rotate_or_shear = function(x) {
@@ -218,15 +238,20 @@ has_sfc = function(x) {
 #' retrieve coordinates for raster or vector cube cells
 #' @param x object of class \code{stars}
 #' @param add_max logical; if \code{TRUE}, dimensions are given with a min (x) and max (x_max) value
+#' @param center logical; (only if \code{add_max} is FALSE): should grid cell center coordinates be returned (TRUE) or offset values (FALSE)? \code{center} can be a named logical vector or list to specify values for each dimension.
 #' @name st_coordinates
 #' @param ... ignored
 #' @export
-st_coordinates.stars = function(x, ..., add_max = FALSE) {
+st_coordinates.stars = function(x, ..., add_max = FALSE, center = TRUE) {
 	dims = st_dimensions(x)
 	xy = attr(dims, "raster")$dimensions
-	if (has_rotate_or_shear(x)) {
+	if (is_curvilinear(x))
+		setNames(data.frame(as.vector(dims[[ xy[1] ]]$values), as.vector(dims[[ xy[2] ]]$values)), xy)
+	else if (has_rotate_or_shear(x)) {
 		if (add_max)
 			stop("add_max will not work for rotated/shared rasters")
+		if (isTRUE(!center)) # center = FALSE
+			warning("center values are given for spatial coordinates")
 		d = dim(x)
 		nx = d[ xy[1] ]
 		ny = d[ xy[2] ]
@@ -240,19 +265,20 @@ st_coordinates.stars = function(x, ..., add_max = FALSE) {
 					paste0(xy, "_max"))
 			)
 		} else
-			do.call(expand.grid, expand_dimensions(x)) # cell centers for x/y if raster
+			do.call(expand.grid, expand_dimensions(x, center = center)) # cell centers for x/y if raster
 	}
 }
 
 #' @export
 st_coordinates.dimensions = function(x, ...) {
-	st_coordinates(st_as_stars(list(), dimensions = x))
+	st_coordinates(st_as_stars(list(), dimensions = x), ...)
 }
 
 #' @name st_coordinates
 #' @export
-as.data.frame.stars = function(x, ..., add_max = FALSE) {
-	data.frame(st_coordinates(x, add_max = add_max), lapply(x, function(y) structure(y, dim = NULL)))
+as.data.frame.stars = function(x, ..., add_max = FALSE, center = NA) {
+	data.frame(st_coordinates(x, add_max = add_max, center = center), 
+		lapply(x, function(y) structure(y, dim = NULL)))
 }
 
 
@@ -513,11 +539,13 @@ merge.stars = function(x, y, ...) {
 sort_out_along = function(ret) { 
 	d1 = st_dimensions(ret[[1]])
 	d2 = st_dimensions(ret[[2]])
-	if ("time" %in% names(d1) && (isTRUE(d1$time$offset != d2$time$offset) || (d1$time$values != d2$time$values)))
+	if ("time" %in% names(d1) && (isTRUE(d1$time$offset != d2$time$offset) || 
+			!any(d1$time$values %in% d2$time$values)))
 		"time"
 	else
 		NA_integer_
 }
+
 
 #' @export
 is.na.stars = function(x, ...) {
@@ -561,8 +589,18 @@ st_redimension.stars = function(x, new_dims = st_dimensions(x), along = list(new
 
 #' @export
 "$<-.stars" = function(x, i, value) {
-	if (is.null(dim(value)))
-		dim(value) = dim(x)
+	if (!is.null(value)) {
+		if (prod(dim(x)) %% length(value) != 0) { # error:
+			if (is.null(dim(value)))
+				stop(paste("replacement has length", length(value), ", data has dim", paste(dim(x), collapse = ", ")))
+			else
+				stop(paste("replacement has dim", paste(dim(value), collapse = ", "), ", data has dim", paste(dim(x), collapse = ", ")))
+		}
+		value = if (is.factor(value))
+				structure(rep(value, length.out = prod(dim(x))), dim = dim(x))
+			else
+				array(value, dim(x))
+	}
 	NextMethod()
 }
 
@@ -604,4 +642,17 @@ st_area.stars = function(x, ...) {
 		else
 			list(area = array(a, dim(d)))
 	st_stars(lst, dimensions = d)
+}
+
+#' @export
+drop_units.stars = function(x) {
+	st_stars(lapply(x, drop_units), dimensions = st_dimensions(x))
+}
+
+#' @export
+predict.stars = function(object, model, ...) {
+	pr = predict(model, as.data.frame(st_as_stars(object)), ...)
+	if (!inherits(pr, "data.frame"))
+		pr = data.frame(prediction = pr)
+	st_stars(lapply(pr, function(y) structure(y, dim = dim(object))), st_dimensions(object))
 }

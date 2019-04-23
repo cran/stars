@@ -112,16 +112,21 @@ st_set_dimensions = function(.x, which, values = NULL, point = NULL, names = NUL
 		if (length(d) != length(names))
 			stop("length of names should match number of dimension")
 		base::names(d) = names
-	}
-	st_as_stars(unclass(.x), dimensions = d)
+	} else
+		d[[which]] = create_dimension(from = 1, to = dim(.x)[which], ...)
+	if (inherits(.x, "stars_proxy"))
+		structure(.x, dimensions = d)
+	else
+		st_as_stars(unclass(.x), dimensions = d)
 }
+
 
 #' @name st_dimensions
 #' @param max logical; if \code{TRUE} return the end, rather than the beginning of an interval
 #' @param center logical; if \code{TRUE} return the center of an interval; if \code{NA} return the center for raster dimensions, and the start of intervals in other cases
 #' @export
 st_get_dimension_values = function(.x, which, ..., max = FALSE, center = NA) {
-	if (!inherits(which, c("numeric", "character")) || length(which) != 1)
+	if ((!is.numeric(which) && !is.character(which)) || length(which) != 1)
 		stop("argument which should be a length 1 dimension index or name") # nocov
 	expand_dimensions(.x, ..., max = max, center = center)[[which]]
 }
@@ -156,8 +161,7 @@ regular_intervals = function(x, epsilon = 1e-10) {
 create_dimension = function(from = 1, to, offset = NA_real_, delta = NA_real_, 
 		refsys = NA_character_, point = NA, values = NULL, is_raster = FALSE)  {
 
-#	if (inherits(refsys, "crs"))
-#		refsys = refsys$proj4string
+	example = NA
 
 	if (! is.null(values)) { # figure out from values whether we have sth regular:
 		from = 1
@@ -171,21 +175,30 @@ create_dimension = function(from = 1, to, offset = NA_real_, delta = NA_real_,
 				if (regular_intervals(values)) {
 					offset = values[1]
 					if (length(values) > 1) {
-						delta = values[2] - values[1]
+						delta = diff(values[1:2])
 					# shift half grid cell size if x or y raster dim cell midpoints:
 						if (is_raster)
 							offset = offset - 0.5 * delta
 					}
 					values = NULL
-				}
-				if (inherits(offset, "POSIXct"))
-					refsys = "POSIXct"
-				if (inherits(offset, "Date"))
-					refsys = "Date"
-				if (inherits(offset, "PCICt"))
-					refsys = "PCICt"
+					example = offset
+				} else
+					example = values
 			}
 		}
+		if (inherits(values, "intervals"))
+			example = values$start
+
+		# refsys:
+		if (inherits(example, "POSIXct"))
+			refsys = "POSIXct"
+		else if (inherits(example, "Date"))
+			refsys = "Date"
+		else if (inherits(example, "PCICt"))
+			refsys = "PCICt"
+		else if (inherits(example, "units"))
+			refsys = "udunits"
+
 		if (inherits(values, "sfc")) {
 			point = inherits(values, "sfc_POINT")
 			if (!is.na(st_crs(values)) && is.na(refsys)) # inherit:
@@ -197,8 +210,6 @@ create_dimension = function(from = 1, to, offset = NA_real_, delta = NA_real_,
 				else
 					set_dimension_values(start = values)
 		}
-		if (inherits(values, "units") || (inherits(values, "intervals") && inherits(values$start, "units")))
-			refsys = "udunits"
 	}
 	structure(list(from = from, to = to, offset = offset, delta = delta, 
 		refsys = refsys, point = point, values = values), class = "dimension")
@@ -338,11 +349,17 @@ parse_netcdf_meta = function(pr, name) {
 					if (v == "time" && !is.na(cal) && cal %in% c("360_day", "365_day", "noleap")) {
 						origin = 0:1
 						units(origin) = try_as_units(u)
-						delta = as.numeric(set_units(as_units(diff(as.POSIXct(origin))), "s", mode = "standard"))
+						delta = if (grepl("months", u)) {
+								if (cal == "360_day")
+									set_units(30 * 24 * 3600, "s", mode = "standard")
+								else
+									set_units((365/12) * 24 * 3600, "s", mode = "standard")
+							} else
+								set_units(as_units(diff(as.POSIXct(origin))), "s", mode = "standard")
 						origin_txt = as.character(as.POSIXct(origin[1]))
     					if (!requireNamespace("PCICt", quietly = TRUE))
         					stop("package PCICt required, please install it first") # nocov
-						pr$dim_extra[[v]] = PCICt::as.PCICt(pr$dim_extra[[v]] * delta, cal, origin_txt)
+						pr$dim_extra[[v]] = PCICt::as.PCICt(pr$dim_extra[[v]] * as.numeric(delta), cal, origin_txt)
 					} else {
 						units(pr$dim_extra[[v]]) = try_as_units(u)
 						if (v == "time" && !inherits(try(as.POSIXct(pr$dim_extra[[v]]), silent = TRUE),
@@ -389,31 +406,40 @@ expand_dimensions.stars = function(x, ...) {
 #   add_max = TRUE: add in addition to x and y start values an x_max and y_max end values
 expand_dimensions.dimensions = function(x, ..., max = FALSE, center = NA) {
 
-	if (isTRUE(max) && isTRUE(center))
+	if (length(center) == 1)
+		center = setNames(rep(center, length(x)), names(x))
+	if (length(max) == 1)
+		max = setNames(rep(max, length(x)), names(x))
+
+	if (is.list(max))
+		max = unlist(max)
+	if (is.list(center))
+		center = unlist(center)
+
+	if (any(max & center, na.rm = TRUE))
 		stop("only one of max and center can be TRUE, not both")
 
-	where = if (max) 
-			1.0
-		else if (isTRUE(center))
-			0.5
-		else
-			0.0
+	where = ifelse(max, 1.0, ifelse(isTRUE(center), 0.5, 0.0)) # defaults to 0!
 
 	dimensions = x
 	xy = attr(x, "raster")$dimensions
 	gt = get_geotransform(x)
 	lst = vector("list", length(dimensions))
 	names(lst) = names(dimensions)
-	if (! is.null(xy) && all(!is.na(xy))) { # we have raster:
-		if (!max && (is.na(center) || center))
-			where = 0.5
+	if (! is.null(xy) && all(!is.na(xy))) { # we have raster: where defaulting to 0.5
+		where[xy] = ifelse(!max[xy] & (is.na(center[xy]) | center[xy]), 0.5, where[xy])
+#		where_xy = if (!max && (is.na(center) || center))
+#				0.5
+#			else
+#				where
 		if (xy[1] %in% names(lst)) # x
-			lst[[ xy[1] ]] = get_dimension_values(dimensions[[ xy[1] ]], where, gt, "x")
+			lst[[ xy[1] ]] = get_dimension_values(dimensions[[ xy[1] ]], where[[ xy[1] ]], gt, "x")
 		if (xy[2] %in% names(lst))  # y
-			lst[[ xy[2] ]] = get_dimension_values(dimensions[[ xy[2] ]], where, gt, "y")
+			lst[[ xy[2] ]] = get_dimension_values(dimensions[[ xy[2] ]], where[[ xy[2] ]], gt, "y")
 	}
+
 	for (nm in setdiff(names(lst), xy)) # non-xy dimensions
-		lst[[ nm ]] = get_dimension_values(dimensions[[ nm ]], where, NA, NA)
+		lst[[ nm ]] = get_dimension_values(dimensions[[ nm ]], where[[nm]], NA, NA)
 
 	lst
 }
@@ -429,7 +455,7 @@ dim.dimensions = function(x) {
 
 
 #' @export
-print.dimensions = function(x, ..., digits = 6) {
+print.dimensions = function(x, ..., digits = 6, usetz = TRUE) {
 	lst = lapply(x, function(y) {
 			if (length(y$values) > 2) {
 				y$values = if (is.array(y$values))
@@ -450,8 +476,8 @@ print.dimensions = function(x, ..., digits = 6) {
 		}
 	)
 	mformat = function(x, ..., digits) {
-		if (inherits(x, "PCICt")) 
-			format(x, ...)
+		if (inherits(x, c("PCICt", "POSIXct"))) 
+			format(x, ..., usetz = usetz)
 		else
 			format(x, digits = digits, ...) 
 	}
@@ -483,23 +509,14 @@ combine_dimensions = function(dots, along) {
 		dims[[along]] = create_dimension(from = 1, to = length(dots), values = names(dots))
 	} else {
 		offset = lapply(dots, function(x) attr(x, "dimensions")[[along]]$offset)
-		if (any(is.na(offset))) {
+		if (any(is.na(offset))) { # concatenate values if non-NULL:
 			dims[[along]]$from = 1
 			dims[[along]]$to = sum(sapply(dots, function(x) { d = st_dimensions(x)[[along]]; d$to - d$from + 1} ))
 			if (!is.null(dims[[along]]$values))
 				dims[[along]]$values = do.call(c, lapply(dots, function(x) attr(x, "dimensions")[[along]]$values))
 		} else {
-			offset = structure(do.call(c, offset), tzone = attr(offset[[1]], "tzone")) # preserve TZ
-			if (length(unique(diff(offset))) == 1) { # regular & sorted
-				dims[[along]]$offset = min(offset)
-				dims[[along]]$delta = diff(offset)[1]
-			} else {
-				dims[[along]]$values = offset  # nocov # FIXME: find example?
-				dims[[along]]$delta = NA_real_ # nocov
-				# FIXME: irregular: should set $values here and NA offset!
-			}
-			dims[[along]]$from = 1
-			dims[[along]]$to = length(offset)
+			values = do.call(c, lapply(dots, function(y) st_get_dimension_values(y, along)))
+			dims[[along]] = create_dimension(values = values)
 		}
 	}
 	dims

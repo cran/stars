@@ -16,11 +16,12 @@
 #' @param key.length amount of space reserved for length of the key (labels); relative or absolute (using lcm)
 #' @param reset logical; if \code{FALSE}, keep the plot in a mode that allows adding further map elements; if \code{TRUE} restore original mode after plotting; see details.
 #' @param box_col color for box around sub-plots; use \code{0} to suppress plotting of boxes around sub-plots.
+#' @param center_time logical; if \code{TRUE}, sub-plot titles will show the center of time intervals, otherwise their start
 #' @export
 plot.stars = function(x, y, ..., join_zlim = TRUE, main = names(x)[1], axes = FALSE, 
 		downsample = TRUE, nbreaks = 11, breaks = "quantile", col = grey(1:(nbreaks-1)/nbreaks),
 		key.pos = get_key_pos(x, ...), key.width = lcm(1.8), key.length = 0.618, 
-		reset = TRUE, box_col = grey(.8)) {
+		reset = TRUE, box_col = grey(.8), center_time = FALSE) {
 
 	flatten = function(x, i) { # collapse all non-x/y dims into one, and select "layer" i
 		d = st_dimensions(x)
@@ -106,7 +107,7 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = names(x)[1], axes = FA
 					1.2
 			layout(lt$m, widths = lt$widths, heights = lt$heights, respect = FALSE)
 			par(mar = c(axes * 2.1, axes * 2.1, title_size, 0))
-			labels = expand_dimensions(st_dimensions(x))[[3]]
+			labels = st_get_dimension_values(x, 3, center = center_time)
 			for (i in seq_len(dims[3])) {
 				im = flatten(x, i)
 				if (! join_zlim) {
@@ -118,7 +119,9 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = names(x)[1], axes = FA
 				if (!is.null(main)) {
 					if (length(main) == dims[3])
 						title(main[i])
-					else
+					else if (identical(main, names(x)[1])) # default value: omit on multi
+						title(paste(format(labels[i])))
+					else # user-defined
 						title(paste(main, format(labels[i])))
 				}
 				box(col = box_col)
@@ -243,6 +246,8 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL,
 	# rearrange ar:
 	others = setdiff(seq_along(dim(ar)), c(dimxn, dimyn))
 	ar = aperm(ar, c(dimxn, dimyn, others))
+	if (text_values)
+		ar_text = ar # keep original order for cell text labels
 
 	if (! is.null(rgb)) {
 		if (is_curvilinear(x))
@@ -296,7 +301,7 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL,
 	}
 	if (text_values) {
 		dims = expand_dimensions.stars(x, center = TRUE)
-		text(do.call(expand.grid, dims[1:2]), labels = as.character(as.vector(ar))) # xxx
+		text(do.call(expand.grid, dims[1:2]), labels = as.character(as.vector(ar_text))) # xxx
 	}
 	if (axes) { # FIXME: see sf::plot.sf for refinements to be ported here?
         if (isTRUE(st_is_longlat(x))) {

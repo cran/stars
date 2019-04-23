@@ -100,6 +100,9 @@ img {
 button.code-folding-btn:focus {
   outline: none;
 }
+summary {
+  display: list-item;
+}
 </style>
 
 
@@ -107,14 +110,74 @@ button.code-folding-btn:focus {
 <div class="container-fluid main-container">
 
 <!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
 <script>
 $(document).ready(function () {
   window.buildTabsets("TOC");
 });
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
 </script>
 
 <!-- code folding -->
-
 
 
 
@@ -241,16 +304,17 @@ library(dplyr)</code></pre>
 <pre class="r"><code>methods(class = &quot;stars&quot;)
 ##  [1] $&lt;-            Math           Ops            [             
 ##  [5] [&lt;-            adrop          aggregate      aperm         
-##  [9] as.data.frame  as.tbl_cube    c              coerce        
-## [13] cut            dim            dimnames       dimnames&lt;-    
-## [17] filter         image          initialize     is.na         
-## [21] merge          mutate         plot           print         
-## [25] pull           select         show           slice         
-## [29] slotsFromS3    split          st_apply       st_area       
-## [33] st_as_sf       st_as_sfc      st_as_stars    st_bbox       
-## [37] st_coordinates st_crop        st_crs         st_crs&lt;-      
-## [41] st_dimensions  st_geometry    st_redimension st_transform  
-## [45] write_stars   
+##  [9] as.data.frame  as.tbl_cube    as_tibble      c             
+## [13] coerce         cut            dim            dimnames      
+## [17] dimnames&lt;-     drop_units     filter         image         
+## [21] initialize     is.na          merge          mutate        
+## [25] plot           predict        print          pull          
+## [29] select         show           slice          slotsFromS3   
+## [33] split          st_apply       st_area        st_as_sf      
+## [37] st_as_sfc      st_as_stars    st_bbox        st_coordinates
+## [41] st_crop        st_crs         st_crs&lt;-       st_dimensions 
+## [45] st_geometry    st_intersects  st_redimension st_transform  
+## [49] write_stars   
 ## see '?methods' for accessing help and source code</code></pre>
 <p>We will work with a three-band section of a landsat image:</p>
 <pre class="r"><code>system.file(&quot;tif/L7_ETMs.tif&quot;, package = &quot;stars&quot;) %&gt;%

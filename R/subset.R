@@ -138,6 +138,7 @@
 #' @param x object of class \code{stars}
 #' @param y object of class \code{sf}, \code{sfc} or \code{bbox}; see Details below.
 #' @param epsilon numeric; shrink the bounding box of \code{y} to its center with this factor.
+#' @param as_points logical; if \code{FALSE}, treat \code{x} as a set of points, else as a set of small polygons. Default: \code{TRUE} if \code{y} is two-dimensional, else \code{FALSE}
 #' @param ... ignored
 #' @param crop logical; if \code{TRUE}, the spatial extent of the returned object is cropped to still cover \code{obj}, if \code{FALSE}, the extent remains the same but cells outside \code{y} are given \code{NA} values.
 #' @details for raster \code{x}, \code{st_crop} selects cells for which the cell centre is inside the bounding box; see the examples below.
@@ -190,13 +191,14 @@
 #' plot(l7[,1:13,1:13,1], reset = FALSE)
 #' image(l7[bb,,,1], add = TRUE, col = sf.colors())
 #' plot(st_as_sfc(bb), add = TRUE, border = 'green', lwd = 2)
-st_crop.stars = function(x, y, ..., crop = TRUE, epsilon = 0) {
+st_crop.stars = function(x, y, ..., crop = TRUE, epsilon = 0, 
+		as_points = all(st_dimension(y) == 2, na.rm = TRUE)) {
 	d = dim(x)
 	dm = st_dimensions(x)
 	args = rep(list(rlang::missing_arg()), length(d)+1)
 	if (st_crs(x) != st_crs(y))
 		stop("for cropping, the CRS of both objects have to be identical")
-	if (crop && has_raster(x)) {
+	if (crop && (is_regular(x) || has_rotate_or_shear(x))) {
 		rastxy = attr(dm, "raster")$dimensions
 		xd = rastxy[1]
 		yd = rastxy[2]
@@ -206,9 +208,9 @@ st_crop.stars = function(x, y, ..., crop = TRUE, epsilon = 0) {
 				y
 		if (epsilon != 0)
 			bb = bb_shrink(bb, epsilon)
-		cr = round(colrow_from_xy(matrix(bb, 2, byrow=TRUE), get_geotransform(dm)) + 0.5)
-		cr[1,] = cr[1,] - dm[[xd]]$from + 1
-		cr[2,] = cr[2,] - dm[[yd]]$from + 1
+		cr = colrow_from_xy(matrix(bb, 2, byrow=TRUE), dm)
+		cr[,1] = cr[,1] - dm[[xd]]$from + 1
+		cr[,2] = cr[,2] - dm[[yd]]$from + 1
 		for (i in seq_along(d)) {
 			if (names(d[i]) == xd)
 				args[[i+1]] = seq(max(1, cr[1, 1]), min(d[xd], cr[2, 1]))
@@ -219,17 +221,22 @@ st_crop.stars = function(x, y, ..., crop = TRUE, epsilon = 0) {
 			}
 		}
 		x = eval(rlang::expr(x[!!!args]))
-	}
+	} else if (crop)
+		warning("crop only crops regular grids")
+
 	if (inherits(y, "bbox"))
 		y = st_as_sfc(y)
 	dxy = attr(dm, "raster")$dimensions
-	xy_grd = if (is_curvilinear(x))
-			st_as_sfc(st_dimensions(x)[dxy], as_points = TRUE)
+	xy_grd = if (is_curvilinear(x) || !as_points) # FIXME: for curvilinear as_points should work too!
+			st_as_sfc(st_dimensions(x)[dxy], as_points = as_points, geotransform = get_geotransform(x))
 		else
 			st_as_sf(do.call(expand.grid, expand_dimensions.stars(x)[dxy]), coords = dxy, crs = st_crs(x))
 	inside = st_intersects(st_union(y), xy_grd)[[1]]
 	d = dim(x) # cropped x
-	mask = rep(NA_real_, prod(d[dxy]))
-	mask[inside] = 1
-	x * array(mask, d) # replicates over secondary dims
+	mask = rep(TRUE, prod(d[dxy]))
+	mask[inside] = FALSE
+	mask = array(mask, d) # replicates over secondary dims
+	for (i in seq_along(x))
+		x[[i]][mask] = NA
+	x
 }
