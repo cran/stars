@@ -1,6 +1,6 @@
 Package: stars
 Title: Spatiotemporal Arrays, Raster and Vector Data Cubes
-Version: 0.3-1
+Version: 0.4-0
 Authors@R: 
     c(person(given = "Edzer",
              family = "Pebesma",
@@ -24,16 +24,17 @@ Description: Reading, manipulating, writing and plotting
     spatiotemporal arrays (raster and vector data cubes) in 'R', using 'GDAL'
     bindings provided by 'sf', and 'NetCDF' bindings by 'ncmeta' and 'RNetCDF'.
 License: Apache License
-URL: https://github.com/r-spatial/stars/
+URL: https://r-spatial.github.io/stars/,
+        https://github.com/r-spatial/stars/
 BugReports: https://github.com/r-spatial/stars/issues/
-Additional_repositories: http://pebesma.staff.ifgi.de
-Depends: R (>= 3.3.0), abind, sf (>= 0.7-3)
-Imports: methods, parallel, classInt (>= 0.2-2), rlang, units
-Suggests: PCICt, RNetCDF (>= 1.8-2), covr, dplyr (>= 0.7-0),
+Additional_repositories: http://gis-bigdata.uni-muenster.de/pebesma/
+Depends: R (>= 3.3.0), abind, sf (>= 0.8-0)
+Imports: methods, parallel, classInt (>= 0.4-1), lwgeom, rlang, units
+Suggests: PCICt, RNetCDF (>= 1.8-2), covr, digest, dplyr (>= 0.7-0),
         future.apply, ggforce, ggplot2, ggthemes, gstat, httr,
-        jsonlite, knitr, lwgeom, maps, ncmeta (>= 0.0.3), pbapply, plm,
-        raster, rmarkdown, sp, spacetime, testthat, viridis, xts, zoo,
-        starsdata
+        jsonlite, knitr, maps, ncdfgeom, ncmeta (>= 0.0.3), pbapply,
+        plm, raster, rmarkdown, sp, spacetime, starsdata, testthat,
+        tidync, viridis, xts, zoo
 VignetteBuilder: knitr
 Encoding: UTF-8
 RoxygenNote: 6.1.1
@@ -41,9 +42,9 @@ Collate: 'init.R' 'stars.R' 'read.R' 'sf.R' 'dimensions.R' 'values.R'
         'plot.R' 'tidyverse.R' 'transform.R' 'ops.R' 'write.R'
         'raster.R' 'sp.R' 'spacetime.R' 'ncdf.R' 'proxy.R' 'factors.R'
         'rasterize.R' 'subset.R' 'warp.R' 'aggregate.R' 'xts.R'
-        'intervals.R' 'geom.R'
+        'intervals.R' 'geom.R' 'mosaic.R'
 NeedsCompilation: no
-Packaged: 2019-04-22 11:30:21 UTC; edzer
+Packaged: 2019-10-09 08:35:29 UTC; edzer
 Author: Edzer Pebesma [aut, cre] (<https://orcid.org/0000-0001-8049-7069>),
   Michael Sumner [ctb] (<https://orcid.org/0000-0002-2471-7511>),
   Etienne Racine [ctb],
@@ -51,4 +52,4 @@ Author: Edzer Pebesma [aut, cre] (<https://orcid.org/0000-0001-8049-7069>),
   David Blodgett [ctb]
 Maintainer: Edzer Pebesma <edzer.pebesma@uni-muenster.de>
 Repository: CRAN
-Date/Publication: 2019-04-23 12:30:03 UTC
+Date/Publication: 2019-10-10 13:00:02 UTC

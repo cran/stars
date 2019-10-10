@@ -68,6 +68,7 @@ st_dimensions.default = function(.x, ..., .raster, affine = c(0, 0),
 #' @param which integer or character; index or name of the dimension to be changed
 #' @param values values for this dimension (e.g. \code{sfc} list-column)
 #' @param names character; new names vector for (all) dimensions, ignoring \code{which}
+#' @param xy length-2 character vector; (new) names for the \code{x} and \code{y} raster dimensions
 #' @export
 #' @examples
 #' x = read_stars(system.file("tif/L7_ETMs.tif", package = "stars"))
@@ -82,7 +83,7 @@ st_dimensions.default = function(.x, ..., .raster, affine = c(0, 0),
 #'    names = "bandwidth_midpoint", point = TRUE))
 #' # set bandwidth intervals:
 #' (x3 = st_set_dimensions(x, "band", values = make_intervals(bw), names = "bandwidth"))
-st_set_dimensions = function(.x, which, values = NULL, point = NULL, names = NULL, ...) {
+st_set_dimensions = function(.x, which, values = NULL, point = NULL, names = NULL, xy, ...) {
 	d = st_dimensions(.x)
 	if (! is.null(values)) {
 		if (is.character(which))
@@ -112,6 +113,11 @@ st_set_dimensions = function(.x, which, values = NULL, point = NULL, names = NUL
 		if (length(d) != length(names))
 			stop("length of names should match number of dimension")
 		base::names(d) = names
+	} else if (! missing(xy)) {
+		stopifnot(length(xy) == 2)
+		r = attr(d, "raster")
+		r$dimensions = as.character(xy)
+		attr(d, "raster") = r
 	} else
 		d[[which]] = create_dimension(from = 1, to = dim(.x)[which], ...)
 	if (inherits(.x, "stars_proxy"))
@@ -154,7 +160,7 @@ regular_intervals = function(x, epsilon = 1e-10) {
 				else
 					return(FALSE)
 			}
-		diff(range(ud)) / mean(ud) < epsilon
+		abs(diff(range(ud)) / mean(ud)) < epsilon
 	}
 }
 
@@ -166,9 +172,7 @@ create_dimension = function(from = 1, to, offset = NA_real_, delta = NA_real_,
 	if (! is.null(values)) { # figure out from values whether we have sth regular:
 		from = 1
 		to = length(values)
-		if (is.character(values) || is.factor(values))
-			values = as.character(values)
-		else if (is.atomic(values)) { 
+		if (!(is.character(values) || is.factor(values)) && is.atomic(values)) { 
 			if (! all(is.finite(values)))
 				warning("dimension value(s) non-finite")
 			else {
@@ -376,7 +380,11 @@ parse_netcdf_meta = function(pr, name) {
 }
 
 try_as_units = function(u) {
-	un = try(as_units(u), silent = TRUE)
+	un = try(suppressWarnings(as_units(u)), silent = TRUE)
+	if (inherits(un, "try-error")) # try without ^:
+		un = try(suppressWarnings(as_units(gsub("^", "", u, fixed = TRUE))), silent = TRUE)
+	if (inherits(un, "try-error")) # try without **
+		un = try(suppressWarnings(as_units(gsub("**", "", u, fixed = TRUE))), silent = TRUE)
 	if (inherits(un, "try-error")) {
 		warning(paste("ignoring unrecognized unit:", u), call. = FALSE)
 		NULL
@@ -419,7 +427,13 @@ expand_dimensions.dimensions = function(x, ..., max = FALSE, center = NA) {
 	if (any(max & center, na.rm = TRUE))
 		stop("only one of max and center can be TRUE, not both")
 
-	where = ifelse(max, 1.0, ifelse(isTRUE(center), 0.5, 0.0)) # defaults to 0!
+	where = setNames(rep(0.0, length(x)), names(x)) # offset
+	for (i in seq_along(x)) {
+		if (max[i])
+			where[i] = 1.0
+		if (isTRUE(center[i]))
+			where[i] = 0.5
+	}
 
 	dimensions = x
 	xy = attr(x, "raster")$dimensions
@@ -535,8 +549,14 @@ seq.dimension = function(from, ..., center = FALSE) { # does what expand_dimensi
 			x$values = x$values[i]
 		if (!is.na(x$from)) {
 			rang = x$from:x$to # valid range
+			if (max(i) > -1 && min(i) < 0)
+				stop("cannot mix positive and negative indexes")
+			if (is.logical(i))
+				i = which(i)
+			else if (all(i < 0))
+				i = setdiff(rang, abs(i)) # subtract
 			if (all(diff(i) == 1)) {
-				if (min(i) < 1 || max(i) > length(rang))
+				if (max(i) > length(rang))
 					stop("invalid range selected")
 				sel = rang[i]
 				x$from = min(sel)

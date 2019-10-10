@@ -15,8 +15,8 @@ st_as_sfc.stars = function(x, ..., as_points, which = seq_len(prod(dim(x)[1:2]))
 #' @param x object of class \code{stars}
 #' @param as_points logical; if \code{TRUE}, generate points at cell centers, else generate polygons
 #' @param ... arguments passed on to \code{st_as_sfc}
-#' @param na.rm logical; remove cells with all missing values?
-#' @return object of class \code{stars} with x and y raster dimensions replaced by a single sfc geometry list column containing either points or square polygons
+#' @param na.rm logical; omit (remove) cells which are entirely missing valued (across other dimensions)?
+#' @return object of class \code{stars} with x and y raster dimensions replaced by a single sfc geometry list column containing either points, or polygons. Adjacent cells with identical values are not merged; see \code{st_rasterize} for this.
 #' @export
 st_xy2sfc = function(x, as_points, ..., na.rm = TRUE) {
 
@@ -130,7 +130,12 @@ st_as_sf.stars = function(x, ..., as_points = FALSE, merge = FALSE, na.rm = TRUE
 			if (length(ix) > 1)	
 				warning("working on the first sfc dimension only") # FIXME: this probably only works for 2D arrays, now
 			sfc = st_dimensions(x)[[ ix[1] ]]$values
-			dfs = lapply(x, function(y) as.data.frame(y))
+			un_dim = function(x) { # remove a dim attribute from data.frame columns
+				for (i in seq_along(x))
+					x[[i]] = structure(x[[i]], dim = NULL)
+				x
+			}
+			dfs = lapply(x, function(y) un_dim(as.data.frame(y)))
 			nc = sapply(dfs, ncol)
 			df = do.call(cbind, dfs)
 	
@@ -150,7 +155,7 @@ st_as_sf.stars = function(x, ..., as_points = FALSE, merge = FALSE, na.rm = TRUE
 	}
 }
 
-#' Compute contour lines or sets
+#' Compute or plot contour lines or sets
 #' 
 #' Compute contour lines or sets
 #' @param x object of class \code{stars}
@@ -158,7 +163,7 @@ st_as_sf.stars = function(x, ..., as_points = FALSE, merge = FALSE, na.rm = TRUE
 #' @param contour_lines logical; if \code{FALSE}, polygons are returned (contour sets), otherwise contour lines
 #' @param breaks numerical; values at which to "draw" contour levels
 #' @details this function requires GDAL >= 2.4.0
-#' @seealso for polygonizing rasters following grid boundaries, see \link{st_as_sf} with arguments \code{as_points=FALSE} and \code{merge=TRUE}
+#' @seealso for polygonizing rasters following grid boundaries, see \link{st_as_sf} with arguments \code{as_points=FALSE} and \code{merge=TRUE}; \link{contour} plots contour lines using R's native algorithm (which also plots contour levels)
 #' @export
 st_contour = function(x, na.rm = TRUE, contour_lines = FALSE, 
 		breaks = classInt::classIntervals(na.omit(as.vector(x[[1]])))$brks) {

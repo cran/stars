@@ -2,7 +2,7 @@
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(collapse = TRUE)
 set.seed(13579)
-EVAL = x = suppressWarnings(require(starsdata, quietly = TRUE))
+EVAL = x = suppressWarnings(require(starsdata, quietly = TRUE)) && sf::sf_extSoftVersion()["GDAL"] >= "2.2.0"
 
 ## ----eval=FALSE----------------------------------------------------------
 #  install.packages("starsdata", repos = "http://pebesma.staff.ifgi.de", type = "source")

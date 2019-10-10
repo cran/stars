@@ -72,7 +72,6 @@ as.tbl_cube.stars = function(x, ...) {
 #' @param along name or index of dimension to which the slice should be applied
 #' @param index integer value(s) for this index
 #' @param drop logical; drop dimensions that only have a single index?
-#' @export
 #' @examples
 #' tif = system.file("tif/L7_ETMs.tif", package = "stars")
 #' x1 = read_stars(tif)
@@ -93,7 +92,6 @@ slice.stars <- function(.data, along, index, ..., drop = length(index) == 1) {
 }
 
 #' @name st_coordinates
-#' @export
 #' @param .x object to be converted to a tibble
 as_tibble.stars = function(.x, ..., add_max = FALSE, center = NA) {
     if (!requireNamespace("dplyr", quietly = TRUE))
@@ -107,10 +105,11 @@ as_tibble.stars = function(.x, ..., add_max = FALSE, center = NA) {
 #' ggplot geom for stars objects
 #' 
 #' ggplot geom for stars objects
+#' @name geom_stars
 #' @param mapping see \link[ggplot2]{geom_raster}
 #' @param data see \link[ggplot2]{geom_raster}
 #' @param ... see \link[ggplot2]{geom_raster}
-#' @param downsample downsampling rate: e.g. 3 keeps rows and cols 1, 4, 7, 10 etc.; a value of 1 does not downsample
+#' @param downsample downsampling rate: e.g. 3 keeps rows and cols 1, 4, 7, 10 etc.; a value of 0 does not downsample
 #' @param sf logical; if \code{TRUE} rasters will be converted to polygons and plotted using \link[ggplot2]{geom_sf}.
 #' @name geom_stars
 #' @details \code{geom_stars} returns (a call to) either \link[ggplot2]{geom_raster}, \link[ggplot2]{geom_tile}, or \link[ggplot2]{geom_sf}, depending on the raster or vector geometry; for the first to, an \link[ggplot2]{aes} call is constructed with the raster dimension names and the first array as fill variable. Further calls to \link[ggplot2]{coord_equal} and \link[ggplot2]{facet_wrap} are needed to control aspect ratio and the layers to be plotted; see examples.
@@ -124,24 +123,30 @@ as_tibble.stars = function(.x, ..., add_max = FALSE, center = NA) {
 #'     theme_void() +
 #'     scale_x_discrete(expand=c(0,0))+
 #'     scale_y_discrete(expand=c(0,0))
-geom_stars = function(mapping = NULL, data = NULL, ..., downsample = 1, sf = FALSE) {
+geom_stars = function(mapping = NULL, data = NULL, ..., downsample = 0, sf = FALSE) {
 
-    if (!requireNamespace("ggplot2", quietly = TRUE))
-        stop("package ggplot2 required, please install it first") # nocov
+	if (!requireNamespace("ggplot2", quietly = TRUE))
+		stop("package ggplot2 required, please install it first") # nocov
+
+	if (is.null(data)) stop("argument data should not set to a stars or stars_proxy object")
 
 	for (i in seq_along(data)) {
 		if (inherits(data[[i]], "units"))
 			data[[i]] = units::drop_units(data[[i]])
 	}
+	if (inherits(data, "stars_proxy"))
+		data = st_as_stars(data, downsample = downsample) # fetches data
+	else if (any(downsample > 0))
+		data = st_downsample(data, downsample)
+
 	if (is_curvilinear(data) || sf)
-		data = st_xy2sfc(st_downsample(data, downsample), as_points = FALSE)
+		data = st_xy2sfc(data, as_points = FALSE)
 
 	d = st_dimensions(data)
 
-	if (has_raster(d) && (is_regular(d) || is_rectilinear(d))) {
+	if (has_raster(d) && (is_regular_grid(d) || is_rectilinear(d))) {
 		xy = attr(d, "raster")$dimensions
-		data = st_downsample(data, downsample)
-		if (is_regular(d)) {
+		if (is_regular_grid(d)) {
 			if (is.null(mapping))
 				mapping = ggplot2::aes(x = !!rlang::sym(xy[1]), y = !!rlang::sym(xy[2]),
 					fill = !!rlang::sym(names(data)[1]))
@@ -162,6 +167,19 @@ geom_stars = function(mapping = NULL, data = NULL, ..., downsample = 1, sf = FAL
 		stop("geom_stars only works for objects with raster or vector geometries")
 }
 
+#' @name geom_stars
+theme_stars = function(...) {
+
+	if (!requireNamespace("ggplot2", quietly = TRUE))
+		stop("package ggplot2 required, please install it first") # nocov
+
+	# coord_equal() +
+    # scale_fill_viridis() +
+    # scale_x_discrete(expand=c(0,0)) +
+    # scale_y_discrete(expand=c(0,0)) +
+    ggplot2::theme_void()
+}
+
 register_all_s3_methods = function() {
 	register_s3_method("dplyr", "filter", "stars") # nocov start
 	register_s3_method("dplyr", "as_tibble", "stars")
@@ -172,6 +190,8 @@ register_all_s3_methods = function() {
 	register_s3_method("dplyr", "slice", "stars")
 	register_s3_method("lwgeom", "st_transform_proj", "stars")
 	register_s3_method("xts", "as.xts", "stars") # nocov end
+	if (utils::packageVersion("sf") >= "0.8-0")
+		register_s3_method("sf", "st_join", "stars")
 }
 
 # from: https://github.com/tidyverse/hms/blob/master/R/zzz.R

@@ -106,6 +106,8 @@ st_warp = function(src, dest, ..., crs = NA_crs_, cellsize = NA_real_, segments 
 		use_gdal = FALSE, options = character(0), no_data_value = NA_real_, debug = FALSE,
 		method = "near") {
 
+	src = st_normalize(src)
+
 	if (!is.na(crs))
 		crs = st_crs(crs)
 
@@ -131,10 +133,7 @@ st_warp = function(src, dest, ..., crs = NA_crs_, cellsize = NA_real_, segments 
 					delete = FALSE
 					dest[[1]] # the file name of the stars_proxy, not to be deleted
 				}
-			if (utils::packageVersion("sf") <= "0.7-2")
-				sf::gdal_utils("warp", src[[1]], dest, options = options)
-			else 
-				sf::gdal_utils("warper", src[[1]], dest, options = method) # not "warp"!
+			sf::gdal_utils("warper", src[[1]], dest, options = method) # not "warp"!
 		}
 		if (debug)
 			cat("Writing result to: ", dest, "\n")

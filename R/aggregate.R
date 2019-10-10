@@ -37,14 +37,15 @@ aggregate.stars = function(x, by, FUN, ..., drop = FALSE, join = st_intersects,
 	
 			# find groups:
 			x_geoms = if (has_raster(x)) {
-					if (identical(join, st_intersection) && utils::packageVersion("sf") >= "0.7-4")
+					if (identical(join, st_intersection))
 						x_geoms
 					else
 						st_as_sfc(x, as_points = as_points)
 				} else
-					d[[ which_sfc(x) ]]$values
+					st_dimensions(x)[[ which_sfc(x) ]]$values
 			
-			# unlist(join(x_geoms, by))
+			# unlist(join(x_geoms, by)) -> this would miss the empty groups, 
+			#      and may have multiple if geometries in by overlap, hence:
 			sapply(join(x_geoms, by), function(x) if (length(x)) x[1] else NA)
 		} else { # time:
 			ndims = 1

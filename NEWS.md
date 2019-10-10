@@ -1,4 +1,50 @@
+# version 0.4-0
+
+* `plot` now uses all data to figure out breaks, in order to also find extremes; #216
+
+* `st_mosaic` creates mosaics from spatially disjoint rasters; #210
+
+* #205 large refactoring of `read_ncdf`, by David Blodgett and Mike Sumner, affecting #199, #89, #30, #86, #175
+
+* allow for funny units like `m s**-1`; #201
+
+* add `contour` method for `stars` objects; #196
+
+* plot uses `rasterImage` by default if available; #194
+
+* the `x` and `y` raster dimensions can be set and unset with `xy` argument in `st_set_dimensions`; #190
+
+* retain `factor` levels with dimension values when set in `st_set_dimensions`; #188
+
+* add conversion from `stars_proxy` to `Raster`: #193
+
+* make plotting of multiple curvilinear grids work
+
+* plot by default no cell borders in case of curvilinear, rotated or sheared grids
+
+* robustify handling of units
+
+* allow `read_ncdf` to ignore bounds
+
+* scale was applied wrongly on multi-band images; #189, this requires sf >= 0.7-5
+
+* `.nc` is now recognized correctly by `write_stars` and will write a NetCDF file; #186 
+
+* `[` subset now works correctly with negative or logical indices; #184, #185
+
+* `NA` values for float32 grids are now correctly detected; #182, this requires sf >= 0.7-5
+
+* cropping of a `stars_proxy` object now works; #179
+
+* `st_apply` can now loop over Raster layers; examples in #176
+
 # version 0.3-1
+
+* `st_as_stars.bbox` now has an `ncells` and `pretty` argument, to better choose default raster dimensions
+
+* `geom_stars` now works with `stars_proxy` objects, but needs `downsample` to be set; #21
+
+* `NA` values in Float32 rasters are now read correctly with `read_stars`; #182
 
 * handle bounds, when given, in `read_ncdf`
 
