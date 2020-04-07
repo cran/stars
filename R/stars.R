@@ -176,7 +176,7 @@ st_as_stars.bbox = function(.x, ..., nx, ny, dx = dy, dy = dx,
 		y = create_dimension(from = 1, to = ny, offset = ylim[2], delta = dy, 
 			refsys = st_crs(.x))
 	}
-	st_as_stars(values = array(values, c(x = nx, y = ny)),
+	st_as_stars(values = array(values, c(x = nx[[1L]], y = ny[[1L]])), # [[1]] unnames
 		dims = create_dimensions(list(x = x, y = y), get_raster()))
 }
 
@@ -198,6 +198,11 @@ colrow_from_xy = function(x, obj, NA_outside = FALSE) {
 	if (inherits(obj, "dimensions"))
 		gt = get_geotransform(obj)
 
+	if (isTRUE(st_is_longlat(st_crs(obj)))) {
+		bb = st_bbox(obj)
+		sign = ifelse(x[,1] < bb["xmin"], 1., ifelse(x[,1] > bb["xmax"], -1., 0.))
+		x[,1] = x[,1] + sign * 360.
+	}
 	if (!any(is.na(gt))) { # have geotransform
 		inv_gt = gdal_inv_geotransform(gt)
 		if (any(is.na(inv_gt)))
@@ -267,8 +272,8 @@ which_time = function(x) {
 	if (inherits(x, "stars"))
 		x = st_dimensions(x)
 	which(sapply(x, function(i) 
-		inherits(i$values, c("POSIXct", "Date", "PCICt")) || 
-		i$refsys %in% c("POSIXct", "Date", "PCICt")))
+		inherits(i$values, c("POSIXct", "Date", "PCICt")) ||
+		(is.character(i$refsys) && i$refsys %in% c("POSIXct", "Date", "PCICt"))))
 }
 
 has_sfc = function(x) {
@@ -361,15 +366,16 @@ aperm.stars = function(a, perm = NULL, ...) {
 		perm = rev(seq_along(dim(a)))
 	if (all(perm == seq_along(dim(a))) || isTRUE(all(match(perm, names(dim(a))) == seq_along(dim(a)))))
 		return(a)
+	d = st_dimensions(a)
 	if (is.character(perm)) {
-		ns = names(st_dimensions(a))
+		ns = names(d)
 		for (i in seq_along(a)) { # every array 
 			if (is.null(dimnames(a[[i]])))
 				dimnames(a[[i]]) = lapply(as.list(dim(a)), seq_len)
 			dimnames(a[[i]]) = setNames(dimnames(a[[i]]), ns)
 		}
 	}
-	st_stars(lapply(a, aperm, perm = perm, ...), st_dimensions(a)[perm])
+	st_stars(lapply(a, aperm, perm = perm, ...), d[perm])
 }
 
 #' @export
@@ -459,9 +465,13 @@ c.stars = function(..., along = NA_integer_) {
 adrop.stars = function(x, drop = which(dim(x) == 1), ...) {
 	if (is.logical(drop))
 		drop = which(drop)
-	if (length(drop) > 0)
-		st_as_stars(lapply(x, adrop, drop = drop, one.d.array = TRUE, ...), dimensions = st_dimensions(x)[-drop])
-	else 
+	if (any(dim(x) > 1) && length(drop) > 0) {
+		l = vector("list", length = length(x))
+		f = sapply(x, is.factor)
+		l[!f] = lapply(x[!f], adrop, drop = drop, one.d.array = TRUE, ...)
+		l[f] = lapply(x[f], function(x) structure(x, dim = dim(x)[-drop]))
+		st_as_stars(setNames(l, names(x)), dimensions = st_dimensions(x)[-drop])
+	} else 
 		x
 }
 
@@ -514,36 +524,43 @@ st_bbox.stars = function(obj, ...) {
 
 #' @export
 st_crs.stars = function(x, ...) {
-	d = st_dimensions(x)
-	xy = attr(d, "raster")$dimensions
+	st_crs(st_dimensions(x), ...)
+}
+
+#' @export
+st_crs.dimensions = function(x, ...) {
+	xy = attr(x, "raster")$dimensions
 	if (!all(is.na(xy)))
-		st_crs(d[[ xy[1] ]]$refsys)
-	else if (has_sfc(d)) # search for simple features:
-		#st_crs(d[[ which_sfc(d)[1] ]]$refsys) # -> would (re)interpret proj4string
-		st_crs(d[[ which_sfc(d)[1] ]]$values)
+		st_crs(x[[ xy[1] ]]$refsys)
+	else if (has_sfc(x)) # search for simple features:
+		st_crs(x[[ which_sfc(x)[1] ]]$values)
 	else
-		st_crs(NA)
+		NA_crs_
 }
 
 #' @export
 `st_crs<-.stars` = function(x, value) {
-	if (is.na(value))
-		value = NA_crs_
-	if (is.numeric(value))
-		value = st_crs(value)
-	if (inherits(value, "crs"))
-		value = value$proj4string
-	stopifnot(is.character(value))
+	value = if (is.na(value))
+			NA_crs_
+		else if (is.numeric(value) || is.character(value))
+			st_crs(value)
+		else if (inherits(value, "crs"))
+			value
+		else
+			stop(paste("crs of class", class(value), "not recognized"))
+
+	# set CRS in dimensions:
 	d = st_dimensions(x)
 	xy = attr(d, "raster")$dimensions
-	if (!all(is.na(xy))) {
+	if (!all(is.na(xy))) { # has x/y spatial dimensions:
 		d[[ xy[1] ]]$refsys = value
 		d[[ xy[2] ]]$refsys = value
 	}
-	# sfc's:
-	i = sapply(d, function(y) inherits(y$values, "sfc"))
-	for (j in which(i))
+
+	# set crs of sfc's, if any:
+	for (j in which_sfc(x))
 		d[[ j ]]$refsys = value
+
 	structure(x, dimensions = d)
 }
 
@@ -615,16 +632,22 @@ st_redimension = function(x, new_dims, along, ...) UseMethod("st_redimension")
 #' @export
 #' @name redimension
 #' @param x object of class \code{stars}
-#' @param new_dims target dimensions
+#' @param new_dims target dimensions: either a `dimensions` object or an integer vector with the dimensions' sizes
 #' @param along named list with new dimension name and values
 #' @param ... ignored
 st_redimension.stars = function(x, new_dims = st_dimensions(x), along = list(new_dim = names(x)), ...) {
 	d = st_dimensions(x)
-	if (! identical(new_dims, d)) {
-		if (prod(dim(d)) != prod(dim(new_dims)))
+	if (inherits(new_dims, "dimensions")) {
+		di = dim(new_dims)
+	} else {
+		di = new_dims
+		new_dims = create_dimensions(di)
+	}
+	if (! identical(setNames(di, NULL), setNames(dim(x), NULL))) {
+		if (prod(dim(x)) != prod(di))
 			stop("product of dim(new_dim) does not match that of x")
 		for (i in seq_along(x))
-			dim(x[[i]]) = dim(new_dims)
+			dim(x[[i]]) = di
 		st_stars(x, dimensions = new_dims)
 	} else { # collapse attributes into dimension
 		if (length(x) == 1) # only one attribute: do nothing
@@ -651,8 +674,10 @@ st_redimension.stars = function(x, new_dims = st_dimensions(x), along = list(new
 		}
 		value = if (inherits(value, c("factor", "POSIXct")))
 				structure(rep(value, length.out = prod(dim(x))), dim = dim(x))
-			else
+			else if (!is.array(value) || !identical(dim(value), dim(x)))
 				array(value, dim(x))
+			else
+				value
 	}
 	NextMethod()
 }
@@ -741,4 +766,26 @@ st_dim_to_attr = function(x, which = seq_along(dim(x))) {
 st_interpolate_aw.stars = function(x, to, extensive, ...) {
 	x = st_as_sf(x)
 	NextMethod()
+}
+
+#' get the raster type (if any) of a stars object
+#' @param x object of class \code{stars}
+#' @return one of \code{NA} (if the object does not have raster dimensions), 
+#' \code{"curvilinear"}, \code{"rectilinear"}, \code{"affine"}, or \code{"regular"}
+#' @examples
+#' tif = system.file("tif/L7_ETMs.tif", package = "stars")
+#' x = read_stars(tif)
+#' st_raster_type(x)
+#' @export
+st_raster_type = function(x) {
+	if (!has_raster(x))
+		NA_character_
+	else if (is_curvilinear(x))
+		"curvilinear"
+	else if (is_rectilinear(x))
+		"rectilinear"
+	else if (has_rotate_or_shear(x))
+		"affine"
+	else
+		"regular"
 }

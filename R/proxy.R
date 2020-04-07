@@ -41,14 +41,15 @@ st_stars_proxy = function(x, dimensions, NA_value = NA_real_) {
 		class = c("stars_proxy", "stars"))
 }
 
-
 #' @export
-c.stars_proxy = function(..., along = NA_integer_) {
+c.stars_proxy = function(..., along = NA_integer_, along_crs = FALSE) {
 	dots = list(...)
 	# Case 1: merge attributes of several objects by simply putting them together in a single stars object;
 	# dim does not change:
 	if (length(dots) == 1) # do nothing
 		dots[[1]]
+	else if (along_crs)
+		combine_along_crs_proxy(dots)
 	else if (identical(along, NA_integer_)) { 
 		if (identical_dimensions(dots))
 			st_stars_proxy(do.call(c, lapply(dots, unclass)), dimensions = st_dimensions(dots[[1]]))
@@ -61,7 +62,7 @@ c.stars_proxy = function(..., along = NA_integer_) {
 		}
 	} else {
 		if (is.list(along)) { # custom ordering of ... over dimension(s) with values specified
-			stop("for proxy objects, along argument is not implemented")
+			stop("for proxy objects, along argument as list is not implemented")
 		} else { # loop over attributes, abind them:
 			# along_dim: the number of the dimension along which we merge arrays
 			d = st_dimensions(dots[[1]])
@@ -89,6 +90,22 @@ c.stars_proxy = function(..., along = NA_integer_) {
 	}
 }
 
+combine_along_crs_proxy = function(dots) {
+	#crs = as.integer(sapply(l, function(x) st_crs(x)$epsg))
+	crs = lapply(l, st_crs)
+	# erase offset:
+	erase_offset = function(x) { 
+		d = st_dimensions(x)
+		# xy = attr(d, "raster")$dimensions
+		# d[[ xy[1] ]]$offset = d[[ xy[2] ]]$offset = NA
+		st_set_crs(st_stars_proxy(x, d), NA)
+	}
+	l = lapply(dots, erase_offset)
+	ret = do.call(c, c(l, along = "crs"))
+	st_set_dimensions(ret, "crs", values = crs, point = TRUE)
+}
+
+
 #' @export
 #' @name redimension
 st_redimension.stars_proxy = function(x, new_dims = st_dimensions(x), along = list(new_dim = names(x)), ...) {
@@ -101,6 +118,7 @@ st_redimension.stars_proxy = function(x, new_dims = st_dimensions(x), along = li
 	st_stars_proxy(setNames(ret, paste(names(x), collapse = ".")), dimensions = dims)
 }
 
+# fetch a stars object from a stars_proxy object, using downsampling
 fetch = function(x, downsample = 0, ...) {
 	stopifnot(inherits(x, "stars_proxy"))
 	d = st_dimensions(x)
@@ -123,19 +141,24 @@ fetch = function(x, downsample = 0, ...) {
 
 	# do it:
 	ret = lapply(x, read_stars, RasterIO = rasterio, 
-		NA_value = attr(x, "NA_value") %||% NA_real_, ...)
+		NA_value = attr(x, "NA_value") %||% NA_real_, normalize_path = FALSE, ...)
 
+	along = if (length(dim(x)) > 3)
+			setNames(list(st_get_dimension_values(x, 4)), tail(names(st_dimensions(x)), 1))
+		else
+			list(new_dim = names(ret))
+	
 	ret = if (length(ret) == 1)
-		st_redimension(ret[[1]])
+		st_redimension(ret[[1]], along = along)
 	else
-		do.call(c, lapply(ret, st_redimension))
+		do.call(c, lapply(ret, st_redimension, along = along))
 	
 	new_dim = st_dimensions(ret)
 	for (dm in setdiff(names(d), xy)) # copy over non x/y dimension values, if present:
 		if (dm %in% names(new_dim))
 			new_dim[[dm]] = d[[dm]]
 
-	st_set_crs(st_stars(setNames(ret, names(x)), new_dim), st_crs(x)) # FIXME: fails on non-GDAL readable proj4strings?
+	st_set_crs(st_stars(setNames(ret, names(x)), new_dim), st_crs(x))
 }
 
 check_xy_warn = function(call, dimensions) {
@@ -248,7 +271,7 @@ merge.stars_proxy = function(x, y, ...) {
 		x = st_stars_proxy(unclass(x)[ lst[[3]] ], st_dimensions(x))
 		lst[["i"]] = TRUE # this one has been handled now
 	} else if (crop && inherits(i, c("sf", "sfc", "stars", "bbox"))) {
-		x = st_crop(x, i, ...) # does bounding box cropping only
+		x = st_crop(x, i, ..., collect = FALSE) # does bounding box cropping only
 		if (inherits(i, c("stars", "bbox")))
 			lst[["i"]] = TRUE # this one has been handled now
 	}
@@ -271,8 +294,9 @@ bb_shrink = function(bb, e) {
 }
 
 #' @name st_crop
+#' @param collect logical; if \code{TRUE}, repeat cropping on \code{stars} object, i.e. after data has been read
 #' @export
-st_crop.stars_proxy = function(x, y, ..., crop = TRUE, epsilon = 0) {
+st_crop.stars_proxy = function(x, y, ..., crop = TRUE, epsilon = 0, collect = TRUE) {
 	d = dim(x)
 	dm = st_dimensions(x)
 	if (st_crs(x) != st_crs(y))
@@ -303,10 +327,10 @@ st_crop.stars_proxy = function(x, y, ..., crop = TRUE, epsilon = 0) {
 		}
 	}
 	x = st_stars_proxy(x, dm) # crop to bb
-#	if (inherits(y, c("sf", "sfc"))) # FIXME: or DOCME?
-#		collect(x, match.call(), "st_crop")
-#	else
-	x
+	if (collect)
+		collect(x, match.call(), "st_crop") # crops further when realised
+	else
+		x
 }
 
 #' @export

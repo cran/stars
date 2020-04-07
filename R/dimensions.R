@@ -94,7 +94,7 @@ st_set_dimensions = function(.x, which, values = NULL, point = NULL, names = NUL
 			if (dim(.x)[which] == length(values) - 1)
 				values = as_intervals(values)
 			else
-				stop(paste("length of values does not match dimension", which))
+				stop(paste("length of values does not match dimension length", which))
 		}
 		d[[which]] = create_dimension(values = values, point = point %||% d[[which]]$point, ...)
 		if (! is.null(names) && length(names) == 1)
@@ -111,7 +111,7 @@ st_set_dimensions = function(.x, which, values = NULL, point = NULL, names = NUL
 			attr(d, "raster") = r
 		}
 		if (length(d) != length(names))
-			stop("length of names should match number of dimension")
+			stop("length of names should match number of dimensions")
 		base::names(d) = names
 	} else if (! missing(xy)) {
 		stopifnot(length(xy) == 2)
@@ -206,7 +206,7 @@ create_dimension = function(from = 1, to, offset = NA_real_, delta = NA_real_,
 		if (inherits(values, "sfc")) {
 			point = inherits(values, "sfc_POINT")
 			if (!is.na(st_crs(values)) && is.na(refsys)) # inherit:
-				refsys = st_crs(values)$proj4string
+				refsys = st_crs(values)
 		}
 		if (is.numeric(values) && (is.na(point) || !point)) {
 			values = if (is_raster)
@@ -234,6 +234,19 @@ create_dimensions = function(lst, raster = NULL) {
 	structure(lst, raster = raster, class = "dimensions")
 }
 
+get_crs = function(pr) {
+	if (!is.null(pr$crs))
+		pr$crs
+	else if (!is.null(pr$proj4string)) # older sf
+		st_crs(pr$proj4string)
+	else if (!is.null(pr$wkt)) # newer sf, but GDAL < 3.0.0
+		st_crs(pr$wkt)
+	else if (!is.null(pr$proj_wkt))
+		st_crs(pr$proj_wkt)
+	else 
+		st_crs(NA)
+}
+
 create_dimensions_from_gdal_meta = function(dims, pr) {
 	#if (all(is.na(pr$geotransform)))
 	#	pr$geotransform = c(0.0,  1.0,  0.0,  0.0,  0.0, -1.0) # some GTiffs...
@@ -245,14 +258,13 @@ create_dimensions_from_gdal_meta = function(dims, pr) {
 				offset = pr$geotransform[1], 
 				delta = pr$geotransform[2],
 				point = pr$point,
-				refsys = if (is.null(pr$proj4string)) NA_character_ 
-					else pr$proj4string),
+				refsys = get_crs(pr)),
 			y = create_dimension(from = pr$rows[1], to = pr$rows[2], 
 				offset = pr$geotransform[4],
 				delta = pr$geotransform[6],
 				point = pr$point,
-				refsys = if (is.null(pr$proj4string)) NA_character_ 
-					else pr$proj4string),
+				refsys = get_crs(pr)),
+			# default:
 			create_dimension(from = 1, to = dims[i]) # time? depth+units? To be filled in later...
 		)
 	}
@@ -452,7 +464,10 @@ expand_dimensions.dimensions = function(x, ..., max = FALSE, center = NA) {
 			lst[[ xy[2] ]] = get_dimension_values(dimensions[[ xy[2] ]], where[[ xy[2] ]], gt, "y")
 	}
 
-	for (nm in setdiff(names(lst), xy)) # non-xy dimensions
+	if ("crs" %in% names(lst))
+		lst[[ "crs" ]] = dimensions[[ "crs" ]]$values
+
+	for (nm in setdiff(names(lst), c(xy, "crs"))) # non-xy, non-crs dimensions
 		lst[[ nm ]] = get_dimension_values(dimensions[[ nm ]], where[[nm]], NA, NA)
 
 	lst
@@ -476,16 +491,16 @@ print.dimensions = function(x, ..., digits = 6, usetz = TRUE) {
 						paste0("[", paste(dim(y$values), collapse = "x"), "] ", 
 							format(min(y$values), digits = digits), ",...,", 
 							format(max(y$values), digits = digits))
+					else if (inherits(y$values[[1]], "crs"))
+						paste0(format(y$values[[1]]), ",...,", format(y$values[[length(y$values)]]))
 					else
 						paste0(format(head(y$values, 1)), ",...,", 
 							format(tail(y$values, 1)))
 			}
-			nc = if (inherits(y$refsys, "crs"))
-					nchar(y$refsys$proj4string)
-				else
-					nchar(y$refsys)
-			if (!is.na(y$refsys) && nc > 28)
-				y$refsys = paste0(substr(y$refsys, 1L, 25),"...")
+			if (is.na(y$refsys))
+				y$refsys = NA_character_
+			else if (nchar(tail(format(y$refsys), 1)) > 28)
+				y$refsys = paste0(substr(tail(format(y$refsys), 1), 1L, 25),"...")
 			y
 		}
 	)
@@ -506,6 +521,7 @@ print.dimensions = function(x, ..., digits = 6, usetz = TRUE) {
 	}
 	print(ret)
 	print(attr(x, "raster"))
+	invisible(ret)
 }
 
 identical_dimensions = function(lst) {
@@ -517,9 +533,14 @@ identical_dimensions = function(lst) {
 	TRUE
 }
 
-combine_dimensions = function(dots, along) {
-	dims = attr(dots[[1]], "dimensions")
+combine_dimensions = function(dots, along, check_dims_identical = TRUE) {
+	dims = st_dimensions(dots[[1]])
 	if (along > length(dims)) {
+		if (length(dots) > 1 && check_dims_identical) {
+			for (i in 2:length(dots))
+				if (!identical(dims, st_dimensions(dots[[i]])))
+					stop(paste("dimensions of element", 1, "and", i, "are not identical"))
+		}
 		dims[[along]] = create_dimension(from = 1, to = length(dots), values = names(dots))
 	} else {
 		offset = lapply(dots, function(x) attr(x, "dimensions")[[along]]$offset)

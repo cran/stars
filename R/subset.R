@@ -64,7 +64,7 @@
 
 	do_select = FALSE
 	for (i in seq_along(mc)) { 
-		if (is.name(mc[[i]]) && as.character(mc[[i]]) != "") # try to "get" it:
+		if ((is.call(mc[[i]]) || is.name(mc[[i]])) && !identical(as.character(mc[[i]]), "")) # try to "get" it:
 			mc[[i]] = eval(mc[[i]], parent.frame())
 		if (is.numeric(mc[[i]]) || is.call(mc[[i]]) || is.name(mc[[i]])) { # FIXME: or something else?
 			args[[i]] = mc[[i]]
@@ -88,7 +88,8 @@
 	# subset arrays:
 	args[["drop"]] = FALSE
 	for (i in names(x))
-		x[[i]] = structure(eval(rlang::expr(x[[i]][ !!!args ])), levels = attr(x[[i]], "levels"))
+		x[[i]] = structure(eval(rlang::expr(x[[i]][ !!!args ])), levels = attr(x[[i]], "levels"),
+			colors = attr(x[[i]], "colors"))
 
 	# now do dimensions:
 	if (do_select) {
@@ -262,4 +263,21 @@ st_normalize.stars = function(x, domain = c(0, 0, 1, 1), ...) {
 		d[[2]]$from = 1
 	}
 	st_stars(x, dimensions = d)
+}
+
+#' @name stars_subset
+#' @param which character or integer; dimension(s) to be flipped
+#' @export
+#' @return \code{st_flip} flips (reverts) the array values along the chosen dimension 
+#' without(s) changing the dimension properties
+st_flip = function(x, which = 1) {
+	if (is.character(which))
+		which = match(which, names(dim(x)))
+	stopifnot(all(which %in% seq_along(dim(x))))
+	dims = lapply(dim(x), seq_len)
+	for (i in which)
+		dims[[ which[i] ]] = rev(dims[[ which[i] ]])
+	for (i in seq_along(x))
+		x[[i]] = do.call(`[`, c(list(x[[i]]), dims))
+	x
 }

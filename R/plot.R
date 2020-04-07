@@ -58,7 +58,7 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 	#if (any(dim(x) == 1))
 	#	x = adrop(x)
 
-	if (join_zlim) {
+	if (join_zlim && !is.character(x[[1]])) {
 		breaks = get_breaks(x, breaks, nbreaks, dots$logz)
 		if (length(breaks) > 2)
 			breaks = unique(breaks)
@@ -86,6 +86,9 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 			} else if (is.numeric(downsample))
 				st_downsample(x, downsample)
 		dims = dim(x) # may have changed by st_downsample
+
+		if (missing(col) && is.factor(x[[1]]) && !is.null(attr(x[[1]], "colors")))
+			col = attr(x[[1]], "colors")
 
 		if (length(dims) == 2 || dims[3] == 1 || (!is.null(dots$rgb) && is.numeric(dots$rgb))) { ## ONE IMAGE:
 			# set up key region
@@ -275,17 +278,30 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL,
 
 	ar = unclass(x[[ attr ]]) # raw data matrix/array
 
+	# handle color table, if present:
+	co = attr(ar, "colors")
+	if (! is.null(co)) {
+		if (is.null(rgb))
+			rgb = TRUE
+		interpretation = attr(co, "interpretation")
+		if (!is.null(interpretation) && interpretation != 1)
+			warning("color interpretation is not RGB, but rgb is used nevertheless: colors will probably be wrong")
+	}
+
 	# rearrange ar:
 	others = setdiff(seq_along(dim(ar)), c(dimxn, dimyn))
 	ar = aperm(ar, c(dimxn, dimyn, others))
 	if (text_values)
 		ar_text = ar # keep original order for cell text labels
+	
+	if (is.null(rgb) && is.character(ar))
+		rgb = TRUE
 
 	if (! is.null(rgb)) {
 		if (is_curvilinear(x))
 			warning("when using rgb, curvilinear grid is plotted as regular grid")
 		xy = dim(ar)[1:2]
-		if (!y_is_neg) # need to flip y?
+		if (! y_is_neg) # need to flip y?
 			ar = ar[ , rev(seq_len(dim(ar)[2])), ]
 		if (!useRaster)
 			stop("rgb plotting not supported on this device")
@@ -301,12 +317,19 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL,
 			mat[!nas] = ar
 			dim(mat) = xy
 		} else {
-			stopifnot(inherits(rgb, "data.frame"))
+			stopifnot(isTRUE(rgb) || inherits(rgb, "data.frame"))
 			# rgb has col 1: index, col 2: label, col 3-5: R, G, B
-			#ar = as.vector(ar[ , , 1]) # flattens x/y to 1-D index vector
-			ar = as.vector(ar) # flattens x/y to 1-D index vector
-			rgb = grDevices::rgb(rgb[match(ar, rgb[[1]]), 3:5], maxColorValue = maxColorValue)
-			mat = structure(rgb, dim = xy)
+			# ar = as.vector(ar[ , , 1]) # flattens x/y to 1-D index vector
+			mat = if (isTRUE(rgb)) {
+					if (!is.null(co))
+						structure(co[as.vector(ar)], dim = dim(ar))
+					else
+						ar
+				} else {
+					ar = as.vector(ar) # flattens x/y to 1-D index vector
+					rgb = grDevices::rgb(rgb[match(ar, rgb[[1]]), 3:5], maxColorValue = maxColorValue)
+					structure(rgb, dim = xy)
+				}
 		}
 		myRasterImage = function(x, xmin, ymin, xmax, ymax, interpolate, ..., breaks, add, zlim) # absorbs breaks, add & zlim
 			rasterImage(x, xmin, ymin, xmax, ymax, interpolate = interpolate, ...)
@@ -325,7 +348,7 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL,
 	} else { # regular & rectilinear grid, no RGB:
 		if (y_is_neg) { # need to flip y?
 			ar = if (length(dim(ar)) == 2)
-					ar[ , rev(seq_len(dim(ar)[2]))]
+					ar[ , rev(seq_len(dim(ar)[2])), drop = FALSE]
 				else
 					ar[ , rev(seq_len(dim(ar)[2])), band] # FIXME: breaks if more than 3?
 		}
@@ -350,21 +373,6 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL,
 			add.geom = list(add.geom)
 		do.call(plot, c(add.geom, add = TRUE))
 	}
-}
-
-# reduce resolution of x, keeping (most of) extent
-st_downsample = function(x, n) {
-	stopifnot(all(n >= 0))
-	if (! all(n <= 1)) {
-		d = dim(x)
-		n = rep(n, length.out = length(d))
-		args = rep(list(rlang::missing_arg()), length(d)+1)
-		for (i in seq_along(d))
-			if (n[i] > 1)
-				args[[i+1]] = seq(1, d[i], n[i])
-		eval(rlang::expr(x[!!!args]))
-	} else
-		x
 }
 
 # compute the degree of downsampling allowed to still have more than 

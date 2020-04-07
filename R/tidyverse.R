@@ -31,10 +31,20 @@ get_dims = function(d_cube, d_stars) {
 #' @param ... see \link[dplyr]{filter}
 #' @name dplyr
 filter.stars <- function(.data, ...) {
-	cb = dplyr::as.tbl_cube(.data)
+    if (!requireNamespace("dplyr", quietly = TRUE))
+        stop("package dplyr required, please install it first") # nocov
+    if (!requireNamespace("cubelyr", quietly = TRUE))
+        stop("package cubelyr required, please install it first") # nocov
+	cb = cubelyr::as.tbl_cube(.data)
 	cb = dplyr::filter(cb, ...)
 	st_as_stars(cb$mets, dimensions = get_dims(cb$dims, st_dimensions(.data)))
 }
+
+#' @name dplyr
+filter.stars_proxy = function(.data, ...) {
+	collect(.data, match.call(), "filter", ".data")
+}
+
 
 #' @name dplyr
 mutate.stars <- function(.data, ...) {
@@ -43,21 +53,47 @@ mutate.stars <- function(.data, ...) {
 }
 
 #' @name dplyr
+mutate.stars_proxy = function(.data, ...) {
+	collect(.data, match.call(), "mutate", ".data")
+}
+
+
+#' @name dplyr
 select.stars <- function(.data, ...) {
+    if (!requireNamespace("dplyr", quietly = TRUE))
+        stop("package dplyr required, please install it first") # nocov
     ret <- dplyr::select(to_df(.data), ...)
 	st_as_stars(set_dim(ret, dim(.data)), dimensions = st_dimensions(.data))
+}
+
+
+#' @name dplyr
+select.stars_proxy = function(.data, ...) {
+	collect(.data, match.call(), "select", ".data")
 }
 
 #' @param var see \link[dplyr]{pull}
 #' @name dplyr
 pull.stars = function (.data, var = -1) {
+    if (!requireNamespace("dplyr", quietly = TRUE))
+        stop("package dplyr required, please install it first") # nocov
+    if (!requireNamespace("rlang", quietly = TRUE))
+        stop("package rlang required, please install it first") # nocov
 	var = rlang::enquo(var)
 	structure(dplyr::pull(to_df(.data), !!var), dim = dim(.data))
 }
 
 #' @name dplyr
+pull.stars_proxy = function(.data, ...) {
+	collect(.data, match.call(), "pull", ".data")
+}
+
+#' @name dplyr
 #' @param x object of class \code{stars}
+#' @export
 as.tbl_cube.stars = function(x, ...) {
+    if (!requireNamespace("cubelyr", quietly = TRUE))
+        stop("package cubelyr required, please install it first") # nocov
 	cleanup = function(y) {
 		if (is.list(y))
 			seq_along(y)
@@ -65,7 +101,7 @@ as.tbl_cube.stars = function(x, ...) {
 			y
 	}
 	dims = lapply(expand_dimensions(x), cleanup)
-	dplyr::tbl_cube(dims, c(unclass(x)))
+	cubelyr::tbl_cube(dims, c(unclass(x)))
 }
 
 #' @name dplyr
@@ -80,6 +116,8 @@ as.tbl_cube.stars = function(x, ...) {
 #' x1 %>% slice("x", 50:100)
 slice.stars <- function(.data, along, index, ..., drop = length(index) == 1) {
   #stopifnot(length(index) == 1)
+  if (!requireNamespace("rlang", quietly = TRUE))
+    stop("package rlang required, please install it first") # nocov
     
   nd <- length(dim(.data))
   indices <- rep(list(rlang::missing_arg()), nd + 1)
@@ -91,14 +129,22 @@ slice.stars <- function(.data, along, index, ..., drop = length(index) == 1) {
   eval(rlang::expr(.data[!!!indices]))
 }
 
+#' @name dplyr
+slice.stars_proxy = function(.data, ...) {
+	collect(.data, match.call(), "slice", ".data")
+}
+
 #' @name st_coordinates
 #' @param .x object to be converted to a tibble
 as_tibble.stars = function(.x, ..., add_max = FALSE, center = NA) {
     if (!requireNamespace("dplyr", quietly = TRUE))
         stop("package dplyr required, please install it first") # nocov
 
-	cc = dplyr::as_tibble(st_coordinates(.x, add_max = add_max, center = center))
-	do.call(dplyr::bind_cols, append(cc, lapply(.x, function(y) structure(y, dim = NULL))))
+	dplyr::as_tibble(append(
+			st_coordinates(.x, add_max = add_max, center = center),
+			lapply(.x, function(y) structure(y, dim = NULL))
+		)
+	)
 }
 
 
@@ -111,7 +157,6 @@ as_tibble.stars = function(.x, ..., add_max = FALSE, center = NA) {
 #' @param ... see \link[ggplot2]{geom_raster}
 #' @param downsample downsampling rate: e.g. 3 keeps rows and cols 1, 4, 7, 10 etc.; a value of 0 does not downsample
 #' @param sf logical; if \code{TRUE} rasters will be converted to polygons and plotted using \link[ggplot2]{geom_sf}.
-#' @name geom_stars
 #' @details \code{geom_stars} returns (a call to) either \link[ggplot2]{geom_raster}, \link[ggplot2]{geom_tile}, or \link[ggplot2]{geom_sf}, depending on the raster or vector geometry; for the first to, an \link[ggplot2]{aes} call is constructed with the raster dimension names and the first array as fill variable. Further calls to \link[ggplot2]{coord_equal} and \link[ggplot2]{facet_wrap} are needed to control aspect ratio and the layers to be plotted; see examples.
 #' @export
 #' @examples
@@ -181,17 +226,22 @@ theme_stars = function(...) {
 }
 
 register_all_s3_methods = function() {
-	register_s3_method("dplyr", "filter", "stars") # nocov start
+	register_s3_method("cubelyr", "as.tbl_cube", "stars") # nocov start
+	register_s3_method("dplyr", "filter", "stars") 
+	register_s3_method("dplyr", "filter", "stars_proxy") 
 	register_s3_method("dplyr", "as_tibble", "stars")
 	register_s3_method("dplyr", "select", "stars")
+	register_s3_method("dplyr", "select", "stars_proxy")
 	register_s3_method("dplyr", "mutate", "stars")
+	register_s3_method("dplyr", "mutate", "stars_proxy")
 	register_s3_method("dplyr", "pull", "stars")
-	register_s3_method("dplyr", "as.tbl_cube", "stars")
+	register_s3_method("dplyr", "pull", "stars_proxy")
 	register_s3_method("dplyr", "slice", "stars")
+	register_s3_method("dplyr", "slice", "stars_proxy")
 	register_s3_method("lwgeom", "st_transform_proj", "stars")
+	register_s3_method("sf", "st_join", "stars")
+	register_s3_method("spatstat", "as.owin", "stars")
 	register_s3_method("xts", "as.xts", "stars") # nocov end
-	if (utils::packageVersion("sf") >= "0.8-0")
-		register_s3_method("sf", "st_join", "stars")
 }
 
 # from: https://github.com/tidyverse/hms/blob/master/R/zzz.R

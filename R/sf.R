@@ -7,7 +7,12 @@ st_as_sfc.stars = function(x, ..., as_points, which = seq_len(prod(dim(x)[1:2]))
 	r = attr(st_dimensions(x), "raster")
 	gt = get_geotransform(x)
 	d = st_dimensions(x)[r$dimensions]
-	st_as_sfc(d, ..., as_points = as_points, which = which, geotransform = gt) 
+	sfc = st_as_sfc(d, ..., as_points = as_points, which = which, geotransform = gt) 
+	# swap axes?
+	if (st_axis_order() && isTRUE(st_crs(x, parameters = TRUE)$yx))
+		st_transform(sfc, pipeline = "+proj=pipeline +step +proj=axisswap +order=2,1")
+	else
+		sfc
 }
 
 
@@ -30,9 +35,7 @@ st_xy2sfc = function(x, as_points, ..., na.rm = TRUE) {
 
 	dxy = attr(d, "raster")$dimensions
 	xy_pos = match(dxy, names(d))
-	if (! all(xy_pos == 1:2)) # FIXME: better enforce this
-		stop("raster dimensions need to be first and second dimension")
-
+	stopifnot(all(xy_pos == 1:2))
 
 	# find which records are NA for all attributes:
 	a = abind(x, along = length(dim(x)) + 1)
@@ -78,7 +81,7 @@ st_xy2sfc = function(x, as_points, ..., na.rm = TRUE) {
 #' @param long logical; if \code{TRUE}, return a long table form \code{sf}, with geometries and other dimensinos recycled
 #' @param connect8 logical; if \code{TRUE}, use 8 connectedness. Otherwise the 4 connectedness algorithm will be applied.
 #' @param ... ignored
-#' @details If \code{merge} is \code{TRUE}, only the first attribute is converted into an \code{sf} object. If \code{na.rm} is \code{FALSE}, areas with \code{NA} values are also written out as polygons. Note that the resulting polygons are typically invalid, and use \link[lwgeom]{st_make_valid} to create valid polygons out of them.
+#' @details If \code{merge} is \code{TRUE}, only the first attribute is converted into an \code{sf} object. If \code{na.rm} is \code{FALSE}, areas with \code{NA} values are also written out as polygons. Note that the resulting polygons are typically invalid, and use \link[sf]{st_make_valid} to create valid polygons out of them.
 #' @export
 #' @examples
 #' tif = system.file("tif/L7_ETMs.tif", package = "stars")
@@ -118,7 +121,7 @@ st_as_sf.stars = function(x, ..., as_points = FALSE, merge = FALSE, na.rm = TRUE
 			stop("merge not yet supported for the as_points=TRUE case")
 
 		if (has_raster(x))
-			x = st_xy2sfc(x, as_points = as_points, ..., na.rm = na.rm)
+			x = st_xy2sfc(st_upfront(x), as_points = as_points, ..., na.rm = na.rm)
 
 		if (! has_sfc(x))
 			stop("no feature geometry column found")

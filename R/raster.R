@@ -10,6 +10,10 @@ st_as_stars.Raster = function(.x, ...) {
 	e = as.vector(raster::extent(.x)) # xmin xmax ymin ymax
 	v = raster::values(.x)
 	dim(v) = dim(.x)[c(2,1,3)]
+	if (all(raster::is.factor(.x))) {
+		v = structure(v, class = "factor", levels = as.character(raster::levels(.x)[[1]]$levels))
+		# FIXME: should handle levels for all layers here, or break on multiple different ones?
+	}
 	dimensions = list(
 		x = create_dimension(from = 1, to = dim(v)[1], offset = e[1], 
 			delta = (e[2]-e[1])/dim(v)[1], refsys = sp::proj4string(.x)),
@@ -29,24 +33,38 @@ st_as_stars.Raster = function(.x, ...) {
 
 st_as_raster = function(x, ...) {
 	stopifnot(inherits(x, "stars"))
+	x = st_upfront(x) # x/y dimensions first
 	if (length(dim(x)) > 3) {
 		warning("folding all higher dimensions into the third dimension") # nocov
 		x = st_apply(x, 1:2, as.vector) # fortunes::fortune("side effect") # nocov
 	}
 	d = st_dimensions(x)
+	if (d[[2]]$delta > 0) { # swap:
+		ny = dim(x)[2]
+		d[[2]]$offset = d[[2]]$offset + ny * d[[2]]$delta # top
+		d[[2]]$delta = -d[[2]]$delta # going down
+		x[[1]] = if (length(dim(x)) == 2)
+				x[[1]][,ny:1]
+			else
+				x[[1]][,ny:1,]
+	}
 	dxy = attr(d, "raster")$dimensions
 	stopifnot(all(dxy %in% names(d)))
 	bb = st_bbox(x)
+	values = if (is.factor(x[[1]]))
+			structure(x[[1]], dim = NULL)
+		else
+			as.vector(x[[1]]) # would convert factor into character
 	if (length(dim(x)) == 2) {
     	raster::raster(nrows=dim(x)[ dxy[2] ], ncols=dim(x)[ dxy[1] ],
 			xmn = bb[1], xmx = bb[3], ymn = bb[2], ymx = bb[4], 
-            crs = st_crs(x)$proj4string, vals = as.vector(x[[1]]))
+            crs = st_crs(x)$proj4string, vals = values) 
 	} else {
 		third = setdiff(names(d), dxy)
 		b = raster::brick(nrows=dim(x)[ dxy[2] ], ncols=dim(x)[ dxy[1] ],
 			xmn = bb[1], xmx = bb[3], ymn = bb[2], ymx = bb[4], nl = dim(x)[third],
             crs = st_crs(x)$proj4string)
-		raster::values(b) = as.vector(x[[1]])
+		raster::values(b) = values
 		z = seq(d[[third]])
 		if (all(!is.na(z)))
 			raster::setZ(b, z)
