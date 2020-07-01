@@ -141,7 +141,7 @@
 #' @export
 #' @param x object of class \code{stars}
 #' @param y object of class \code{sf}, \code{sfc} or \code{bbox}; see Details below.
-#' @param epsilon numeric; shrink the bounding box of \code{y} to its center with this factor.
+#' @param epsilon numeric; factor to shrink the bounding box of \code{y} towards its center before cropping.
 #' @param as_points logical; if \code{FALSE}, treat \code{x} as a set of points, else as a set of small polygons. Default: \code{TRUE} if \code{y} is two-dimensional, else \code{FALSE}
 #' @param ... ignored
 #' @param crop logical; if \code{TRUE}, the spatial extent of the returned object is cropped to still cover \code{obj}, if \code{FALSE}, the extent remains the same but cells outside \code{y} are given \code{NA} values.
@@ -195,7 +195,7 @@
 #' plot(l7[,1:13,1:13,1], reset = FALSE)
 #' image(l7[bb,,,1], add = TRUE, col = sf.colors())
 #' plot(st_as_sfc(bb), add = TRUE, border = 'green', lwd = 2)
-st_crop.stars = function(x, y, ..., crop = TRUE, epsilon = 0, 
+st_crop.stars = function(x, y, ..., crop = TRUE, epsilon = sqrt(.Machine$double.eps), 
 		as_points = all(st_dimension(y) == 2, na.rm = TRUE)) {
 	d = dim(x)
 	dm = st_dimensions(x)
@@ -214,16 +214,16 @@ st_crop.stars = function(x, y, ..., crop = TRUE, epsilon = 0,
 			stop("NA values in bounding box of y")
 		if (epsilon != 0)
 			bb = bb_shrink(bb, epsilon)
-		cr = colrow_from_xy(matrix(bb, 2, byrow = TRUE), dm)
+		cr = colrow_from_xy(matrix(bb, 2, byrow = TRUE), dm, NA_outside = TRUE)
 		cr[,1] = cr[,1] - dm[[xd]]$from + 1
 		cr[,2] = cr[,2] - dm[[yd]]$from + 1
 		for (i in seq_along(d)) {
 			if (names(d[i]) == xd)
-				args[[i+1]] = seq(max(1, cr[1, 1]), min(d[xd], cr[2, 1]))
+				args[[i+1]] = seq(max(1, cr[1, 1], na.rm = TRUE), min(d[xd], cr[2, 1], na.rm = TRUE))
 			if (names(d[i]) == yd) {
 				if (dm[[ yd ]]$delta < 0)
 					cr[1:2, 2] = cr[2:1, 2]
-				args[[i+1]] = seq(max(1, cr[1, 2]), min(d[yd], cr[2, 2]))
+				args[[i+1]] = seq(max(1, cr[1, 2], na.rm = TRUE), min(d[yd], cr[2, 2], na.rm = TRUE))
 			}
 		}
 		x = eval(rlang::expr(x[!!!args]))
@@ -270,13 +270,21 @@ st_normalize.stars = function(x, domain = c(0, 0, 1, 1), ...) {
 #' @export
 #' @return \code{st_flip} flips (reverts) the array values along the chosen dimension 
 #' without(s) changing the dimension properties
+#' @examples
+#' lc = read_stars(system.file("tif/lc.tif", package = "stars"))
+#' x = c(orig = lc, 
+#'       flip_x = st_flip(lc, "x"), 
+#'       flip_y = st_flip(lc, "y"), 
+#'       flip_xy = st_flip(lc, c("x", "y")), 
+#'       along = 3)
+#' plot(x)
 st_flip = function(x, which = 1) {
 	if (is.character(which))
 		which = match(which, names(dim(x)))
 	stopifnot(all(which %in% seq_along(dim(x))))
 	dims = lapply(dim(x), seq_len)
 	for (i in which)
-		dims[[ which[i] ]] = rev(dims[[ which[i] ]])
+	  dims[[ i ]] = rev(dims[[ i ]])
 	for (i in seq_along(x))
 		x[[i]] = do.call(`[`, c(list(x[[i]]), dims))
 	x

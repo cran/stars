@@ -20,7 +20,10 @@ st_mosaic = function(.x, ...) UseMethod("st_mosaic")
 
 #' @export
 #' @name st_mosaic
-st_mosaic.stars = function(.x, ..., dst = tempfile(fileext = file_ext), options = c("-vrtnodata", "-9999"), file_ext = ".tif") {
+st_mosaic.stars = function(.x, ..., dst = tempfile(fileext = file_ext), 
+		options = c("-vrtnodata", "-9999", "-srcnodata", "nan"),
+# -srcnodata "nan": see https://github.com/r-spatial/stars/issues/274
+		file_ext = ".tif") {
 	lst_write = function(obj) {
 		fname = tempfile(fileext = file_ext)
 		write_stars(obj, fname)
@@ -40,4 +43,15 @@ st_mosaic.character = function(.x, ...,  dst = tempfile(fileext = file_ext),
 		options = c("-vrtnodata", "-9999"), file_ext = ".tif") {
 	sf::gdal_utils("buildvrt", .x, dst, options)
 	dst
+}
+
+#' @export
+#' @name st_mosaic
+st_mosaic.stars_proxy = function(.x, ..., dst = tempfile(fileext = file_ext),
+		options = c("-vrtnodata", "-9999"), file_ext = ".tif") {
+	if (length(.x) > 1 || length(.x[[1]]) > 1)
+		stop("st_mosaic.stars_proxy only implemented for single-file proxy objects")
+	objs = append(list(.x), list(...))
+	files = sapply(objs, function(sp) sp[[1]])	
+	read_stars(st_mosaic(files, dst = dst, options = options, file_ext = file_ext), proxy = TRUE)
 }

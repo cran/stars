@@ -143,17 +143,17 @@ dims = st_dimensions(origin = from, destination = to, mode = mode, day = day, ho
 traffic = array(rpois(prod(n), 10), dim = n) # simulated traffic counts
 (st = st_as_stars(list(traffic = traffic),  dimensions = dims))
 
-## ----eval=ev------------------------------------------------------------------
-st %>% as.tbl_cube()
+## ----eval=FALSE---------------------------------------------------------------
+#  st %>% as.tbl_cube()
 
-## ----eval=ev------------------------------------------------------------------
-b <- st %>% 
-  as.tbl_cube() %>%
-  filter(mode == "bike") %>%
-  group_by(hour) %>%
-  summarise(traffic = mean(traffic)) %>%
-  as.data.frame()
-require(ggforce) # for plotting a units variable
-ggplot() +  
-  geom_line(data = b, aes(x = hour, y = traffic))
+## ----eval=FALSE---------------------------------------------------------------
+#  b <- st %>%
+#    as.tbl_cube() %>%
+#    filter(mode == "bike") %>%
+#    group_by(hour) %>%
+#    summarise(traffic = mean(traffic)) %>%
+#    as.data.frame()
+#  require(ggforce) # for plotting a units variable
+#  ggplot() +
+#    geom_line(data = b, aes(x = hour, y = traffic))
 

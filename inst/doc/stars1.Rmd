@@ -187,7 +187,9 @@ which doesn't convert time values in a proper R time format.
 
 ## Reading datasets from multiple files
 
-Model data are often spread across many files. An example of a 0.25 degree grid, global daily sea surface temperature product is found [here](ftp://eclipse.ncdc.noaa.gov/pub/OI-daily-v2/NetCDF/); a subset of the 1981 data was downloaded from [here](ftp://eclipse.ncdc.noaa.gov/pub/OI-daily-v2/NetCDF/1981/AVHRR/).
+Model data are often spread across many files. An example of a 0.25 degree grid, global daily sea surface temperature product is found [here](ftp://ftp.cdc.noaa.gov/Datasets/noaa.oisst.v2.highres/); the subset from 1981 used below
+was downloaded from a NOAA ftp site that is no longer available in this form.
+(ftp site used to be eclipse.ncdc.noaa.gov/pub/OI-daily-v2/NetCDF/1981/AVHRR/).
 
 We read the data by giving `read_stars` a vector with character names:
 ```{r eval=ev}
@@ -299,12 +301,12 @@ traffic = array(rpois(prod(n), 10), dim = n) # simulated traffic counts
 ```
 
 This array contains the simple feature geometries of origin and destination so that we can directly plot every slice without additional table joins. If we want to represent such an array as a `tbl_cube`, the simple feature geometry dimensions need to be replaced by indexes:
-```{r eval=ev}
+```{r eval=FALSE}
 st %>% as.tbl_cube()
 ```
 
 The following demonstrates how `dplyr` can filter bike travel, and compute mean bike traffic by hour of day:
-```{r eval=ev}
+```{r eval=FALSE}
 b <- st %>% 
   as.tbl_cube() %>%
   filter(mode == "bike") %>%

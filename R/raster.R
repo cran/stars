@@ -1,24 +1,40 @@
 
 #' @name st_as_stars
+#' @param att see \link[raster:factor]{factorValues}; column in the RasterLayer's attribute table
 #' @export
-st_as_stars.Raster = function(.x, ...) {
-    if (!requireNamespace("sp", quietly = TRUE))
-        stop("package sp required, please install it first") # nocov
+st_as_stars.Raster = function(.x, ..., att = 1) {
     if (!requireNamespace("raster", quietly = TRUE))
         stop("package raster required, please install it first") # nocov
+
+	if (.x@file@name != "") {
+		r = try(read_stars(.x@file@name, proxy = TRUE), silent = TRUE)
+		if (!inherits(r, "try-error"))
+			return(r)
+	}
+
+    if (!requireNamespace("sp", quietly = TRUE))
+        stop("package sp required, please install it first") # nocov
 	#0 360 -90  90
 	e = as.vector(raster::extent(.x)) # xmin xmax ymin ymax
 	v = raster::values(.x)
 	dim(v) = dim(.x)[c(2,1,3)]
 	if (all(raster::is.factor(.x))) {
-		v = structure(v, class = "factor", levels = as.character(raster::levels(.x)[[1]]$levels))
-		# FIXME: should handle levels for all layers here, or break on multiple different ones?
+		l = raster::levels(.x)[[1]]$levels
+		if (length(l) == 0) # get the layer's RAT, column att:
+			l = raster::factorValues(.x, seq_len(max(v, na.rm = TRUE)), att = att)[[1]]
+		colors = try(.x@legend@colortable, silent = TRUE)
+		if (inherits(colors, "try-error") || length(colors) == 0)
+			colors = NULL
+		else
+			colors = colors[-1]
+		v = structure(v, class = "factor", levels = as.character(l), colors = colors)
+		# FIXME: should we handle levels for all layers here, or break on multiple different ones?
 	}
 	dimensions = list(
 		x = create_dimension(from = 1, to = dim(v)[1], offset = e[1], 
-			delta = (e[2]-e[1])/dim(v)[1], refsys = sp::proj4string(.x)),
+			delta = (e[2]-e[1])/dim(v)[1], refsys = st_crs(raster::crs(.x))),
 		y = create_dimension(from = 1, to = dim(v)[2], offset = e[4],
-			delta = (e[3]-e[4])/dim(v)[2], refsys = sp::proj4string(.x)))
+			delta = (e[3]-e[4])/dim(v)[2], refsys = st_crs(raster::crs(.x))))
 	z = raster::getZ(.x)
 	dimensions$band = if (is.null(z))
 			create_dimension(values = names(.x))
@@ -58,12 +74,12 @@ st_as_raster = function(x, ...) {
 	if (length(dim(x)) == 2) {
     	raster::raster(nrows=dim(x)[ dxy[2] ], ncols=dim(x)[ dxy[1] ],
 			xmn = bb[1], xmx = bb[3], ymn = bb[2], ymx = bb[4], 
-            crs = st_crs(x)$proj4string, vals = values) 
+            crs = as(st_crs(x), "CRS"), vals = values) 
 	} else {
 		third = setdiff(names(d), dxy)
 		b = raster::brick(nrows=dim(x)[ dxy[2] ], ncols=dim(x)[ dxy[1] ],
 			xmn = bb[1], xmx = bb[3], ymn = bb[2], ymx = bb[4], nl = dim(x)[third],
-            crs = st_crs(x)$proj4string)
+            crs = as(st_crs(x), "CRS"))
 		raster::values(b) = values
 		z = seq(d[[third]])
 		if (all(!is.na(z)))
