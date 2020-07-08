@@ -49,6 +49,8 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 		dim(x) = newdims
 		st_as_stars(setNames(list(x[,,i]), nms[1]), dimensions = d[dxy])
 	}
+	if (is.character(x[[1]])) # rgb values
+		key.pos = NULL
 	key.pos.missing = missing(key.pos)
 	if (missing(nbreaks) && !missing(col))
 		nbreaks = length(col) + 1
@@ -302,8 +304,12 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL,
 		if (is_curvilinear(x))
 			warning("when using rgb, curvilinear grid is plotted as regular grid")
 		xy = dim(ar)[1:2]
-		if (! y_is_neg) # need to flip y?
-			ar = ar[ , rev(seq_len(dim(ar)[2])), ]
+		if (! y_is_neg) { # need to flip y?
+			ar = if (length(dim(ar)) == 3)
+					ar[ , rev(seq_len(dim(ar)[2])), ]
+				else
+					ar[ , rev(seq_len(dim(ar)[2]))]
+		}
 		if (!useRaster)
 			stop("rgb plotting not supported on this device")
 		if (! isTRUE(dots$add)) {
@@ -408,4 +414,35 @@ contour.stars = function(x, ...) {
 		stop("contour only supported for 2-D arrays") # nocov
 	e = expand_dimensions(x)
 	contour(z = x[[1]][,rev(seq_len(dx[2]))], x = e[[1]], y = rev(e[[2]]), ...)
+}
+
+#' reduce dimension to rgb (alpha) hex values
+#' 
+#' @export
+#' @param x object of class \code{stars}
+#' @param dimension dimension name or number to reduce
+#' @param use_alpha logical; if TRUE, the fourth band will be used as alpha values
+#' @param maxColorValue integer; maximum value for colors
+#' @seealso \link{st_apply}, \link[grDevices]{rgb}
+#' @details the dimension's bands are mapped to red, green, blue, alpha; if a different 
+#' ordering is wanted, use \link{[.stars} to reorder a dimension, see examples
+#' @examples
+#' tif = system.file("tif/L7_ETMs.tif", package = "stars")
+#' x = read_stars(tif)
+#' st_rgb(x, 3)
+#' r = st_rgb(x[,,,c(6,5,4,3)], 3, use_alpha=TRUE) # now R=6,G=5,B=4,alpha=3
+#' if (require(ggplot2)) {
+#'  ggplot() + geom_stars(data = r) + scale_fill_identity()
+#' }
+st_rgb = function(x, dimension = 3, use_alpha = FALSE, maxColorValue = 255) {
+	if (is.character(dimension))
+		dimension = match(dimension, names(dim(x)))
+	stopifnot(is.numeric(dimension), length(dimension)==1)
+	dims = setdiff(seq_along(dim(x)), dimension)
+	rgb4 = function(x, ...) if (any(is.na(x[1:4]))) NA_character_ else rgb(x[1], x[2], x[3], x[4], ...)
+	rgb3 = function(x, ...) if (any(is.na(x[1:3]))) NA_character_ else rgb(x[1], x[2], x[3], ...)
+	if (use_alpha)
+		st_apply(x, dims, rgb4, maxColorValue = maxColorValue)
+	else 
+		st_apply(x, dims, rgb3, maxColorValue = maxColorValue)
 }

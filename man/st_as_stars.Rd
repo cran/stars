@@ -41,7 +41,7 @@ st_as_stars(.x, ...)
 
 \method{st_as_stars}{sf}(.x, ..., name = attr(.x, "sf_column"))
 
-\method{st_as_stars}{Raster}(.x, ..., att = 1)
+\method{st_as_stars}{Raster}(.x, ..., att = 1, ignore_file = FALSE)
 
 \method{st_as_stars}{ncdfgeom}(.x, ..., sf_geometry = NA)
 
@@ -96,7 +96,9 @@ st_as_stars(.x, ...)
 
 \item{att}{see \link[raster:factor]{factorValues}; column in the RasterLayer's attribute table}
 
-\item{sf_geometry}{sf data.frame with geometry and attributes to be added to stars object. 
+\item{ignore_file}{logical; if \code{TRUE}, ignore the Raster object file name}
+
+\item{sf_geometry}{sf data.frame with geometry and attributes to be added to stars object.
 Must have same number of rows as timeseries instances.}
 
 \item{downsample}{integer: if larger than 0, downsample with this rate (number of pixels to skip in every row/column); if length 2, specifies downsampling rate in x and y.}
