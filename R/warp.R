@@ -17,8 +17,14 @@ default_target_grid = function(x, crs, cellsize = NA_real_, segments = NA) {
 	envelope = st_as_sfc(bb_x)
 	# global adjustment: needed to have st_segmentize span global extent
 	# https://github.com/r-spatial/mapview/issues/256
-	if (!is.na(segments) && !has_global_longitude(x))
-		envelope = st_segmentize(envelope, st_length(st_cast(envelope, "LINESTRING"))/segments)
+	envelope = if (!is.na(segments) && !has_global_longitude(x)) # FIXME: should this branch be retained?
+				st_segmentize(envelope, st_length(st_cast(envelope, "LINESTRING"))/segments)
+			else {
+				# https://github.com/mtennekes/tmap/issues/526 : 
+				old_crs = st_crs(envelope)
+				st_crs(envelope) = NA_crs_
+				st_set_crs(st_segmentize(envelope, st_length(st_cast(envelope, "LINESTRING"))/segments), old_crs)
+			}
 	envelope_new = st_transform(envelope, crs)
 	bb = st_bbox(envelope_new) # in new crs
 	if (any(is.na(cellsize))) {
@@ -39,15 +45,14 @@ default_target_grid = function(x, crs, cellsize = NA_real_, segments = NA) {
 		# TODO: divide by st_area(evelope_new)/st_area(envelope) ?
 	}
 	cellsize = rep(abs(cellsize), length.out = 2)
-	p4s = crs$proj4string
 	nx = ceiling(diff(bb[c("xmin", "xmax")])/cellsize[1]) 
 	ny = ceiling(diff(bb[c("ymin", "ymax")])/cellsize[2])
 	if (has_global_longitude(x)) { # if global coverage, don't cross the boundaries:
 		cellsize[1] = diff(bb[c("xmin", "xmax")])/nx
 		cellsize[2] = diff(bb[c("ymin", "ymax")])/ny
 	}
-	x = create_dimension(from = 1, to = nx, offset = bb["xmin"], delta =  cellsize[1], refsys = p4s)
-	y = create_dimension(from = 1, to = ny, offset = bb["ymax"], delta = -cellsize[2], refsys = p4s)
+	x = create_dimension(from = 1, to = nx, offset = bb["xmin"], delta =  cellsize[1], refsys = crs)
+	y = create_dimension(from = 1, to = ny, offset = bb["ymax"], delta = -cellsize[2], refsys = crs)
 	create_dimensions(list(x = x, y = y), get_raster())
 }
 
@@ -75,12 +80,8 @@ transform_grid_grid = function(x, target) {
 	new_pts = st_coordinates(target[xy_names])
 	dxy = attr(target, "raster")$dimensions
 
-	from = if (inherits(target[[ dxy[1] ]]$refsys, "crs")) # FIXME: drop support for this?
-			target[[ dxy[1] ]]$refsys$proj4string
-		else
-			target[[ dxy[1] ]]$refsys
-
-	pts = sf_project(from = from, to = st_crs(x)$proj4string, pts = new_pts)
+	from = st_crs(target)
+	pts = sf_project(from = from, to = st_crs(x), pts = new_pts)
 
 	# at xy (target) locations, get values from x, or put NA
 	# to array:
@@ -89,6 +90,7 @@ transform_grid_grid = function(x, target) {
 	xy = colrow_from_xy(pts, x, NA_outside = TRUE)
 	dims = dim(x)
 	index = matrix(seq_len(prod(dims[dxy])), dims[ dxy[1] ], dims[ dxy[2] ])[xy]
+	x = unclass(x) # avoid using [[<-.stars:
 	if (length(dims) > 2) {
 		remaining_dims = dims[setdiff(names(dims), dxy)]
 		newdim = c(prod(dims[dxy]), prod(remaining_dims))

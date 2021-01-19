@@ -1,6 +1,7 @@
 #' spatially or temporally aggregate stars object
 #' 
 #' spatially or temporally aggregate stars object, returning a data cube with lower spatial or temporal resolution 
+#' 
 #' @param x object of class \code{stars} with information to be aggregated
 #' @param by object of class \code{sf} or \code{sfc} for spatial aggregation, for temporal aggregation a vector with time values (\code{Date}, \code{POSIXct}, or \code{PCICt}) that is interpreted as a sequence of left-closed, right-open time intervals or a string like "months", "5 days" or the like (see \link{cut.POSIXt}); if by is an object of class \code{stars}, it is converted to sfc by \code{st_as_sfc(by, as_points = FALSE)} thus ignoring its time component.
 #' @param FUN aggregation function, such as \code{mean}
@@ -12,6 +13,7 @@
 #' @param as_points see \link[stars]{st_as_sf}: shall raster pixels be taken as points, or small square polygons?
 #' @param exact logical; if \code{TRUE}, use \link[exactextractr]{coverage_fraction} to compute exact overlap fractions of polygons with raster cells
 #' @export
+#' @aliases aggregate
 #' @examples
 #' # aggregate time dimension in format Date
 #' tif = system.file("tif/L7_ETMs.tif", package = "stars")
@@ -73,11 +75,13 @@ aggregate.stars = function(x, by, FUN, ..., drop = FALSE, join = st_intersects,
 		st = do.call(raster::stack, e)
 		m = raster::getValues(st)
 		if (identical(FUN, mean))
-			m = sweep(m, 2, colSums(m), "/")
+			m = sweep(m, 2, colSums(m), "/") # mean: divide weights by the sum of weights
 		else if (!identical(FUN, sum))
 			stop("for exact=TRUE, FUN should either be mean or sum")
 		new_dim = c(prod(dim(x)[1:2]), prod(dim(x)[-(1:2)]))
 		out_dim = c(ncol(m), dim(x)[-(1:2)])
+		if (isTRUE(list(...)$na.rm))
+			x = lapply(x, function(y) { y[is.na(y)] = 0.0; y })
 		agg = lapply(x, function(a) array(t(m) %*% array(a, dim = new_dim), dim = out_dim))
 		ret = st_as_stars(agg, dimensions = 
 			create_dimensions(append(list(sfc = create_dimension(values = by)),

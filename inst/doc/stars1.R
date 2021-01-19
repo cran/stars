@@ -14,7 +14,7 @@ methods(class = "stars")
 ## -----------------------------------------------------------------------------
 tif = system.file("tif/L7_ETMs.tif", package = "stars")
 x = read_stars(tif)
-plot(x)
+plot(x, axes = TRUE)
 
 ## -----------------------------------------------------------------------------
 x
@@ -83,7 +83,7 @@ x = c(
 "avhrr-only-v2.19810909.nc"
 )
 # see the second vignette:
-# install.packages("starsdata", repos = "http://pebesma.staff.ifgi.de", type = "source") 
+# install.packages("starsdata", repos = "http://pebesma.staff.ifgi.de", type = "source")
 file_list = system.file(paste0("netcdf/", x), package = "starsdata")
 (y = read_stars(file_list, quiet = TRUE))
 

@@ -48,10 +48,10 @@ We can read a satellite image through GDAL, e.g. from a GeoTIFF file in the pack
 ```{r}
 tif = system.file("tif/L7_ETMs.tif", package = "stars")
 x = read_stars(tif)
-plot(x)
+plot(x, axes = TRUE)
 ```
 
-We see that the image is geographically referenced (has coordinate values along axes), and that the object returned (`x`) has three dimensions called `x`, `y` and `band`, and has one attribute.
+We see that the image is geographically referenced (has coordinate values along axes), and that the object returned (`x`) has three dimensions called `x`, `y` and `band`, and has one attribute:
 ```{r}
 x
 ```
@@ -205,7 +205,7 @@ x = c(
 "avhrr-only-v2.19810909.nc"
 )
 # see the second vignette:
-# install.packages("starsdata", repos = "http://pebesma.staff.ifgi.de", type = "source") 
+# install.packages("starsdata", repos = "http://pebesma.staff.ifgi.de", type = "source")
 file_list = system.file(paste0("netcdf/", x), package = "starsdata")
 (y = read_stars(file_list, quiet = TRUE))
 ```

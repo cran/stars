@@ -7,7 +7,7 @@ set.seed(13579)
 EVAL = x = suppressWarnings(require(starsdata, quietly = TRUE)) && sf::sf_extSoftVersion()["GDAL"] >= "2.2.0"
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  install.packages("starsdata", repos = "http://pebesma.staff.ifgi.de", type = "source")
+#  install.packages("starsdata", repos = "http://gis-bigdata.uni-muenster.de", type = "source")
 
 ## -----------------------------------------------------------------------------
 library(stars)
@@ -94,4 +94,72 @@ ndvi = function(x) (x[4] - x[1])/(x[4] + x[1])
 rm(x)
 (s2.ndvi = st_apply(p, c("x", "y"), ndvi))
 system.time(plot(s2.ndvi)) # read - compute ndvi - plot 
+
+## -----------------------------------------------------------------------------
+library(stars)
+
+s1 = st_as_stars(matrix(1:16, 4))
+s2 = st_as_stars(matrix(1:16, 4))
+s3 = st_as_stars(matrix(1:16, 4))
+attr(s1, "dimensions")$X2$delta = -1
+attr(s2, "dimensions")$X1$delta =  2
+attr(s2, "dimensions")$X2$delta = -2
+attr(s3, "dimensions")$X1$delta =  3
+attr(s3, "dimensions")$X2$delta = -3
+plot(s1, axes = TRUE, text_values = TRUE, text_color = 'orange')
+plot(s2, axes = TRUE, text_values = TRUE, text_color = 'orange')
+plot(s3, axes = TRUE, text_values = TRUE, text_color = 'orange')
+
+## -----------------------------------------------------------------------------
+write_stars(s1, "s1.tif")
+write_stars(s2, "s2.tif")
+write_stars(s3, "s3.tif")
+(r1 = read_stars(c("s1.tif", "s2.tif", "s3.tif"), proxy = TRUE))
+
+## -----------------------------------------------------------------------------
+st_as_stars(r1) %>%
+  merge() %>%
+  plot(breaks = "equal", text_values = TRUE, text_color = 'orange', axes = TRUE)
+
+## -----------------------------------------------------------------------------
+st_as_stars(r1[,2:4,2:4]) %>%
+  merge() %>%
+  plot(breaks = "equal", text_values = TRUE, text_color = 'orange', axes = TRUE)
+
+## -----------------------------------------------------------------------------
+s1 = st_as_stars(matrix(1: 16, 4))
+s2 = st_as_stars(matrix(1: 64, 8))
+s3 = st_as_stars(matrix(1:144,12))
+attr(s1, "dimensions")$X2$delta = -1
+attr(s2, "dimensions")$X1$delta =  1/2
+attr(s2, "dimensions")$X2$delta = -1/2
+attr(s3, "dimensions")$X1$delta =  1/3
+attr(s3, "dimensions")$X2$delta = -1/3
+plot(s1, axes = TRUE, text_values = TRUE, text_color = 'orange')
+plot(s2, axes = TRUE, text_values = TRUE, text_color = 'orange')
+plot(s3, axes = TRUE, text_values = TRUE, text_color = 'orange')
+
+## -----------------------------------------------------------------------------
+write_stars(s1, "s1.tif")
+write_stars(s2, "s2.tif")
+write_stars(s3, "s3.tif")
+(r2 = read_stars(c("s1.tif", "s2.tif", "s3.tif"), proxy = TRUE))
+
+st_as_stars(r2) %>%
+  merge() %>%
+  plot(breaks = "equal", text_values = TRUE, text_color = 'orange', axes = TRUE)
+st_as_stars(r2[,2:4,2:4]) %>%
+  merge() %>%
+  plot(breaks = "equal", text_values = TRUE, text_color = 'orange', axes = TRUE)
+
+## -----------------------------------------------------------------------------
+(r3 = read_stars(c("s3.tif", "s2.tif", "s1.tif"), proxy = TRUE))
+
+st_as_stars(r3) %>%
+  merge() %>%
+  plot(breaks = "equal", text_values = TRUE, text_color = 'orange', axes = TRUE)
+st_as_stars(r3[,2:6,3:6]) %>%
+  merge() %>%
+  plot(breaks = "equal", text_values = TRUE, text_color = 'orange', axes = TRUE)
+
 

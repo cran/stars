@@ -1,10 +1,78 @@
+# version 0.5-0
+
+* fix handling of rasters with color tables; #375
+
+* `st_apply` and other methods for `stars_proxy` objects handle ... ; #374
+
+* add `st_bbox`, `st_crs` methods for terra's `SpatVector` objects; https://github.com/mtennekes/tmap/issues/536
+
+* add `st_bbox`, `st_crs` and `st_as_stars` methods for terra's `SpatRaster` objects; https://github.com/mtennekes/tmap/issues/536
+
+* allow for multi-resolution attributes in `stars_proxy` objects (e.g., all gray scale sentinel-2 bands); see vignettes 2 and 7 for examples.
+
+* `plot` defaults to a categorical color scale when plotting a factor variable; https://github.com/mtennekes/tmap/issues/526
+
+* `st_extract` extracts space-time points if `time_column` is specified, and handles time intervals; #352
+
+* add `[[<-.stars` method, which is now called by `$<-.stars`, so that array names can be set programmatically
+
+* add `transmute` methods
+
+* `plot.stars` calls `droplevels` if a factor array has any `NA` levels; #339
+
+* `read_stars` reads `NaN`s as `NA`; #333
+
+* improve `st_extract` method for both `stars` and `stars_proxy` objects; interpolation options are reduced to bilinear; #322, #279, #290
+
+* better handle categorical rasters that do not start at value 1; #329
+
+* plot layout can be controlled with `mfrow = c(nr, nc)` argument
+
+* `stars_proxy` objects have a normalized path; #331
+
+* cropping or selecting with `bbox` treats cells always as small polygons; #330
+
+* add faster `st_extract` method for `stars` objects; #322
+
+* added vignette: "How `raster` functions map to `stars` functions", by Sebastien Rochette; #122, #325
+
+* fix bug in dimension `values` field when downsampling; #324
+
+* `write_stars` also writes out band names; #323
+
+* add `rgdal` to Suggests:
+
+* each `call_list` entry of a `stars_proxy` object carries its proper calling environment; #309
+
+* `st_as_sf.stars` copes with zero attribute (empty) stars objects
+
+* add `st_set_bbox` generic, to set raster extent, motivated by #315
+
+* set up tic, with great help from @pat-s, #313
+
+* get rid of more `proj4string`s for representing coordinate reference systems; #312
+
+* as(x, "Spatial") correctly handles `from` dimension values different from one
+
+* `read_stars` now sets the `BANDNAME` GDAL metadata item, or else the band's GetDescription() as the band's dimension values
+
+* `st_as_stars.data.frame` reads simple tables (non-raster data) if `dims` has length less than 2
+
+* band descriptions are in the band dimension values
+
+* dimension tables are simpler, and are shown properly in Rstudio
+
+* `st_rgb` gains a `probs` argument, to cut off and stretch based on quantiles
+
+* `as(x, "Raster")` merges multiple attributes before converting to raster brick
+
 # version 0.4-3
 
-* fix bug in `st_as_stars.Raster`
+* fix bug in `st_as_stars.Raster`; set crs to the one assigned by raster; https://github.com/mtennekes/tmap/issues/471
 
 * add `s2` to Suggests:
 
-* `st_rgb` collapses (reduces) a dimension to rgb hex value; #302
+* new function `st_rgb` collapses (reduces) a dimension to rgb hex value; #302
 
 # version 0.4-2
 

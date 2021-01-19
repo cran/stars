@@ -24,7 +24,8 @@
   reset = TRUE,
   box_col = grey(0.8),
   center_time = FALSE,
-  hook = NULL
+  hook = NULL,
+  mfrow = NULL
 )
 
 \method{image}{stars}(
@@ -41,6 +42,7 @@
   xlim = st_bbox(extent)$xlim,
   ylim = st_bbox(extent)$ylim,
   text_values = FALSE,
+  text_color = "black",
   axes = FALSE,
   interpolate = FALSE,
   as_points = FALSE,
@@ -50,7 +52,7 @@
   key.length = 0.618,
   add.geom = NULL,
   border = NA,
-  useRaster = dev.capabilities("rasterImage")$rasterImage == "yes",
+  useRaster = isTRUE(dev.capabilities("rasterImage")$rasterImage == "yes"),
   extent = x
 )
 
@@ -91,6 +93,8 @@
 
 \item{hook}{NULL or function; hook function that will be called on every sub-plot.}
 
+\item{mfrow}{length-2 integer vector with nrows, ncolumns of a composite plot, to override the default layout}
+
 \item{band}{integer; which band (dimension) to plot}
 
 \item{attr}{integer; which attribute to plot}
@@ -110,6 +114,8 @@
 \item{ylim}{y axis limits}
 
 \item{text_values}{logical; print values as text on image?}
+
+\item{text_color}{character; color for printed text values}
 
 \item{interpolate}{logical; when using \link{rasterImage} (rgb), should pixels be interpolated?}
 

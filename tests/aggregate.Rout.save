@@ -1,5 +1,5 @@
 
-R version 3.6.3 (2020-02-29) -- "Holding the Windsock"
+R version 4.0.2 (2020-06-22) -- "Taking Off Again"
 Copyright (C) 2020 The R Foundation for Statistical Computing
 Platform: x86_64-pc-linux-gnu (64-bit)
 
@@ -18,7 +18,7 @@ Type 'q()' to quit R.
 > library(stars)
 Loading required package: abind
 Loading required package: sf
-Linking to GEOS 3.8.0, GDAL 3.0.2, PROJ 6.2.1
+Linking to GEOS 3.8.0, GDAL 3.0.4, PROJ 7.0.0
 > 
 > library(spacetime)
 > data(air) # this loads several datasets in .GlobalEnv
@@ -26,12 +26,9 @@ Linking to GEOS 3.8.0, GDAL 3.0.2, PROJ 6.2.1
 space  time 
    70  4383 
 > d = st_dimensions(station = st_set_crs(st_as_sfc(stations), 4326), time = dates)
-Warning message:
-st_crs<- : replacing crs does not reproject data; use st_transform for that 
 > 
 > blocks = st_make_grid(st_as_sfc("POLYGON ((5.871619 47.26986, 15.03811 47.26986, 15.03811 55.05653, 5.871619 55.05653, 5.871619 47.26986))", crs = 4326),
 + 	n = c(3,3))
-although coordinates are longitude/latitude, st_relate_pattern assumes that they are planar
 > 
 > (aq = st_as_stars(list(PM10 = air), dimensions = d))
 stars object with 2 dimensions and 1 attribute
@@ -87,7 +84,7 @@ time                                                                  NULL
 +    nBufXSize = 2, nBufYSize = 2)))
 stars object with 3 dimensions and 1 attribute
 attribute(s):
- file15163cefa82.tif 
+ file717537b2b68.tif 
  Min.   : 33.0       
  1st Qu.:199.2       
  Median :365.5       
@@ -95,7 +92,7 @@ attribute(s):
  3rd Qu.:531.8       
  Max.   :698.0       
 dimension(s):
-     from to offset delta refsys point values    
+     from to offset delta refsys point values x/y
 x       1  2      0     5 WGS 84 FALSE   NULL [x]
 y       1  2     12    -6 WGS 84 FALSE   NULL [y]
 band    1  6     NA    NA     NA    NA   NULL    
@@ -142,7 +139,7 @@ attribute(s):
  Max.   :720.0  
  NA's   :480    
 dimension(s):
-     from to     offset  delta refsys point values    
+     from to     offset  delta refsys point values x/y
 time    1 10 2019-02-18 1 days   Date    NA   NULL    
 x       1 10          0      1 WGS 84 FALSE   NULL [x]
 y       1 12         12     -1 WGS 84 FALSE   NULL [y]
@@ -202,4 +199,4 @@ t                                                                     NULL
 > 
 > proc.time()
    user  system elapsed 
-  1.100   0.053   1.143 
+  1.424   0.067   1.480 

@@ -5,8 +5,6 @@ make_label = function(x, i = 1) {
 	else
 		names(x)[i]
 }
-	
-
 
 #' plot stars object, with subplots for each level of first non-spatial dimension
 #' 
@@ -30,13 +28,14 @@ make_label = function(x, i = 1) {
 #' @param box_col color for box around sub-plots; use \code{0} to suppress plotting of boxes around sub-plots.
 #' @param center_time logical; if \code{TRUE}, sub-plot titles will show the center of time intervals, otherwise their start
 #' @param hook NULL or function; hook function that will be called on every sub-plot.
+#' @param mfrow length-2 integer vector with nrows, ncolumns of a composite plot, to override the default layout
 #' @details 
 #' Downsampling: a value for \code{downsample} of 0 or 1 causes no downsampling, 2 that every second dimension value is sampled, 3 that every third dimension value is sampled, and so on. 
 #' @export
 plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes = FALSE, 
 		downsample = TRUE, nbreaks = 11, breaks = "quantile", col = grey(1:(nbreaks-1)/nbreaks),
 		key.pos = get_key_pos(x, ...), key.width = lcm(1.8), key.length = 0.618, 
-		reset = TRUE, box_col = grey(.8), center_time = FALSE, hook = NULL) {
+		reset = TRUE, box_col = grey(.8), center_time = FALSE, hook = NULL, mfrow = NULL) {
 
 	flatten = function(x, i) { # collapse all non-x/y dims into one, and select "layer" i
 		d = st_dimensions(x)
@@ -51,6 +50,8 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 	}
 	if (is.character(x[[1]])) # rgb values
 		key.pos = NULL
+	if (missing(col) && is.factor(x[[1]]))
+		col = attr(x[[1]], "colors") %||% sf.colors(length(levels(x[[1]])), categorical = TRUE)
 	key.pos.missing = missing(key.pos)
 	if (missing(nbreaks) && !missing(col))
 		nbreaks = length(col) + 1
@@ -59,6 +60,8 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 
 	#if (any(dim(x) == 1))
 	#	x = adrop(x)
+	if (is.factor(x[[1]]) && any(is.na(levels(x[[1]]))))
+		x = droplevels(x) # https://github.com/r-spatial/stars/issues/339
 
 	if (join_zlim && !is.character(x[[1]])) {
 		breaks = get_breaks(x, breaks, nbreaks, dots$logz)
@@ -89,9 +92,6 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 				st_downsample(x, downsample)
 		dims = dim(x) # may have changed by st_downsample
 
-		if (missing(col) && is.factor(x[[1]]) && !is.null(attr(x[[1]], "colors")))
-			col = attr(x[[1]], "colors")
-
 		if (length(dims) == 2 || dims[3] == 1 || (!is.null(dots$rgb) && is.numeric(dots$rgb))) { ## ONE IMAGE:
 			# set up key region
 			values = structure(x[[1]], dim = NULL) # array -> vector
@@ -113,7 +113,10 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 			}
 
 			# map panel:
-			par(mar = c(axes * 2.1, axes * 2.1, 1 * !is.null(main), 0))
+			mar = c(axes * 2.1, axes * 2.1, 1 * !is.null(main), 0)
+			if (!is.null(key.pos) && key.pos %in% 1:4)
+				mar[key.pos] = mar[key.pos] + .5
+			par(mar = mar)
 
 			# plot the map:
 			image(x, ..., axes = axes, breaks = breaks, col = col, key.pos = key.pos, 
@@ -125,8 +128,8 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 			draw.key = !is.null(key.pos) && join_zlim
 			if (! draw.key)
 				key.pos = NULL
-			lt = .get_layout(st_bbox(x), dims[3], par("din"),
-				if (join_zlim && key.pos.missing) -1 else key.pos, key.width)
+			lt = sf::.get_layout(st_bbox(x), dims[3], par("din"),
+						if (join_zlim && key.pos.missing) -1 else key.pos, key.width, mfrow = mfrow)
 			title_size = if (is.null(main)) 
 					0
 				else
@@ -169,8 +172,8 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 	} else if (has_sfc(x)) {
 #		if (key.pos.missing)
 #			key.pos = -1
-		plot(st_as_sf(x), ..., key.pos = key.pos, key.length = key.length, key.width = key.width, 
-			reset = reset, axes = axes, main = main)
+		plot(st_as_sf(x), ..., breaks = breaks, key.pos = key.pos, key.length = key.length, 
+			key.width = key.width, reset = reset, axes = axes, main = main)
 	} else
 		stop("no raster, no features geometries: no default plot method set up yet!")
 	if (reset) {
@@ -211,6 +214,7 @@ get_breaks = function(x, breaks, nbreaks, logz = NULL) {
 #' @param xlim x axis limits
 #' @param ylim y axis limits
 #' @param text_values logical; print values as text on image?
+#' @param text_color character; color for printed text values
 #' @param interpolate logical; when using \link{rasterImage} (rgb), should pixels be interpolated?
 #' @param as_points logical; for curvilinear or sheared grids: parameter passed on to \link{st_as_sf}, determining whether raster cells will be plotted as symbols (fast, approximate) or small polygons (slow, exact)
 #' @param logz logical; if \code{TRUE}, use log10-scale for the attribute variable. In that case, \code{breaks} and \code{at} need to be given as log10-values; see examples.
@@ -228,10 +232,11 @@ get_breaks = function(x, breaks, nbreaks, logz = NULL) {
 image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL, 
 		maxColorValue = ifelse(inherits(rgb, "data.frame"), 255, max(x[[attr]], na.rm = TRUE)),
 		xlab = if (!axes) "" else names(d)[1], ylab = if (!axes) "" else names(d)[2],
-		xlim = st_bbox(extent)$xlim, ylim = st_bbox(extent)$ylim, text_values = FALSE, axes = FALSE,
+		xlim = st_bbox(extent)$xlim, ylim = st_bbox(extent)$ylim, text_values = FALSE, 
+		text_color = 'black', axes = FALSE,
 		interpolate = FALSE, as_points = FALSE, key.pos = NULL, logz = FALSE,
 		key.width = lcm(1.8), key.length = 0.618, add.geom = NULL, border = NA,
-		useRaster = dev.capabilities("rasterImage")$rasterImage == "yes", extent = x) {
+		useRaster = isTRUE(dev.capabilities("rasterImage")$rasterImage == "yes"), extent = x) {
 
 	dots = list(...)
 
@@ -364,7 +369,8 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL,
 	}
 	if (text_values) {
 		dims = expand_dimensions.stars(x, center = TRUE)
-		text(do.call(expand.grid, dims[1:2]), labels = as.character(as.vector(ar_text))) # xxx
+		text(do.call(expand.grid, dims[1:2]), labels = as.character(as.vector(ar_text)),
+			col = text_color)
 	}
 	if (axes) { # FIXME: see sf::plot.sf for refinements to be ported here?
         if (isTRUE(st_is_longlat(x))) {
@@ -423,6 +429,8 @@ contour.stars = function(x, ...) {
 #' @param dimension dimension name or number to reduce
 #' @param use_alpha logical; if TRUE, the fourth band will be used as alpha values
 #' @param maxColorValue integer; maximum value for colors
+#' @param stretch logical; if \code{TRUE}, each band is stretched to 0 ... \code{maxColorValue}
+#' @param probs probability values for quantiles used for stretching
 #' @seealso \link{st_apply}, \link[grDevices]{rgb}
 #' @details the dimension's bands are mapped to red, green, blue, alpha; if a different 
 #' ordering is wanted, use \link{[.stars} to reorder a dimension, see examples
@@ -434,11 +442,23 @@ contour.stars = function(x, ...) {
 #' if (require(ggplot2)) {
 #'  ggplot() + geom_stars(data = r) + scale_fill_identity()
 #' }
-st_rgb = function(x, dimension = 3, use_alpha = FALSE, maxColorValue = 255) {
+st_rgb = function(x, dimension = 3, use_alpha = FALSE, maxColorValue = 255L, probs = c(0., 1.), stretch = FALSE) {
 	if (is.character(dimension))
 		dimension = match(dimension, names(dim(x)))
 	stopifnot(is.numeric(dimension), length(dimension)==1)
 	dims = setdiff(seq_along(dim(x)), dimension)
+	cutoff = function(x, probs) {
+		qs = if (all(probs == c(0., 1.)))
+				range(x)
+			else
+				quantile(x, probs, na.rm = TRUE)
+		x = (x - qs[1])/(qs[2] - qs[1])
+		x[x > 1] = 1
+		x[x < 0] = 0
+		x * maxColorValue
+	}
+	if (stretch)
+		x = st_apply(x, dimension, cutoff, probs = probs)
 	rgb4 = function(x, ...) if (any(is.na(x[1:4]))) NA_character_ else rgb(x[1], x[2], x[3], x[4], ...)
 	rgb3 = function(x, ...) if (any(is.na(x[1:3]))) NA_character_ else rgb(x[1], x[2], x[3], ...)
 	if (use_alpha)

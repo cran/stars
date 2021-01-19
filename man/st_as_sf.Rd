@@ -34,7 +34,7 @@
 
 \item{use_integer}{(relevant only if \code{merge} is \code{TRUE}): if \code{TRUE}, before polygonizing values are rounded to 32-bits signed integer values (GDALPolygonize), otherwise they are converted to 32-bit floating point values (GDALFPolygonize).}
 
-\item{long}{logical; if \code{TRUE}, return a long table form \code{sf}, with geometries and other dimensinos recycled}
+\item{long}{logical; if \code{TRUE}, return a long table form \code{sf}, with geometries and other dimensions recycled}
 
 \item{connect8}{logical; if \code{TRUE}, use 8 connectedness. Otherwise the 4 connectedness algorithm will be applied.}
 }
@@ -47,14 +47,14 @@ If \code{merge} is \code{TRUE}, only the first attribute is converted into an \c
 \examples{
 tif = system.file("tif/L7_ETMs.tif", package = "stars")
 x = read_stars(tif)
-x = x[,,,6] # a band with lower values in it
+x = x[,1:100,1:100,6] # subset of a band with lower values in it
 x[[1]][x[[1]] < 30] = NA # set lower values to NA
 x[[1]] = x[[1]] < 100 # make the rest binary
 x
 (p = st_as_sf(x)) # removes NA areas
 (p = st_as_sf(x[,,,1], merge = TRUE)) # glues polygons together
 all(st_is_valid(p)) # not all valid, see details
-# plot(p, axes = TRUE)
+plot(p, axes = TRUE)
 (p = st_as_sf(x, na.rm = FALSE, merge = TRUE)) # includes polygons with NA values
-# plot(p, axes = TRUE)
+plot(p, axes = TRUE)
 }
