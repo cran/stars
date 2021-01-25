@@ -3,7 +3,7 @@ title: "7. Statistical modelling with stars objects"
 author: "Edzer Pebesma"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{7-models}
+  %\VignetteIndexEntry{7. Statistical modelling with stars objects}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
