@@ -75,7 +75,8 @@ maybe_normalizePath = function(.x, np = FALSE) {
 #' file.remove(tmp)
 read_stars = function(.x, ..., options = character(0), driver = character(0),
 		sub = TRUE, quiet = FALSE, NA_value = NA_real_, along = NA_integer_,
-		RasterIO = list(), proxy = !length(curvilinear) && is_big(.x, sub = sub, driver=driver, ...),
+		RasterIO = list(), proxy = !length(curvilinear) && is_big(.x, sub = sub, driver=driver, 
+		normalize_path = normalize_path, ...),
 		curvilinear = character(0), normalize_path = TRUE, RAT = character(0)) {
 
 	x = if (is.list(.x)) {
@@ -191,7 +192,7 @@ read_stars = function(.x, ..., options = character(0), driver = character(0),
 				if (min_value > 0)
 					co = co[-seq_len(min_value)] # removes [0,...,(min_value-1)]
 				f = factor(as.vector(data), levels = seq(min_value, length.out = length(co)))
-				data = structure(f, dim = dim(data), colors = co, class = "factor")
+				data = structure(f, dim = dim(data), colors = co)
 			}
 			if (any(lengths(at) > 0)) {
 				which.at = which(lengths(at) > 0)[1]
@@ -204,6 +205,7 @@ read_stars = function(.x, ..., options = character(0), driver = character(0),
 					at = at[-seq_len(min_value)]
 				attr(data, "levels") = at
 			}
+			data = structure(data, class = "factor")
 		}
 
 		dims = if (proxy) {
@@ -247,13 +249,17 @@ is_big = function(x, ..., sub = sub, n_proxy = options("stars.n_proxy")[[1]] %||
 get_data_units = function(data) {
 	units = unique(attr(data, "units")) # will fail parsing in as_units() when more than one
 	if (length(units) > 1) {
-		warning(paste("more than one unit available for subdataset: using only", units[1])) # nocov
-		units = units[1] # nocov
-	}
-	if (!is.null(units) && nzchar(units))
-		units = try_as_units(units)
-	if (inherits(units, "units"))
-		units::set_units(structure(data, units = NULL), units, mode = "standard")
-	else
+		warning(paste("more than one unit available for array: ignoring all")) # nocov
 		structure(data, units = NULL)
+	} else {
+		if (!is.null(units) && nzchar(units)) {
+			if (units == "arc-second") # datum grids may have this
+				units = "arcsecond"
+			units = try_as_units(units)
+		}
+		if (inherits(units, "units"))
+			units::set_units(structure(data, units = NULL), units, mode = "standard")
+		else
+			structure(data, units = NULL)
+	}
 }

@@ -130,21 +130,22 @@ st_set_dimensions = function(.x, which, values = NULL, point = NULL, names = NUL
 	} else if (!is.null(point) && is.logical(point)) {
 		d[[which]]$point = point
 	} else if (!missing(names)) {
-		# handle names in raster attribute, #46
-		r = attr(d, "raster")
-		if (any(!is.na(r$dimensions))) {
-			r$dimensions = names[match(r$dimensions, names(d))]
-			attr(d, "raster") = r
-		}
 		if (length(d) != length(names) && length(names) != 1)
 			stop("length of names should match number of dimensions")
-		new_names = if (length(d) == length(names))
-				names
-			else { # replace the name of dimension `which`, #354
-				new_names = names(d)
-				new_names[which] = names
-				new_names
-			}
+		r = attr(d, "raster")
+		if (length(d) == length(names)) {
+			# handle names in raster attribute, #46
+			# problematic again in #379
+			if (any(!is.na(r$dimensions)))
+				r$dimensions = names[match(r$dimensions, names(d))]
+			new_names = names
+		} else { # replace the name of dimension `which`, #354
+			if (names(d)[which] %in% r$dimensions)
+				r$dimensions[match(names(d)[which], r$dimensions)] = names
+			new_names = names(d)
+			new_names[which] = names
+		}
+		attr(d, "raster") = r
 		base::names(d) = new_names
 	} else if (! missing(xy)) {
 		stopifnot(length(xy) == 2)
@@ -161,12 +162,38 @@ st_set_dimensions = function(.x, which, values = NULL, point = NULL, names = NUL
 
 
 #' @name st_dimensions
+#' @param where character, one of 'start', 'center' or 'end'. Set to NA (default) to ignore and use \code{max} and \code{center} explictly.  This argument provides a convenient alternative to setting \code{max} and \code{center}.
 #' @param max logical; if \code{TRUE} return the end, rather than the beginning of an interval
 #' @param center logical; if \code{TRUE} return the center of an interval; if \code{NA} return the center for raster dimensions, and the start of intervals in other cases
 #' @export
-st_get_dimension_values = function(.x, which, ..., max = FALSE, center = NA) {
+#' @examples
+#' m = matrix(1:20, nrow = 5, ncol = 4)
+#' dim(m) = c(x = 5, y = 4) # named dim
+#' (s = st_as_stars(m))
+#' st_get_dimension_values(s, 'x', where = "start")
+#' st_get_dimension_values(s, 'x', center = FALSE)
+#' st_get_dimension_values(s, 'x', where = "center")
+#' st_get_dimension_values(s, 'x', center = TRUE)
+#' st_get_dimension_values(s, 'x', where = "end")
+#' st_get_dimension_values(s, 'x', max = TRUE)
+st_get_dimension_values = function(.x, which, ..., where = NA, max = FALSE, center = NA) {
 	if ((!is.numeric(which) && !is.character(which)) || length(which) != 1)
 		stop("argument which should be a length 1 dimension index or name") # nocov
+  if (!is.na(where)){
+    w = tolower(where[1])
+    if (w == 'center'){
+      max = FALSE
+      center = TRUE
+    } else if (w == 'start'){
+      max = FALSE
+      center = FALSE
+    } else if (w == 'end'){
+      max = TRUE
+      center = NA
+    } else {
+      stop("where, if not NA, must be 'start', 'center' or 'end': ", where)
+    }
+  }
 	expand_dimensions(.x, ..., max = max, center = center)[[which]]
 }
 

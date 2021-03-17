@@ -16,7 +16,8 @@ write_stars(obj, dsn, layer, ...)
   ...,
   driver = detect.driver(dsn),
   options = character(0),
-  type = "Float32",
+  type = if (is.factor(obj[[1]]) && length(levels(obj[[1]])) < 256) "Byte" else
+    "Float32",
   NA_value = NA_real_,
   update = FALSE,
   normalize_path = TRUE
@@ -70,6 +71,8 @@ write stars object to gdal dataset (typically: to file)
 }
 \details{
 \code{write_stars} first creates the target file, then updates it sequentially by writing blocks of \code{chunk_size}.
+
+in case \code{obj} is a multi-file \code{stars_proxy} object, all files are written as layers into the output file \code{dsn}
 }
 \examples{
 detect.driver("L7_ETMs.tif")

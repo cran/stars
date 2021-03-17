@@ -43,13 +43,16 @@ write_stars = function(obj, dsn, layer, ...) UseMethod("write_stars")
 #' @name write_stars
 #' @export
 write_stars.stars = function(obj, dsn, layer = 1, ..., driver = detect.driver(dsn), 
-		options = character(0), type = "Float32", NA_value = NA_real_, update = FALSE,
-		normalize_path = TRUE) {
+		options = character(0), 
+		type = if (is.factor(obj[[1]]) && length(levels(obj[[1]])) < 256) "Byte" else "Float32", 
+		NA_value = NA_real_, update = FALSE, normalize_path = TRUE) {
 	if (missing(layer) && length(obj) > 1)
 		warning("all but first attribute are ignored")
 	obj = st_upfront(obj[layer])
 	if (! update) # new file: should not be a sub-array
 		obj = reset_sub(obj)
+	if (!update && !is.null(attr(obj[[1]], "colors"))) # add r g b alpha table from colors:
+		obj[[1]] = structure(obj[[1]], rgba = t(col2rgb(attr(obj[[1]], "colors"), alpha = TRUE)))
 	if (normalize_path)
 		dsn = enc2utf8(maybe_normalizePath(dsn, TRUE))
 	sf::gdal_write(obj, ..., file = dsn, driver = driver, options = options, 
@@ -62,25 +65,21 @@ write_stars.stars = function(obj, dsn, layer = 1, ..., driver = detect.driver(ds
 #' @param chunk_size length two integer vector with the number of pixels (x, y) used in the read/write loop; see details.
 #' @param progress logical; if \code{TRUE}, a progress bar is shown
 #' @details \code{write_stars} first creates the target file, then updates it sequentially by writing blocks of \code{chunk_size}.
+#' @details in case \code{obj} is a multi-file \code{stars_proxy} object, all files are written as layers into the output file \code{dsn}
 #' @export
 write_stars.stars_proxy = function(obj, dsn, layer = 1, ..., driver = detect.driver(dsn), 
 		options = character(0), type = "Float32", NA_value = NA_real_, 
 		chunk_size = c(dim(obj)[1], floor(25e6 / dim(obj)[1])), progress = TRUE) {
 
-	if (missing(layer)) {
-		if (length(obj) > 1)
-			warning("all but first attribute are ignored")
-	} else {
-		warning("specifying layer may not work in write_stars()")
+	if (!missing(layer))
 		obj = obj[layer]
-	}
-	if (length(obj[[1]]) > 1) { # collapse bands:
+
+	if (length(obj[[1]]) > 1 || length(obj) > 1) { # collapse bands:
 		out_file = tempfile(fileext = ".vrt")
-		gdal_utils("buildvrt", obj[[1]], out_file, options = "-separate")
-		obj = unclass(obj)
+		gdal_utils("buildvrt", unlist(obj), out_file, options = "-separate")
 		obj[[1]] = out_file
-		obj = structure(obj, class = c("stars_proxy", "stars"))
 	}
+
 	if (progress) {
 		pb = txtProgressBar()
 		setTxtProgressBar(pb, 0)
@@ -90,31 +89,37 @@ write_stars.stars_proxy = function(obj, dsn, layer = 1, ..., driver = detect.dri
 	if (prod(chunk_size) > prod(dim_obj[1:2]))
 		write_stars(st_as_stars(obj), dsn, layer, ..., driver = driver, options = options,
 			type = type, NA_value = NA_value)
-	else { # write chunked:
-		di = st_dimensions(obj)
-		if (di[[1]]$from > 1 || di[[2]]$from > 1)
-			message("chunked writing may not work for subsetted rasters: in case of failure use write_stars(st_as_stars(object))")
+	else { # write chunked: https://github.com/r-spatial/stars/pull/291/files
 
+		di_write = di_read = st_dimensions(obj)
+		di_from = c(di_read[[1]]$from, di_read[[2]]$from)
 		created = FALSE
-
 		ncol = ceiling(dim_obj[1] / chunk_size[1])
 		nrow = ceiling(dim_obj[2] / chunk_size[2])
 		for (col in 1:ncol) {
-			di[[1]]$from = 1 + (col - 1) * chunk_size[1]
-			di[[1]]$to   = min(col * chunk_size[1], dim_obj[1])
+			di_write[[1]]$from = 1 + (col - 1) * chunk_size[1]
+			di_write[[1]]$to   = min(col * chunk_size[1], dim_obj[1])
+			di_read[[1]]$from = di_write[[1]]$from + di_from[1] - 1
+			di_read[[1]]$to   = di_write[[1]]$to + di_from[1] - 1
+			di_write[[1]]$offset = with(di_read[[1]], offset + delta * (from - 1))
 			for (row in 1:nrow) {
-				di[[2]]$from = 1 + (row - 1) * chunk_size[2]
-				di[[2]]$to   = min(row * chunk_size[2], dim_obj[2])
-				chunk = st_as_stars(structure(obj, dimensions = di))
+				di_write[[2]]$from = 1 + (row - 1) * chunk_size[2]
+				di_write[[2]]$to   = min(row * chunk_size[2], dim_obj[2])
+				di_read[[2]]$from = di_write[[2]]$from + di_from[2] - 1
+				di_read[[2]]$to   = di_write[[2]]$to + di_from[2] -1
+				di_write[[2]]$offset = with(di_read[[2]], offset + delta * (from - 1))
+				chunk = st_as_stars(structure(obj, dimensions = di_read))
+				attr(chunk, "dimensions") <- di_write
+
 				if (! created) { # create:
 					d = st_dimensions(chunk)
 					d_obj = st_dimensions(obj)
 					d[[1]]$from = d[[2]]$from = 1
-					d[[1]]$to = d_obj[[1]]$to
-					d[[2]]$to = d_obj[[2]]$to
-					# reset dimensions 1/2 to original:
-					sf::gdal_write(structure(obj, dimensions = d), ..., file = dsn, driver = driver, options = options, 
-						type = type, NA_value = NA_value, geotransform = get_geotransform(obj)) # branches on stars_proxy
+					d[[1]]$to = d[[1]]$from + dim_obj[1] - 1
+					d[[2]]$to = d[[2]]$from + dim_obj[2] - 1
+					gt = get_geotransform(structure(obj, dimensions = d))
+					sf::gdal_write(structure(obj, dimensions = d), ..., file = dsn, driver = driver, options = options,
+						type = type, NA_value = NA_value, geotransform = gt) # branches on stars_proxy
 				}
 				created = TRUE
 				write_stars(chunk, dsn = dsn, layer = layer, driver = driver,
@@ -127,7 +132,8 @@ write_stars.stars_proxy = function(obj, dsn, layer = 1, ..., driver = detect.dri
 	if (progress)
 		close(pb)
 	invisible(obj)
-} 
+}
+
 #' @name write_stars
 #' @export
 #' @param filename character; used for guessing driver short name based on file 

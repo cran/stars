@@ -1,6 +1,32 @@
+# version 0.5-2
+
+* read and write factor levels as GDAL category names; write color table; #392
+
+* handle `normalize_path` for choosing to `proxy`; #391
+
+* ignore units if there are different units accross bands of a subdataset
+
+* speed up `st_rgb` using faster `st_apply` approach; #315, #390
+
+* improve handling of crs in Spatial objects (avoid loss of wkt comments)
+
+* correctly write band subsets for smaller proxy objects; #291
+
+* write arbitrarily cropped proxy objects; #291
+
+* speed up `st_apply` when a function is provided that works on chunks at a time; #390
+
+* warn when breaks = "quantile" results in a single class; #388
+
+* fix `[` bug selecting bands in proxy objects; #388
+
+* for `stars_proxy` objects, `write_stars` writes all objects into a multi-layer file; #385
+
+* multi-file proxy objects can be `st_warp`ed with `use_gdal=TRUE`; #385
+
 # version 0.5-1
 
-* fix weird GDAL-related bugs in stars2 vignette
+* fix weird GDAL-related bug in stars2 vignette
 
 * `read_ncdf` does not take time as mid-points of regular intervals, but as starting points; #378
 

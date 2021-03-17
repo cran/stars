@@ -8,6 +8,9 @@ EVAL = x = suppressWarnings(require(starsdata, quietly = TRUE)) && sf::sf_extSof
 
 ## ----eval=FALSE---------------------------------------------------------------
 #  install.packages("starsdata", repos = "http://gis-bigdata.uni-muenster.de", type = "source")
+#  # possibly after: options(timeout = 100)
+#  # or from an alternative repository:
+#  # install.packages("starsdata", repos = "http://pebesma.staff.ifgi.de", type = "source")
 
 ## -----------------------------------------------------------------------------
 library(stars)

@@ -26,7 +26,14 @@
     </style>
 
 
-<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  code {
+    white-space: pre;
+  }
+  .sourceCode {
+    overflow: visible;
+  }
+</style>
 <style type="text/css" data-origin="pandoc">
 a.sourceLine { display: inline-block; line-height: 1.25; }
 a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
@@ -320,7 +327,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb1-1" title="1"><span class="kw">library</span>(stars)</a>
 <a class="sourceLine" id="cb1-2" title="2"><span class="co">## Loading required package: abind</span></a>
 <a class="sourceLine" id="cb1-3" title="3"><span class="co">## Loading required package: sf</span></a>
-<a class="sourceLine" id="cb1-4" title="4"><span class="co">## Linking to GEOS 3.9.0, GDAL 3.2.0, PROJ 7.2.0</span></a></code></pre></div>
+<a class="sourceLine" id="cb1-4" title="4"><span class="co">## Linking to GEOS 3.9.0, GDAL 3.2.1, PROJ 7.2.1</span></a></code></pre></div>
 <p>Spatiotemporal arrays are stored in objects of class <code>stars</code>; methods for class <code>stars</code> currently available are</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb2-1" title="1"><span class="kw">methods</span>(<span class="dt">class =</span> <span class="st">&quot;stars&quot;</span>)</a>
 <a class="sourceLine" id="cb2-2" title="2"><span class="co">##  [1] $&lt;-               Math              Ops               [                </span></a>
@@ -723,10 +730,10 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb22-1" title="1">nc =<span class="st"> </span><span class="kw">st_read</span>(<span class="kw">system.file</span>(<span class="st">&quot;gpkg/nc.gpkg&quot;</span>, <span class="dt">package=</span><span class="st">&quot;sf&quot;</span>)) </a>
 <a class="sourceLine" id="cb22-2" title="2"><span class="co">## Reading layer `nc.gpkg&#39; from data source `/home/edzer/R/x86_64-pc-linux-gnu-library/4.0/sf/gpkg/nc.gpkg&#39; using driver `GPKG&#39;</span></a>
 <a class="sourceLine" id="cb22-3" title="3"><span class="co">## Simple feature collection with 100 features and 14 fields</span></a>
-<a class="sourceLine" id="cb22-4" title="4"><span class="co">## geometry type:  MULTIPOLYGON</span></a>
-<a class="sourceLine" id="cb22-5" title="5"><span class="co">## dimension:      XY</span></a>
-<a class="sourceLine" id="cb22-6" title="6"><span class="co">## bbox:           xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965</span></a>
-<a class="sourceLine" id="cb22-7" title="7"><span class="co">## geographic CRS: NAD27</span></a>
+<a class="sourceLine" id="cb22-4" title="4"><span class="co">## Geometry type: MULTIPOLYGON</span></a>
+<a class="sourceLine" id="cb22-5" title="5"><span class="co">## Dimension:     XY</span></a>
+<a class="sourceLine" id="cb22-6" title="6"><span class="co">## Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965</span></a>
+<a class="sourceLine" id="cb22-7" title="7"><span class="co">## Geodetic CRS:  NAD27</span></a>
 <a class="sourceLine" id="cb22-8" title="8">to =<span class="st"> </span>from =<span class="st"> </span><span class="kw">st_geometry</span>(nc) <span class="co"># 100 polygons: O and D regions</span></a>
 <a class="sourceLine" id="cb22-9" title="9">mode =<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;car&quot;</span>, <span class="st">&quot;bike&quot;</span>, <span class="st">&quot;foot&quot;</span>) <span class="co"># travel mode</span></a>
 <a class="sourceLine" id="cb22-10" title="10">day =<span class="st"> </span><span class="dv">1</span><span class="op">:</span><span class="dv">100</span> <span class="co"># arbitrary</span></a>
@@ -742,13 +749,13 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <a class="sourceLine" id="cb22-20" title="20">(<span class="dt">st =</span> <span class="kw">st_as_stars</span>(<span class="kw">list</span>(<span class="dt">traffic =</span> traffic),  <span class="dt">dimensions =</span> dims))</a>
 <a class="sourceLine" id="cb22-21" title="21"><span class="co">## stars object with 5 dimensions and 1 attribute</span></a>
 <a class="sourceLine" id="cb22-22" title="22"><span class="co">## attribute(s), summary of first 1e+05 cells:</span></a>
-<a class="sourceLine" id="cb22-23" title="23"><span class="co">##     traffic     </span></a>
-<a class="sourceLine" id="cb22-24" title="24"><span class="co">##  Min.   : 0.00  </span></a>
-<a class="sourceLine" id="cb22-25" title="25"><span class="co">##  1st Qu.: 8.00  </span></a>
-<a class="sourceLine" id="cb22-26" title="26"><span class="co">##  Median :10.00  </span></a>
-<a class="sourceLine" id="cb22-27" title="27"><span class="co">##  Mean   :10.01  </span></a>
-<a class="sourceLine" id="cb22-28" title="28"><span class="co">##  3rd Qu.:12.00  </span></a>
-<a class="sourceLine" id="cb22-29" title="29"><span class="co">##  Max.   :28.00  </span></a>
+<a class="sourceLine" id="cb22-23" title="23"><span class="co">##     traffic  </span></a>
+<a class="sourceLine" id="cb22-24" title="24"><span class="co">##  Min.   : 0  </span></a>
+<a class="sourceLine" id="cb22-25" title="25"><span class="co">##  1st Qu.: 8  </span></a>
+<a class="sourceLine" id="cb22-26" title="26"><span class="co">##  Median :10  </span></a>
+<a class="sourceLine" id="cb22-27" title="27"><span class="co">##  Mean   :10  </span></a>
+<a class="sourceLine" id="cb22-28" title="28"><span class="co">##  3rd Qu.:12  </span></a>
+<a class="sourceLine" id="cb22-29" title="29"><span class="co">##  Max.   :26  </span></a>
 <a class="sourceLine" id="cb22-30" title="30"><span class="co">## dimension(s):</span></a>
 <a class="sourceLine" id="cb22-31" title="31"><span class="co">##             from  to                      offset                       delta</span></a>
 <a class="sourceLine" id="cb22-32" title="32"><span class="co">## origin         1 100                          NA                          NA</span></a>

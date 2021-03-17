@@ -1,6 +1,6 @@
 Package: stars
 Title: Spatiotemporal Arrays, Raster and Vector Data Cubes
-Version: 0.5-1
+Version: 0.5-2
 Authors@R: 
     c(person(given = "Edzer",
              family = "Pebesma",
@@ -35,7 +35,8 @@ Suggests: PCICt, RNetCDF (>= 1.8-2), clue, covr, cubelyr, digest, dplyr
         ggthemes, gstat, httr, jsonlite, knitr, maps, mapdata,
         ncdfgeom, ncmeta (>= 0.0.3), pbapply, plm, randomForest,
         raster, rgdal, rmarkdown, s2 (>= 1.0.0), sp, spacetime,
-        spatstat, starsdata, terra, testthat, viridis, xts, zoo
+        spatstat (>= 2.0-1), spatstat.geom, starsdata, terra, testthat,
+        viridis, xts, zoo
 VignetteBuilder: knitr
 Encoding: UTF-8
 RoxygenNote: 7.1.1
@@ -46,7 +47,7 @@ Collate: 'init.R' 'stars.R' 'read.R' 'sf.R' 'dimensions.R' 'values.R'
         'intervals.R' 'geom.R' 'mosaic.R' 'spatstat.R'
         'OpenStreetMap.R' 'sample.R' 'extract.R'
 NeedsCompilation: no
-Packaged: 2021-01-25 19:05:25 UTC; edzer
+Packaged: 2021-03-17 14:20:56 UTC; edzer
 Author: Edzer Pebesma [aut, cre] (<https://orcid.org/0000-0001-8049-7069>),
   Michael Sumner [ctb] (<https://orcid.org/0000-0002-2471-7511>),
   Etienne Racine [ctb],
@@ -54,4 +55,4 @@ Author: Edzer Pebesma [aut, cre] (<https://orcid.org/0000-0001-8049-7069>),
   David Blodgett [ctb]
 Maintainer: Edzer Pebesma <edzer.pebesma@uni-muenster.de>
 Repository: CRAN
-Date/Publication: 2021-01-25 22:10:06 UTC
+Date/Publication: 2021-03-17 16:20:02 UTC

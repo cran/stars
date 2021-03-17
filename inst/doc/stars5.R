@@ -21,8 +21,8 @@ x = read_stars(tif)[, 1:50, 1:50, 1:2]
 x[[1]] = round(x[[1]]/5)
 
 ## ----eval=ev------------------------------------------------------------------
-l =  st_contour(x,contour_lines=TRUE, breaks = 8:14)
-plot(l, key.pos = 1, pal = sf.colors(6), lwd = 2, key.length = 0.8)
+l =  st_contour(x, contour_lines = TRUE, breaks = 11:15)
+plot(l[1], key.pos = 1, pal = sf.colors, lwd = 2, key.length = 0.8)
 
 ## -----------------------------------------------------------------------------
 st_as_sf(x, as_points = TRUE, merge = FALSE)

@@ -15,7 +15,7 @@ print.stars_proxy = function(x, ..., n = 1e5, nfiles = 10, simplify = TRUE) {
 		cat("multi-resolution ")
 	cat("stars_proxy object with", length(x), 
 		if (length(x) > 1) "attributes" else "attribute",
-		"in", if (sum(lengths(x)) > 1) "files" else "file")
+		"in", sum(lengths(x)), "file(s)")
 	if (length(x[[1]]) > nfiles)
 		cat("; showing the first", min(length(x[[1]]), nfiles), "filenames\n")
 	else
@@ -187,8 +187,15 @@ fetch = function(x, downsample = 0, ...) {
 
 	rasterio = list(nXOff = dx$from, nYOff = dy$from, nXSize = nXSize, nYSize = nYSize, 
 		nBufXSize = nBufXSize, nBufYSize = nBufYSize)
-	if (!is.null(bands <- d[["band"]]) && !is.null(bands$values) && is.numeric(bands$values)) # we want to select here
-		rasterio$bands = bands$values
+
+	# select bands?
+	bands <- d[["band"]]
+	if (!is.null(bands)) {
+		if (!is.null(bands$values) && is.numeric(bands$values)) 
+			rasterio$bands = bands$values
+		else if (!is.na(bands$from) && !is.na(bands$to))
+			rasterio$bands = seq(bands$from, bands$to)
+	}
 
 	# do it:
 	ret = vector("list", length(x))
@@ -230,9 +237,14 @@ fetch = function(x, downsample = 0, ...) {
 		do.call(c, lapply(ret, st_redimension, along = along))
 	
 	new_dim = st_dimensions(ret)
-	for (dm in setdiff(names(d), xy)) # copy over non x/y dimension values, if present:
-		if (dm %in% names(new_dim))
-			new_dim[[dm]] = d[[dm]]
+#	for (dm in setdiff(names(d), xy)) # copy over non x/y dimension values, if present:
+#		if (dm %in% names(new_dim))
+#			new_dim[[dm]] = d[[dm]]
+	if (length(d) > 2)
+		for (dm in 3:length(d)) {
+			new_dim[[dm]] = d[[dm]] # copy all fields - what if this was downsampled?
+			names(new_dim)[dm] = names(d)[dm]
+		}
 
 	st_set_crs(st_stars(setNames(ret, names(x)), new_dim), st_crs(x))
 }
@@ -260,14 +272,16 @@ check_xy_warn = function(call, dimensions) {
 #' @param url character; URL of the stars endpoint where the data reside 
 #' @param envir environment to resolve objects in
 #' @export
-st_as_stars.stars_proxy = function(.x, ..., downsample = 0, url = attr(.x, "url"), envir = parent.frame()) {
+st_as_stars.stars_proxy = function(.x, ..., downsample = 0, url = attr(.x, "url"), 
+		envir = parent.frame()) {
 	if (! is.null(url)) { # execute/get remotely: # nocov start
 		# if existing, convert call_list to character:
 		attr(.x, "call_list") = lapply(attr(.x, "call_list"), deparse)
 		# push the object to url, then st_as_stars() it there:
 		tempnam = substr(tempfile(pattern = "Z", tmpdir = "", fileext = ""), 2, 15)
 		put_data_url(url, tempnam, .x)
-		expr = paste0("st_as_stars(", tempnam, ", url = NULL, downsample=", downsample, ", envir = data)") # evaluate in "data" first
+		expr = paste0("st_as_stars(", tempnam, ", url = NULL, downsample=", downsample, 
+			", envir = data)") # evaluate in "data" first
 		ret = get_data_url(url, expr)
 		put_data_url(url, tempnam, NULL) # remove the temporary object
 		ret # nocov end
@@ -323,10 +337,19 @@ collect = function(x, call, fn, args = "x", env, ...) {
 	lst = as.list(call)
 	if (!missing(fn))
 		lst[[1]] = as.name(fn)
-	# set first argument name:
-	for (i in seq_along(args)) {
-		lst[[i+1]] = as.name(args[i])
-		names(lst)[[i+1]] = args[i]
+	# set argument names:
+	if (!missing(fn) && fn == "[") {
+		lst[[2]] = as.name(args[1])
+		lst[[3]] = as.name(args[2])
+		for (i in seq_along(args)[-(1:2)]) {
+			if (!args[i] %in% names(lst))
+				lst[[ args[i] ]] = as.name(args[i]) # appends
+		}
+	} else {
+		for (i in seq_along(args)) {
+			lst[[i+1]] = as.name(args[i])
+			names(lst)[[i+1]] = args[i]
+		}
 	}
 	call = as.call(lst)
 	environment(call) = env
@@ -378,7 +401,7 @@ merge.stars_proxy = function(x, y, ..., name = "attributes") {
 		if (is.numeric(v) && all(diff(v) == 1))
 			range(v)
 		else
-			NA
+			NULL
 	}
 	mc = match.call()
 	lst = as.list(mc)
@@ -387,13 +410,15 @@ merge.stars_proxy = function(x, y, ..., name = "attributes") {
 	if (missing(i)) # insert:
 		lst = c(lst[1:2], i = TRUE, lst[-(1:2)])
 	if (inherits(i, c("character", "logical", "numeric"))) {
-		if (!is.null(resolutions <- attr(x, "resolutions")))
-			resolutions = resolutions[i, ]
-		x = st_stars_proxy(unclass(x)[i], st_dimensions(x), NA_value = attr(x, "NA_value"),
-			resolutions = resolutions)
-		lst[["i"]] = TRUE # this one has been handled now
-		for (ix in 1:3) { # FIXME: further than 3?
-			if (length(lst) >= 4 && !any(is.na(r <- get_range(lst[[4]])))) {
+		if (!is.null(unclass(x)[[i]])) { # can/should be selected now:
+			if (!is.null(resolutions <- attr(x, "resolutions")))
+				resolutions = resolutions[i, ]
+			x = st_stars_proxy(unclass(x)[i], st_dimensions(x), NA_value = attr(x, "NA_value"),
+				resolutions = resolutions)
+			lst[["i"]] = TRUE # this one has been handled now
+		}
+		for (ix in 1:3) { # FIXME: process further dimensions than 3?
+			if (length(lst) >= 4 && !is.null(r <- get_range(lst[[4]]))) {
 				attr(x, "dimensions")[[ix]]$from = r[1]
 				attr(x, "dimensions")[[ix]]$to = r[2]
 				lst[[4]] = NULL # remove
@@ -474,6 +499,13 @@ st_apply.stars_proxy = function(X, MARGIN, FUN, ..., CLUSTER = NULL, PROGRESS = 
 #' @name predict.stars
 predict.stars_proxy = function(object, model, ...) {
 	collect(object, match.call(), "predict", c("object", "model"), env = environment(), ...)
+}
+
+#' @export
+"[[<-.stars_proxy" = function(x, i, value) {
+	y = unclass(x)
+	y[[i]] = value
+	structure(y, class = class(x))
 }
 
 #nocov start
