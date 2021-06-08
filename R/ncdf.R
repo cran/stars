@@ -465,8 +465,10 @@ read_ncdf = function(.x, ..., var = NULL, ncsub = NULL, curvilinear = character(
   } else {
     if (nrow(dims) != nrow(ncsub))
       stop("input ncsub doesn't match available dims")
-    if (any(ncsub[, "start"] < 1) ||
-        any((ncsub[, "count"] - ncsub[, "start"] + 1) > dims$length))
+    ix <- is.na(ncsub[, "count"])
+    if (any(ix))  ncsub[ix, "count"] <- dims$length[ix] - ncsub[ix, "start"] + 1
+    if (any(ncsub[, "start"] < 1) || 
+        any((ncsub[, "count"] - ncsub[, "start"] + 1) > dims$length)) 
       stop("start or count out of bounds")
     dims$start <- ncsub[, "start"]
     dims$count <- ncsub[, "count"]
@@ -740,7 +742,7 @@ make_cal_time2 <- function(dimension, time_name, time_unit = NULL, cal = NULL) {
 #'
 st_as_stars.ncdfgeom <- function(.x, ..., sf_geometry = NA) {
 
-  crs <- sf::st_crs(4326)$proj4string
+  crs <- sf::st_crs(4326)
 
   if(length(.x$alts) == 0) {
     ts_points <- data.frame(X = .x$lons, Y = .x$lats)
@@ -769,7 +771,7 @@ st_as_stars.ncdfgeom <- function(.x, ..., sf_geometry = NA) {
     is_point <- any(grepl("point", class(st_geometry(sf_geometry)), ignore.case = TRUE))
 
     sf_dim <- create_dimension(from = 1, to = length(gdim$values),
-                               refsys = st_crs(sf_geometry)$proj4string,
+                               refsys = st_crs(sf_geometry),
                                point = is_point, is_raster = FALSE,
                                values = st_geometry(sf_geometry))
 

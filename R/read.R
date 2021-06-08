@@ -1,17 +1,35 @@
 maybe_normalizePath = function(.x, np = FALSE) {
 	prefixes = c("NETCDF:", "HDF5:", "HDF4:", "HDF4_EOS:", "SENTINEL2_L1", "SENTINEL2_L2", "GPKG:")
 	has_prefix = function(pf, x) substr(x, 1, nchar(pf)) == pf
-	if (!np || any(sapply(prefixes, has_prefix, x = .x)))
+	if (is.function(.x) || !np || any(sapply(prefixes, has_prefix, x = .x)))
 		.x
 	else
 		normalizePath(.x, mustWork = FALSE)
+}
+
+enc2utf8char = function(x) {
+	if (is.character(x))
+		enc2utf8(x)
+	else
+		x
+}
+
+get_names = function(x) {
+	if (is.function(x))
+		x()
+	else
+		x
+}
+
+is_functions = function(x) {
+	is.function(x) || all(sapply(x, is.function))
 }
 
 
 #' read raster/array dataset from file or connection
 #'
 #' read raster/array dataset from file or connection
-#' @param .x character vector with name(s) of file(s) or data source(s) to be read
+#' @param .x character vector with name(s) of file(s) or data source(s) to be read, or a function that returns such a vector
 #' @param options character; opening options
 #' @param driver character; driver to use for opening file. To override fixing for subdatasets and autodetect them as well, use \code{NULL}.
 #' @param sub character, integer or logical; name, index or indicator of sub-dataset(s) to be read
@@ -26,6 +44,7 @@ maybe_normalizePath = function(.x, np = FALSE) {
 #' @param curvilinear length two character vector with names of subdatasets holding longitude and latitude values for all raster cells, or named length 2 list holding longitude and latitude matrices; the names of this list should correspond to raster dimensions referred to
 #' @param normalize_path logical; if \code{FALSE}, suppress a call to \link{normalizePath} on \code{.x}
 #' @param RAT character; raster attribute table column name to use as factor levels
+#' @param tolerance numeric; passed on to \link{all.equal} for comparing dimension parameters.
 #' @param ... passed on to \link{st_as_stars} if \code{curvilinear} was set
 #' @return object of class \code{stars}
 #' @details In case \code{.x} contains multiple files, they will all be read and combined with \link{c.stars}. Along which dimension, or how should objects be merged? If \code{along} is set to \code{NA} it will merge arrays as new attributes if all objects have identical dimensions, or else try to merge along time if a dimension called \code{time} indicates different time stamps. A single name (or positive value) for \code{along} will merge along that dimension, or create a new one if it does not already exist. If the arrays should be arranged along one of more dimensions with values (e.g. time stamps), a named list can passed to \code{along} to specify them; see example.
@@ -33,7 +52,7 @@ maybe_normalizePath = function(.x, np = FALSE) {
 #' \code{RasterIO} is a list with zero or more of the following named arguments:
 #' \code{nXOff}, \code{nYOff} (both 1-based: the first row/col has offset value 1),
 #' \code{nXSize}, \code{nYSize}, \code{nBufXSize}, \code{nBufYSize}, \code{bands}, code{resample}.
-#' see https://www.gdal.org/classGDALDataset.html#a80d005ed10aefafa8a55dc539c2f69da for their meaning;
+#' see https://www.gdal.org/classGDALDataset.html for their meaning;
 #' \code{bands} is an integer vector containing the band numbers to be read (1-based: first band is 1)
 #' Note that if \code{nBufXSize} or \code{nBufYSize} are specified for downsampling an image,
 #' resulting in an adjusted geotransform. \code{resample} reflects the resampling method and
@@ -75,15 +94,16 @@ maybe_normalizePath = function(.x, np = FALSE) {
 #' file.remove(tmp)
 read_stars = function(.x, ..., options = character(0), driver = character(0),
 		sub = TRUE, quiet = FALSE, NA_value = NA_real_, along = NA_integer_,
-		RasterIO = list(), proxy = !length(curvilinear) && is_big(.x, sub = sub, driver=driver, 
-		normalize_path = normalize_path, ...),
-		curvilinear = character(0), normalize_path = TRUE, RAT = character(0)) {
+		RasterIO = list(), proxy = is_functions(.x) || (!length(curvilinear) && 
+				is_big(.x, sub = sub, driver=driver, normalize_path = normalize_path, ...)),
+		curvilinear = character(0), normalize_path = TRUE, RAT = character(0),
+		tolerance = 1e-10) {
 
 	x = if (is.list(.x)) {
-			f = function(y, np) enc2utf8(maybe_normalizePath(y, np))
-			rapply(.x, f, classes = "character", how = "replace", np = normalize_path)
+			f = function(y, np) enc2utf8char(maybe_normalizePath(y, np))
+			rapply(.x, f, classes = c("character", "function"), how = "replace", np = normalize_path)
 		} else
-			enc2utf8(maybe_normalizePath(.x, np = normalize_path))
+			enc2utf8char(maybe_normalizePath(.x, np = normalize_path))
 
 	if (length(curvilinear) == 2 && is.character(curvilinear)) {
 		lon = adrop(read_stars(.x, sub = curvilinear[1], driver = driver, quiet = quiet, NA_value = NA_value,
@@ -94,14 +114,16 @@ read_stars = function(.x, ..., options = character(0), driver = character(0),
 			st_set_dimensions(lat, names = c("x", "y"))), c("x", "y"))
 	}
 
-	if (length(x) > 1) { # loop over data sources:
+	if (length(x) > 1) { # loop over data sources and RETURNS:
 		ret = lapply(x, read_stars, options = options, driver = driver, sub = sub, quiet = quiet,
 			NA_value = NA_value, RasterIO = as.list(RasterIO), proxy = proxy, curvilinear = curvilinear,
 			along = if (length(along) > 1) along[-1] else NA_integer_)
-		return(do.call(c, append(ret, list(along = along))))
+		return(do.call(c, append(ret, list(along = along, tolerance = tolerance))))
 	}
 
-	data = sf::gdal_read(x, options = options, driver = driver, read_data = !proxy,
+	# else:
+	data = sf::gdal_read(get_names(x),
+		options = options, driver = driver, read_data = !proxy,
 		NA_value = NA_value, RasterIO_parameters = as.list(RasterIO))
 	if (!is.null(data$default_geotransform) && data$default_geotransform == 1) {
 		## we have the 0 1 0 0 0 1 transform indicated
@@ -164,7 +186,7 @@ read_stars = function(.x, ..., options = character(0), driver = character(0),
 			else
 				get_data_units(attr(data, "data")) # extract data array; sets units if present
 		if (meta_data$driver[1] == "netCDF")
-			meta_data = parse_netcdf_meta(meta_data, x) # sets all kind of units
+			meta_data = parse_netcdf_meta(meta_data, get_names(x)) # sets all kind of units
 		if (! proxy && !is.null(meta_data$units) && !is.na(meta_data$units)
 				&& !inherits(data, "units")) # set units
 			units(data) = try_as_units(meta_data$units)
@@ -203,6 +225,10 @@ read_stars = function(.x, ..., options = character(0), driver = character(0),
 				at = at[[ which.at ]][[ which.column ]]
 				if (min_value > 0)
 					at = at[-seq_len(min_value)]
+				if (!is.factor(data) && min_value == 0) {
+					data = data + 1
+					warning("categorical data values starting at 0 are shifted with one to start at 1")
+				}
 				attr(data, "levels") = at
 			}
 			data = structure(data, class = "factor")
@@ -222,14 +248,18 @@ read_stars = function(.x, ..., options = character(0), driver = character(0),
 				NULL
 
 		# return:
-		ret = if (proxy) # no data present, subclass of "stars":
-			st_stars_proxy(setNames(list(x), names(.x) %||% tail(strsplit(x, '[\\\\/]+')[[1]], 1)),
-				create_dimensions_from_gdal_meta(dims, meta_data), NA_value = NA_value,
-				resolutions = NULL)
-		else
-			st_stars(setNames(list(data), names(.x) %||% tail(strsplit(x, '[\\\\/:]+')[[1]], 1)),
-				create_dimensions_from_gdal_meta(dim(data), meta_data))
-
+		name_x = if (is.function(.x))
+				names(.x()) %||% .x()
+			else
+				x
+		ret = if (proxy) { # no data present, subclass of "stars":
+				st_stars_proxy(setNames(list(x), names(.x) %||% tail(strsplit(name_x, '[\\\\/]+')[[1]], 1)),
+					create_dimensions_from_gdal_meta(dims, meta_data), NA_value = NA_value,
+					resolutions = NULL)
+			} else
+				st_stars(setNames(list(data), names(.x) %||% tail(strsplit(name_x, '[\\\\/:]+')[[1]], 1)),
+					create_dimensions_from_gdal_meta(dim(data), meta_data))
+	
 		if (is.list(curvilinear))
 			st_as_stars(ret, curvilinear = curvilinear, ...)
 		else
@@ -262,4 +292,41 @@ get_data_units = function(data) {
 		else
 			structure(data, units = NULL)
 	}
+}
+
+read_mdim = function(x, variable = character(0), ..., options = character(0), raster = NULL) {
+	if (packageVersion("sf") <= "0.9-8")
+		gdal_read_mdim = function(...) stop("sf > 0.9-8 required")
+	ret = gdal_read_mdim(x, variable, options)
+	create_units = function(x) {
+		u <- attr(x, "units")
+		if (is.null(u) || u == "")
+			x 
+		else {
+			u = units::set_units(x, u, mode = "standard")
+			p = try(as.POSIXct(u), silent = TRUE)
+			if (inherits(p, "POSIXct"))
+				p
+			else
+				u
+		}
+	}
+	l = lapply(ret$dimensions, function(x) create_units(x$values[[1]]))
+	d = rev(lapply(l, function(x) create_dimension(values = x)))
+	if (is.null(raster))
+		raster = get_raster(dimensions = names(d)[1:2])
+	lst = lapply(ret$array_list, function(x) structure(x, dim = rev(dim(x))))
+	st_set_crs(st_stars(lst, dimensions = structure(d, raster = raster, class = "dimensions")),
+		ret$srs)
+}
+
+write_mdim = function(x, filename, ...) {
+	stopifnot(inherits(x, "stars"))
+	if (packageVersion("sf") <= "0.9-8")
+		gdal_write_mdim = function(...) stop("sf > 0.9-8 required")
+	to_units = function(x) if (inherits(x, c("POSIXct", "Date"))) units::as_units(x) else x
+	dimension_values = rev(lapply(expand_dimensions(x), to_units))
+	units = sapply(dimension_values, function(x) if(inherits(x, "units")) as.character(units(x)) else "")
+	gdal_write_mdim(st_as_stars(x), filename, dimension_values, units)
+	invisible(x)
 }

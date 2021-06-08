@@ -1,6 +1,6 @@
 Package: stars
 Title: Spatiotemporal Arrays, Raster and Vector Data Cubes
-Version: 0.5-2
+Version: 0.5-3
 Authors@R: 
     c(person(given = "Edzer",
              family = "Pebesma",
@@ -28,6 +28,7 @@ URL: https://r-spatial.github.io/stars/,
         https://github.com/r-spatial/stars/
 BugReports: https://github.com/r-spatial/stars/issues/
 Additional_repositories: http://gis-bigdata.uni-muenster.de/pebesma/
+LazyData: true
 Depends: R (>= 3.3.0), abind, sf (>= 0.9-7)
 Imports: methods, parallel, classInt (>= 0.4-1), lwgeom, rlang, units
 Suggests: PCICt, RNetCDF (>= 1.8-2), clue, covr, cubelyr, digest, dplyr
@@ -36,7 +37,7 @@ Suggests: PCICt, RNetCDF (>= 1.8-2), clue, covr, cubelyr, digest, dplyr
         ncdfgeom, ncmeta (>= 0.0.3), pbapply, plm, randomForest,
         raster, rgdal, rmarkdown, s2 (>= 1.0.0), sp, spacetime,
         spatstat (>= 2.0-1), spatstat.geom, starsdata, terra, testthat,
-        viridis, xts, zoo
+        tidyr, viridis, xts, zoo
 VignetteBuilder: knitr
 Encoding: UTF-8
 RoxygenNote: 7.1.1
@@ -45,9 +46,9 @@ Collate: 'init.R' 'stars.R' 'read.R' 'sf.R' 'dimensions.R' 'values.R'
         'raster.R' 'sp.R' 'spacetime.R' 'ncdf.R' 'proxy.R' 'factors.R'
         'rasterize.R' 'subset.R' 'warp.R' 'aggregate.R' 'xts.R'
         'intervals.R' 'geom.R' 'mosaic.R' 'spatstat.R'
-        'OpenStreetMap.R' 'sample.R' 'extract.R'
+        'OpenStreetMap.R' 'sample.R' 'extract.R' 'datasets.R'
 NeedsCompilation: no
-Packaged: 2021-03-17 14:20:56 UTC; edzer
+Packaged: 2021-06-08 13:46:23 UTC; edzer
 Author: Edzer Pebesma [aut, cre] (<https://orcid.org/0000-0001-8049-7069>),
   Michael Sumner [ctb] (<https://orcid.org/0000-0002-2471-7511>),
   Etienne Racine [ctb],
@@ -55,4 +56,4 @@ Author: Edzer Pebesma [aut, cre] (<https://orcid.org/0000-0001-8049-7069>),
   David Blodgett [ctb]
 Maintainer: Edzer Pebesma <edzer.pebesma@uni-muenster.de>
 Repository: CRAN
-Date/Publication: 2021-03-17 16:20:02 UTC
+Date/Publication: 2021-06-08 14:50:02 UTC

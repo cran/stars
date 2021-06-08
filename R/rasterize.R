@@ -34,20 +34,32 @@ st_rasterize = function(sf, template = guess_raster(sf, ...) %||%
 			st_as_stars(st_bbox(sf), values = NA_real_, ...), 
 		file = tempfile(), driver = "GTiff", options = character(0), ...) {
 	template = st_normalize(template)
-	isn = sapply(sf, is.numeric)
-	if (!any(isn)) {
-		sf$ID = seq_len(nrow(sf))
-		sf = sf["ID"]
-	} else
-		sf = sf[isn]
+	is_numeric = function(x) is.numeric(x) || is.factor(x)
+	isn = sapply(sf, is_numeric)
+	sf = if (!any(isn)) {
+			sf$ID = seq_len(nrow(sf))
+			sf["ID"]
+		} else
+			sf[isn]
+	n_attr = length(which(isn))
+	if (length(dim(template)) == 2 && n_attr > 1)
+		template = merge(do.call(c, lapply(seq_len(n_attr), function(x) template)))
+	geoms = which(sapply(sf, inherits, "sfc"))
+	attrs = as.data.frame(sf)[-geoms]
+	for (i in which(sapply(sf, inherits, "factor"))) # factors:
+		sf[[i]] = as.numeric(sf[[i]])
 	sf::gdal_rasterize(sf, template, get_geotransform(template), file, driver, options)
 	ret = read_stars(file, driver = driver)
+	if (length(dim(ret)) > 2)
+		ret = split(ret)
 	for (i in seq_along(ret)) {
 		ret[[i]][is.nan(ret[[i]])] = NA_real_
 		if (inherits(sf[[i]], "units"))
 			units(ret[[i]]) = units(sf[[i]])
+		if (is.factor(attrs[[i]]))
+			ret[[i]] = structure(ret[[i]], class = "factor", levels = levels(attrs[[i]]))
 	}
-	setNames(ret, names(sf)[1])
+	setNames(ret, names(attrs))
 }
 
 guess_raster = function(x, ...) {
@@ -124,14 +136,14 @@ st_as_stars.data.frame = function(.x, ..., dims = coords, xy = dims[1:2], y_decr
 			dimensions[[this_dim]] = if (inherits(v, "sfc"))
 					create_dimension(values = v[match(uv, dig)])
 				else
-					create_dimension(values = suv, is_raster = TRUE)
+					create_dimension(values = suv, is_raster = i %in% xy)
 			this_dim = this_dim + 1
 		}
 		names(dimensions) = names(.x)[dims]
 	
 		raster_xy = if (length(xy) == 2) names(.x)[xy] else c(NA_character_, NA_character_)
 		d = create_dimensions(dimensions, raster = get_raster(dimensions = raster_xy))
-		l = lapply(.x[-xy], function(x) {
+		l = lapply(.x[-dims], function(x) {
 				m = if (is.factor(x))
 						structure(factor(rep(NA_character_, prod(dim(d))), levels = levels(x)),
 							dim = dim(d))

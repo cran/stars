@@ -327,22 +327,22 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <a class="sourceLine" id="cb1-2" title="2"><span class="kw">library</span>(dplyr)</a></code></pre></div>
 <p>Methods now available for class <code>stars</code> are</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb2-1" title="1"><span class="kw">methods</span>(<span class="dt">class =</span> <span class="st">&quot;stars&quot;</span>)</a>
-<a class="sourceLine" id="cb2-2" title="2"><span class="co">##  [1] $&lt;-               Math              Ops               [                </span></a>
-<a class="sourceLine" id="cb2-3" title="3"><span class="co">##  [5] [&lt;-               [[&lt;-              adrop             aggregate        </span></a>
-<a class="sourceLine" id="cb2-4" title="4"><span class="co">##  [9] aperm             as.data.frame     as.tbl_cube       as_tibble        </span></a>
-<a class="sourceLine" id="cb2-5" title="5"><span class="co">## [13] c                 coerce            contour           cut              </span></a>
-<a class="sourceLine" id="cb2-6" title="6"><span class="co">## [17] dim               dimnames          dimnames&lt;-        drop_units       </span></a>
-<a class="sourceLine" id="cb2-7" title="7"><span class="co">## [21] droplevels        filter            image             initialize       </span></a>
-<a class="sourceLine" id="cb2-8" title="8"><span class="co">## [25] is.na             merge             mutate            plot             </span></a>
-<a class="sourceLine" id="cb2-9" title="9"><span class="co">## [29] predict           print             pull              select           </span></a>
-<a class="sourceLine" id="cb2-10" title="10"><span class="co">## [33] show              slice             slotsFromS3       split            </span></a>
-<a class="sourceLine" id="cb2-11" title="11"><span class="co">## [37] st_apply          st_area           st_as_sf          st_as_sfc        </span></a>
-<a class="sourceLine" id="cb2-12" title="12"><span class="co">## [41] st_as_stars       st_bbox           st_coordinates    st_crop          </span></a>
-<a class="sourceLine" id="cb2-13" title="13"><span class="co">## [45] st_crs            st_crs&lt;-          st_dimensions     st_dimensions&lt;-  </span></a>
-<a class="sourceLine" id="cb2-14" title="14"><span class="co">## [49] st_extract        st_geometry       st_interpolate_aw st_intersects    </span></a>
-<a class="sourceLine" id="cb2-15" title="15"><span class="co">## [53] st_join           st_mosaic         st_normalize      st_redimension   </span></a>
-<a class="sourceLine" id="cb2-16" title="16"><span class="co">## [57] st_sample         st_set_bbox       st_transform      st_transform_proj</span></a>
-<a class="sourceLine" id="cb2-17" title="17"><span class="co">## [61] transmute         write_stars      </span></a>
+<a class="sourceLine" id="cb2-2" title="2"><span class="co">##  [1] $&lt;-               %in%              Math              Ops              </span></a>
+<a class="sourceLine" id="cb2-3" title="3"><span class="co">##  [5] [                 [&lt;-               [[&lt;-              adrop            </span></a>
+<a class="sourceLine" id="cb2-4" title="4"><span class="co">##  [9] aggregate         aperm             as.data.frame     as.tbl_cube      </span></a>
+<a class="sourceLine" id="cb2-5" title="5"><span class="co">## [13] as_tibble         c                 coerce            contour          </span></a>
+<a class="sourceLine" id="cb2-6" title="6"><span class="co">## [17] cut               dim               dimnames          dimnames&lt;-       </span></a>
+<a class="sourceLine" id="cb2-7" title="7"><span class="co">## [21] drop_units        droplevels        filter            hist             </span></a>
+<a class="sourceLine" id="cb2-8" title="8"><span class="co">## [25] image             initialize        is.na             merge            </span></a>
+<a class="sourceLine" id="cb2-9" title="9"><span class="co">## [29] mutate            plot              predict           print            </span></a>
+<a class="sourceLine" id="cb2-10" title="10"><span class="co">## [33] pull              select            show              slice            </span></a>
+<a class="sourceLine" id="cb2-11" title="11"><span class="co">## [37] slotsFromS3       split             st_apply          st_area          </span></a>
+<a class="sourceLine" id="cb2-12" title="12"><span class="co">## [41] st_as_sf          st_as_sfc         st_as_stars       st_bbox          </span></a>
+<a class="sourceLine" id="cb2-13" title="13"><span class="co">## [45] st_coordinates    st_crop           st_crs            st_crs&lt;-         </span></a>
+<a class="sourceLine" id="cb2-14" title="14"><span class="co">## [49] st_dimensions     st_dimensions&lt;-   st_extract        st_geometry      </span></a>
+<a class="sourceLine" id="cb2-15" title="15"><span class="co">## [53] st_interpolate_aw st_intersects     st_join           st_mosaic        </span></a>
+<a class="sourceLine" id="cb2-16" title="16"><span class="co">## [57] st_normalize      st_redimension    st_sample         st_set_bbox      </span></a>
+<a class="sourceLine" id="cb2-17" title="17"><span class="co">## [61] st_transform      st_transform_proj transmute         write_stars      </span></a>
 <a class="sourceLine" id="cb2-18" title="18"><span class="co">## see &#39;?methods&#39; for accessing help and source code</span></a></code></pre></div>
 <p>We will work with a three-band section of a landsat image:</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb3-1" title="1"><span class="kw">system.file</span>(<span class="st">&quot;tif/L7_ETMs.tif&quot;</span>, <span class="dt">package =</span> <span class="st">&quot;stars&quot;</span>) <span class="op">%&gt;%</span></a>
@@ -350,18 +350,13 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <a class="sourceLine" id="cb3-3" title="3">x</a>
 <a class="sourceLine" id="cb3-4" title="4"><span class="co">## stars object with 3 dimensions and 1 attribute</span></a>
 <a class="sourceLine" id="cb3-5" title="5"><span class="co">## attribute(s):</span></a>
-<a class="sourceLine" id="cb3-6" title="6"><span class="co">##   L7_ETMs.tif    </span></a>
-<a class="sourceLine" id="cb3-7" title="7"><span class="co">##  Min.   :  1.00  </span></a>
-<a class="sourceLine" id="cb3-8" title="8"><span class="co">##  1st Qu.: 54.00  </span></a>
-<a class="sourceLine" id="cb3-9" title="9"><span class="co">##  Median : 69.00  </span></a>
-<a class="sourceLine" id="cb3-10" title="10"><span class="co">##  Mean   : 68.91  </span></a>
-<a class="sourceLine" id="cb3-11" title="11"><span class="co">##  3rd Qu.: 86.00  </span></a>
-<a class="sourceLine" id="cb3-12" title="12"><span class="co">##  Max.   :255.00  </span></a>
-<a class="sourceLine" id="cb3-13" title="13"><span class="co">## dimension(s):</span></a>
-<a class="sourceLine" id="cb3-14" title="14"><span class="co">##      from  to  offset delta                       refsys point values x/y</span></a>
-<a class="sourceLine" id="cb3-15" title="15"><span class="co">## x       1 349  288776  28.5 UTM Zone 25, Southern Hem... FALSE   NULL [x]</span></a>
-<a class="sourceLine" id="cb3-16" title="16"><span class="co">## y       1 352 9120761 -28.5 UTM Zone 25, Southern Hem... FALSE   NULL [y]</span></a>
-<a class="sourceLine" id="cb3-17" title="17"><span class="co">## band    1   6      NA    NA                           NA    NA   NULL</span></a></code></pre></div>
+<a class="sourceLine" id="cb3-6" title="6"><span class="co">##              Min. 1st Qu. Median     Mean 3rd Qu. Max.</span></a>
+<a class="sourceLine" id="cb3-7" title="7"><span class="co">## L7_ETMs.tif     1      54     69 68.91242      86  255</span></a>
+<a class="sourceLine" id="cb3-8" title="8"><span class="co">## dimension(s):</span></a>
+<a class="sourceLine" id="cb3-9" title="9"><span class="co">##      from  to  offset delta                       refsys point values x/y</span></a>
+<a class="sourceLine" id="cb3-10" title="10"><span class="co">## x       1 349  288776  28.5 UTM Zone 25, Southern Hem... FALSE   NULL [x]</span></a>
+<a class="sourceLine" id="cb3-11" title="11"><span class="co">## y       1 352 9120761 -28.5 UTM Zone 25, Southern Hem... FALSE   NULL [y]</span></a>
+<a class="sourceLine" id="cb3-12" title="12"><span class="co">## band    1   6      NA    NA                           NA    NA   NULL</span></a></code></pre></div>
 <div id="slice" class="section level2">
 <h2><code>slice</code></h2>
 <p><code>slice</code> slices a sub-array out of the cube; this is done by specifying the dimension on which to act, and the slice number.</p>
@@ -369,17 +364,12 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <a class="sourceLine" id="cb4-2" title="2">x6</a>
 <a class="sourceLine" id="cb4-3" title="3"><span class="co">## stars object with 2 dimensions and 1 attribute</span></a>
 <a class="sourceLine" id="cb4-4" title="4"><span class="co">## attribute(s):</span></a>
-<a class="sourceLine" id="cb4-5" title="5"><span class="co">##   L7_ETMs.tif    </span></a>
-<a class="sourceLine" id="cb4-6" title="6"><span class="co">##  Min.   :  1.00  </span></a>
-<a class="sourceLine" id="cb4-7" title="7"><span class="co">##  1st Qu.: 32.00  </span></a>
-<a class="sourceLine" id="cb4-8" title="8"><span class="co">##  Median : 60.00  </span></a>
-<a class="sourceLine" id="cb4-9" title="9"><span class="co">##  Mean   : 59.98  </span></a>
-<a class="sourceLine" id="cb4-10" title="10"><span class="co">##  3rd Qu.: 88.00  </span></a>
-<a class="sourceLine" id="cb4-11" title="11"><span class="co">##  Max.   :255.00  </span></a>
-<a class="sourceLine" id="cb4-12" title="12"><span class="co">## dimension(s):</span></a>
-<a class="sourceLine" id="cb4-13" title="13"><span class="co">##   from  to  offset delta                       refsys point values x/y</span></a>
-<a class="sourceLine" id="cb4-14" title="14"><span class="co">## x    1 349  288776  28.5 UTM Zone 25, Southern Hem... FALSE   NULL [x]</span></a>
-<a class="sourceLine" id="cb4-15" title="15"><span class="co">## y    1 352 9120761 -28.5 UTM Zone 25, Southern Hem... FALSE   NULL [y]</span></a></code></pre></div>
+<a class="sourceLine" id="cb4-5" title="5"><span class="co">##              Min. 1st Qu. Median     Mean 3rd Qu. Max.</span></a>
+<a class="sourceLine" id="cb4-6" title="6"><span class="co">## L7_ETMs.tif     1      32     60 59.97521      88  255</span></a>
+<a class="sourceLine" id="cb4-7" title="7"><span class="co">## dimension(s):</span></a>
+<a class="sourceLine" id="cb4-8" title="8"><span class="co">##   from  to  offset delta                       refsys point values x/y</span></a>
+<a class="sourceLine" id="cb4-9" title="9"><span class="co">## x    1 349  288776  28.5 UTM Zone 25, Southern Hem... FALSE   NULL [x]</span></a>
+<a class="sourceLine" id="cb4-10" title="10"><span class="co">## y    1 352 9120761 -28.5 UTM Zone 25, Southern Hem... FALSE   NULL [y]</span></a></code></pre></div>
 <p>It returns a lower-dimensional array if a single element is selected along the slice dimension.</p>
 </div>
 <div id="filter" class="section level2">
@@ -389,18 +379,13 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <a class="sourceLine" id="cb5-2" title="2">x7</a>
 <a class="sourceLine" id="cb5-3" title="3"><span class="co">## stars object with 3 dimensions and 1 attribute</span></a>
 <a class="sourceLine" id="cb5-4" title="4"><span class="co">## attribute(s):</span></a>
-<a class="sourceLine" id="cb5-5" title="5"><span class="co">##   L7_ETMs.tif    </span></a>
-<a class="sourceLine" id="cb5-6" title="6"><span class="co">##  Min.   :  5.00  </span></a>
-<a class="sourceLine" id="cb5-7" title="7"><span class="co">##  1st Qu.: 54.00  </span></a>
-<a class="sourceLine" id="cb5-8" title="8"><span class="co">##  Median : 70.00  </span></a>
-<a class="sourceLine" id="cb5-9" title="9"><span class="co">##  Mean   : 71.79  </span></a>
-<a class="sourceLine" id="cb5-10" title="10"><span class="co">##  3rd Qu.: 88.00  </span></a>
-<a class="sourceLine" id="cb5-11" title="11"><span class="co">##  Max.   :252.00  </span></a>
-<a class="sourceLine" id="cb5-12" title="12"><span class="co">## dimension(s):</span></a>
-<a class="sourceLine" id="cb5-13" title="13"><span class="co">##      from  to  offset delta                       refsys point values x/y</span></a>
-<a class="sourceLine" id="cb5-14" title="14"><span class="co">## x       1  70  289004  28.5 UTM Zone 25, Southern Hem... FALSE   NULL [x]</span></a>
-<a class="sourceLine" id="cb5-15" title="15"><span class="co">## y       1 352 9120761 -28.5 UTM Zone 25, Southern Hem... FALSE   NULL [y]</span></a>
-<a class="sourceLine" id="cb5-16" title="16"><span class="co">## band    1   3       4     1                           NA    NA   NULL</span></a></code></pre></div>
+<a class="sourceLine" id="cb5-5" title="5"><span class="co">##              Min. 1st Qu. Median     Mean 3rd Qu. Max.</span></a>
+<a class="sourceLine" id="cb5-6" title="6"><span class="co">## L7_ETMs.tif     5      54     70 71.79194      88  252</span></a>
+<a class="sourceLine" id="cb5-7" title="7"><span class="co">## dimension(s):</span></a>
+<a class="sourceLine" id="cb5-8" title="8"><span class="co">##      from  to  offset delta                       refsys point values x/y</span></a>
+<a class="sourceLine" id="cb5-9" title="9"><span class="co">## x       1  70  289004  28.5 UTM Zone 25, Southern Hem... FALSE   NULL [x]</span></a>
+<a class="sourceLine" id="cb5-10" title="10"><span class="co">## y       1 352 9120761 -28.5 UTM Zone 25, Southern Hem... FALSE   NULL [y]</span></a>
+<a class="sourceLine" id="cb5-11" title="11"><span class="co">## band    1   3       4     1                           NA    NA   NULL</span></a></code></pre></div>
 <p>the subarray is created based on the x <em>coordinate</em> values.</p>
 <p>Note that <code>filter</code> converts the object to a <code>tbl_cube</code>, and uses the <code>dplyr</code> <code>filter</code> method for <code>tbl_cube</code> objects. This has the limitation that <code>stars</code> objects with rectilinear, curvilinear or simple feature geometries cannot be handled. For such objects, using regular <code>[</code> selection or using <code>st_crop</code> may be an alternative.</p>
 </div>
@@ -420,18 +405,14 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <a class="sourceLine" id="cb7-2" title="2">x2</a>
 <a class="sourceLine" id="cb7-3" title="3"><span class="co">## stars object with 3 dimensions and 2 attributes</span></a>
 <a class="sourceLine" id="cb7-4" title="4"><span class="co">## attribute(s):</span></a>
-<a class="sourceLine" id="cb7-5" title="5"><span class="co">##   L7_ETMs.tif         band2      </span></a>
-<a class="sourceLine" id="cb7-6" title="6"><span class="co">##  Min.   :  1.00   Min.   :  2.0  </span></a>
-<a class="sourceLine" id="cb7-7" title="7"><span class="co">##  1st Qu.: 54.00   1st Qu.:108.0  </span></a>
-<a class="sourceLine" id="cb7-8" title="8"><span class="co">##  Median : 69.00   Median :138.0  </span></a>
-<a class="sourceLine" id="cb7-9" title="9"><span class="co">##  Mean   : 68.91   Mean   :137.8  </span></a>
-<a class="sourceLine" id="cb7-10" title="10"><span class="co">##  3rd Qu.: 86.00   3rd Qu.:172.0  </span></a>
-<a class="sourceLine" id="cb7-11" title="11"><span class="co">##  Max.   :255.00   Max.   :510.0  </span></a>
-<a class="sourceLine" id="cb7-12" title="12"><span class="co">## dimension(s):</span></a>
-<a class="sourceLine" id="cb7-13" title="13"><span class="co">##      from  to  offset delta                       refsys point values x/y</span></a>
-<a class="sourceLine" id="cb7-14" title="14"><span class="co">## x       1 349  288776  28.5 UTM Zone 25, Southern Hem... FALSE   NULL [x]</span></a>
-<a class="sourceLine" id="cb7-15" title="15"><span class="co">## y       1 352 9120761 -28.5 UTM Zone 25, Southern Hem... FALSE   NULL [y]</span></a>
-<a class="sourceLine" id="cb7-16" title="16"><span class="co">## band    1   6      NA    NA                           NA    NA   NULL</span></a></code></pre></div>
+<a class="sourceLine" id="cb7-5" title="5"><span class="co">##              Min. 1st Qu. Median      Mean 3rd Qu. Max.</span></a>
+<a class="sourceLine" id="cb7-6" title="6"><span class="co">## L7_ETMs.tif     1      54     69  68.91242      86  255</span></a>
+<a class="sourceLine" id="cb7-7" title="7"><span class="co">## band2           2     108    138 137.82484     172  510</span></a>
+<a class="sourceLine" id="cb7-8" title="8"><span class="co">## dimension(s):</span></a>
+<a class="sourceLine" id="cb7-9" title="9"><span class="co">##      from  to  offset delta                       refsys point values x/y</span></a>
+<a class="sourceLine" id="cb7-10" title="10"><span class="co">## x       1 349  288776  28.5 UTM Zone 25, Southern Hem... FALSE   NULL [x]</span></a>
+<a class="sourceLine" id="cb7-11" title="11"><span class="co">## y       1 352 9120761 -28.5 UTM Zone 25, Southern Hem... FALSE   NULL [y]</span></a>
+<a class="sourceLine" id="cb7-12" title="12"><span class="co">## band    1   6      NA    NA                           NA    NA   NULL</span></a></code></pre></div>
 </div>
 <div id="select" class="section level2">
 <h2><code>select</code></h2>
@@ -440,18 +421,13 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <a class="sourceLine" id="cb8-2" title="2">x9</a>
 <a class="sourceLine" id="cb8-3" title="3"><span class="co">## stars object with 3 dimensions and 1 attribute</span></a>
 <a class="sourceLine" id="cb8-4" title="4"><span class="co">## attribute(s):</span></a>
-<a class="sourceLine" id="cb8-5" title="5"><span class="co">##      band2      </span></a>
-<a class="sourceLine" id="cb8-6" title="6"><span class="co">##  Min.   :  2.0  </span></a>
-<a class="sourceLine" id="cb8-7" title="7"><span class="co">##  1st Qu.:108.0  </span></a>
-<a class="sourceLine" id="cb8-8" title="8"><span class="co">##  Median :138.0  </span></a>
-<a class="sourceLine" id="cb8-9" title="9"><span class="co">##  Mean   :137.8  </span></a>
-<a class="sourceLine" id="cb8-10" title="10"><span class="co">##  3rd Qu.:172.0  </span></a>
-<a class="sourceLine" id="cb8-11" title="11"><span class="co">##  Max.   :510.0  </span></a>
-<a class="sourceLine" id="cb8-12" title="12"><span class="co">## dimension(s):</span></a>
-<a class="sourceLine" id="cb8-13" title="13"><span class="co">##      from  to  offset delta                       refsys point values x/y</span></a>
-<a class="sourceLine" id="cb8-14" title="14"><span class="co">## x       1 349  288776  28.5 UTM Zone 25, Southern Hem... FALSE   NULL [x]</span></a>
-<a class="sourceLine" id="cb8-15" title="15"><span class="co">## y       1 352 9120761 -28.5 UTM Zone 25, Southern Hem... FALSE   NULL [y]</span></a>
-<a class="sourceLine" id="cb8-16" title="16"><span class="co">## band    1   6      NA    NA                           NA    NA   NULL</span></a></code></pre></div>
+<a class="sourceLine" id="cb8-5" title="5"><span class="co">##        Min. 1st Qu. Median     Mean 3rd Qu. Max.</span></a>
+<a class="sourceLine" id="cb8-6" title="6"><span class="co">## band2     2     108    138 137.8248     172  510</span></a>
+<a class="sourceLine" id="cb8-7" title="7"><span class="co">## dimension(s):</span></a>
+<a class="sourceLine" id="cb8-8" title="8"><span class="co">##      from  to  offset delta                       refsys point values x/y</span></a>
+<a class="sourceLine" id="cb8-9" title="9"><span class="co">## x       1 349  288776  28.5 UTM Zone 25, Southern Hem... FALSE   NULL [x]</span></a>
+<a class="sourceLine" id="cb8-10" title="10"><span class="co">## y       1 352 9120761 -28.5 UTM Zone 25, Southern Hem... FALSE   NULL [y]</span></a>
+<a class="sourceLine" id="cb8-11" title="11"><span class="co">## band    1   6      NA    NA                           NA    NA   NULL</span></a></code></pre></div>
 </div>
 <div id="geom_stars" class="section level2">
 <h2><code>geom_stars</code></h2>

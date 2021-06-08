@@ -375,10 +375,18 @@ print.stars = function(x, ..., n = 1e5) {
 			as.data.frame(lapply(x, function(y) structure(y, dim = NULL)), optional = TRUE)
 		}
 		names(df) = add_units(x)
-		print(summary(df))
+		if (all(sapply(x, is.numeric))) {
+			m_summary = function(x) { s = summary(x); if (!"NA's" %in% names(s)) s["NA's"] = 0; s }
+			sums = lapply(df, summary)
+			if (length(unique(lengths(sums))) > 1)
+				sums = lapply(df, m_summary)
+			print(do.call(rbind, sums))
+		} else
+			print(summary(df))
 	}
 	cat("dimension(s):\n")
 	print(st_dimensions(x), ...)
+	invisible(x)
 }
 
 #' @export
@@ -417,6 +425,7 @@ propagate_units = function(new, old) {
 #' @param ... object(s) of class \code{star}: in case of multiple arguments, these are combined into a single stars object, in case of a single argument, its attributes are combined into a single attribute. In case of multiple objects, all objects should have the same dimensionality.
 #' @param along integer; see \link{read_stars}
 #' @param try_hard logical; if \code{TRUE} and some arrays have different dimensions, 
+#' @param tolerance numeric; values used in \link{all.equal} to compare dimension values
 #' combine those that dimensions matching to the first array
 #' @param nms character; vector with array names
 #' @export
@@ -426,7 +435,7 @@ propagate_units = function(new, old) {
 #' (new = c(x, x))
 #' c(new) # collapses two arrays into one with an additional dimension
 #' c(x, x, along = 3)
-c.stars = function(..., along = NA_integer_, try_hard = FALSE, nms = names(list(...))) {
+c.stars = function(..., along = NA_integer_, try_hard = FALSE, nms = names(list(...)), tolerance = sqrt(.Machine$double.eps)) {
 	dots = list(...)
 	if (length(dots) == 1) {
 		if (!missing(along))
@@ -435,7 +444,7 @@ c.stars = function(..., along = NA_integer_, try_hard = FALSE, nms = names(list(
 	} else if (identical(along, NA_integer_)) { 
 		# Case 1: merge attributes of several objects by simply putting them together in a single stars object;
 		# dim does not change:
-		if (identical_dimensions(dots))
+		if (identical_dimensions(dots, tolerance = tolerance))
 			st_as_stars(do.call(c, lapply(dots, unclass)), dimensions = st_dimensions(dots[[1]]))
 		else {
 			# currently catches only the special case of ... being a broken up time series:
@@ -781,7 +790,7 @@ st_redimension.stars = function(x, new_dims = st_dimensions(x),
 		value = if (inherits(value, c("factor", "POSIXct")))
 				structure(rep(value, length.out = prod(dim(x))), dim = dim(x), colors = attr(value, "colors"),
 					rgba = attr(value, "rgba"))
-			else if (!is.array(value) || !identical(dim(value), dim(x)))
+			else if (!is.array(value) || !isTRUE(all.equal(dim(value), dim(x), check.attributes = FALSE)))
 				array(value, dim(x))
 			else
 				value
@@ -792,7 +801,10 @@ st_redimension.stars = function(x, new_dims = st_dimensions(x),
 st_upfront = function(x, first = attr(st_dimensions(x), "raster")$dimensions) {
 	if (!is.character(first))
 		first = names(st_dimensions(x))[first]
-	aperm(x, c(first, setdiff(names(st_dimensions(x)), first)))
+	if (!any(is.na(first)))
+		aperm(x, c(first, setdiff(names(st_dimensions(x)), first)))
+	else
+		x
 }
 
 #' @export

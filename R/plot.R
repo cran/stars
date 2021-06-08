@@ -30,7 +30,7 @@ make_label = function(x, i = 1) {
 #' @param hook NULL or function; hook function that will be called on every sub-plot.
 #' @param mfrow length-2 integer vector with nrows, ncolumns of a composite plot, to override the default layout
 #' @details 
-#' Downsampling: a value for \code{downsample} of 0 or 1 causes no downsampling, 2 that every second dimension value is sampled, 3 that every third dimension value is sampled, and so on. 
+#' Downsampling: a value for \code{downsample} of 0 or 1 causes no downsampling, 2 that every second dimension value is sampled, 3 that every third dimension value is sampled, and so on; can be specified for each dimension.
 #' @export
 plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes = FALSE, 
 		downsample = TRUE, nbreaks = 11, breaks = "quantile", col = grey(1:(nbreaks-1)/nbreaks),
@@ -48,6 +48,7 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 		dim(x) = newdims
 		st_as_stars(setNames(list(x[,,i]), nms[1]), dimensions = d[dxy])
 	}
+	x = st_normalize(x)
 	if (is.character(x[[1]])) # rgb values
 		key.pos = NULL
 	if (missing(col) && is.factor(x[[1]]))
@@ -65,7 +66,7 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 		x = droplevels(x) # https://github.com/r-spatial/stars/issues/339
 
 	if (join_zlim && !is.character(x[[1]])) {
-		breaks = get_breaks(x, breaks, nbreaks, dots$logz)
+		breaks = as.numeric(get_breaks(x, breaks, nbreaks, dots$logz))
 		if (length(breaks) > 2)
 			breaks = unique(breaks)
 		nbreaks = length(breaks) # might be shorter than originally intended!
@@ -90,6 +91,8 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 		x = if (isTRUE(downsample)) {
 				n = dims * 0 + 1 # keep names
 				n[dxy] = get_downsample(dims)
+				if (any(n > 0))
+					cat(paste0("downsample set to c(", paste(n, collapse = ","), ")\n"))
 				st_downsample(x, n)
 			} else if (is.numeric(downsample))
 				st_downsample(x, downsample)
@@ -487,4 +490,15 @@ st_rgb = function(x, dimension = 3, use_alpha = dim(x)[dimension] == 4, maxColor
 			structure(rgb(r, g, b,    maxColorValue = maxColorValue), dim = dim(r))
 	}
 	st_apply(x, dims, if (use_alpha) rgb4 else rgb3)
+}
+
+#' @export
+hist.stars = function(x, ..., main = names(x)[1]) {
+	hist(x[[1]], ..., main = main)
+}
+
+#' @export
+hist.stars_proxy = function(x, ..., downsample = 0) {
+	x = st_as_stars(x, downsample = downsample)
+	NextMethod()
 }

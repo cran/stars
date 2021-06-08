@@ -1,10 +1,34 @@
+# version 0.5-3
+
+* `read_stars()` accepts a function (or list with functions) as first argument, 
+   allowing for saving `stars` objects that read from package directories resolving 
+   platform-dependent paths at run-time
+
+* handle categorical rasters starting at value 0 (by adding 1, and warning); #428
+
+* add `%in%` method; #424
+
+* `read_stars` gains an argument `tolerance` to control tolerance in dimension value comparisons; #414
+
+* binary Ops (like `+`, `-`, `*` etc.) work for `stars_proxy` objects; #390
+
+* `st_rasterize` rasterizes multiple attributes, and handles factors (when sf >= 0.9-9)
+
+* `write_stars` deals better with `stars_proxy` objects; #404
+
+* fix regression in reading some `stars_proxy` objects; #379
+
+* add `[<-` (partially) and `is.na` methods for `stars_proxy` objects; #402
+
+* add `replace_na` methods; #402
+
 # version 0.5-2
 
 * read and write factor levels as GDAL category names; write color table; #392
 
 * handle `normalize_path` for choosing to `proxy`; #391
 
-* ignore units if there are different units accross bands of a subdataset
+* ignore units when there are different units accross bands of a subdataset
 
 * speed up `st_rgb` using faster `st_apply` approach; #315, #390
 
@@ -22,7 +46,7 @@
 
 * for `stars_proxy` objects, `write_stars` writes all objects into a multi-layer file; #385
 
-* multi-file proxy objects can be `st_warp`ed with `use_gdal=TRUE`; #385
+* multi-file proxy objects can be `st_warp`ed with `use_gdal = TRUE`; #385
 
 # version 0.5-1
 

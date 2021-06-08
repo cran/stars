@@ -220,7 +220,7 @@ regular_intervals = function(x, epsilon = 1e-10) {
 				else
 					return(FALSE)
 			}
-		isTRUE(abs(diff(range(ud)) / mean(ud)) < epsilon)
+		isTRUE(as.numeric(abs(diff(range(ud)) / mean(ud))) < epsilon)
 	}
 }
 
@@ -298,8 +298,6 @@ create_dimensions = function(lst, raster = NULL) {
 get_crs = function(pr) {
 	if (!is.null(pr$crs))
 		pr$crs
-	else if (!is.null(pr$proj4string)) # older sf
-		st_crs(pr$proj4string)
 	else if (!is.null(pr$wkt)) # newer sf, but GDAL < 3.0.0
 		st_crs(pr$wkt)
 	else if (!is.null(pr$proj_wkt))
@@ -386,6 +384,7 @@ print.stars_raster = function(x, ...) {
 		cat(paste("sheared raster with parameters:", x$affine[1], x$affine[2], "\n"))
 	if (x$curvilinear)
 		cat("curvilinear grid\n")
+	invisible(x)
 }
 
 get_val = function(pattern, meta) {
@@ -546,9 +545,8 @@ dim.dimensions = function(x) {
 		lengths(expand_dimensions(x)) # FIXME: optimise?
 }
 
-
 #' @export
-print.dimensions = function(x, ..., digits = 6, usetz = TRUE) {
+as.data.frame.dimensions = function(x, ..., digits = 6, usetz = TRUE, stars_crs = getOption("stars.crs") %||% 28) {
 	lst = lapply(x, function(y) {
 			if (length(y$values) > 3) {
 				y$values = if (is.array(y$values))
@@ -563,8 +561,8 @@ print.dimensions = function(x, ..., digits = 6, usetz = TRUE) {
 			}
 			if (is.na(y$refsys))
 				y$refsys = NA_character_
-			else if (nchar(tail(format(y$refsys), 1)) > 28)
-				y$refsys = paste0(substr(tail(format(y$refsys), 1), 1L, 25),"...")
+			else if (nchar(tail(format(y$refsys), 1)) > stars_crs)
+				y$refsys = paste0(substr(tail(format(y$refsys), 1), 1L, stars_crs - 3),"...")
 			y
 		}
 	)
@@ -577,18 +575,24 @@ print.dimensions = function(x, ..., digits = 6, usetz = TRUE) {
 	lst = lapply(lst, function(x) sapply(x, mformat, digits = digits))
 	ret = data.frame(do.call(rbind, lst), stringsAsFactors = FALSE)
 	r = attr(x, "raster")
-	if (!any(is.na(r$dimensions))) {
+	if (! any(is.na(r$dimensions))) {
 		ret$raster = rep("", nrow(ret))
 		ret[r$dimensions[1], "raster"] = "[x]"
 		ret[r$dimensions[2], "raster"] = "[y]"
 		names(ret) = c(names(lst[[1]]), "x/y")
 	}
-	print(ret)
-	print(attr(x, "raster"))
-	invisible(ret)
+	ret
 }
 
-identical_dimensions = function(lst, ignore_resolution = FALSE) {
+#' @export
+print.dimensions = function(x, ...) {
+	ret = as.data.frame(x, ...)
+	print(ret)
+	print(attr(x, "raster"))
+	invisible(x)
+}
+
+identical_dimensions = function(lst, ignore_resolution = FALSE, tolerance = 0) {
 	if (length(lst) > 1) {
 		d1 = attr(lst[[1]], "dimensions")
 		for (i in 2:length(lst)) {
@@ -599,7 +603,7 @@ identical_dimensions = function(lst, ignore_resolution = FALSE) {
 				for (j in seq_along(di))
 					di[[j]]$delta = di[[j]]$to = NA_real_
 			}
-			if (! isTRUE(all.equal(d1, di)))
+			if (! isTRUE(all.equal(d1, di, tolerance = tolerance)))
 				return(FALSE)
 		}
 	}

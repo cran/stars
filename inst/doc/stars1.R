@@ -61,7 +61,7 @@ plot(circle, col = NA, border = 'red', add = TRUE, lwd = 2)
 
 ## ----eval=ev------------------------------------------------------------------
 system.file("nc/bcsd_obs_1999.nc", package = "stars") %>%
-	read_stars("data/full_data_daily_2013.nc") -> w
+	read_stars() -> w
 
 ## ----eval=ev------------------------------------------------------------------
 w
@@ -93,11 +93,13 @@ library(abind)
 z <- y %>% select(sst) %>% adrop()
 
 ## ----eval=ev------------------------------------------------------------------
+# convert POSIXct time to character, to please ggplot's facet_wrap()
+z1 = st_set_dimensions(z, 3, values = as.character(st_get_dimension_values(z, 3)))
 library(ggplot2)
 library(viridis)
 library(ggthemes)
 ggplot() +  
-  geom_stars(data = z[1], alpha = 0.8, downsample = c(10, 10, 1)) + 
+  geom_stars(data = z1[1], alpha = 0.8, downsample = c(10, 10, 1)) + 
   facet_wrap("time") +
   scale_fill_viridis() +
   coord_equal() +

@@ -14,7 +14,8 @@
   PROGRESS = FALSE,
   FUTURE = FALSE,
   rename = TRUE,
-  .fname
+  .fname,
+  single_arg = has_single_arg(FUN, list(...)) || can_single_arg(FUN)
 )
 }
 \arguments{
@@ -22,7 +23,7 @@
 
 \item{MARGIN}{see \link[base]{apply}; index number(s) or name(s) of the dimensions over which \code{FUN} will be applied}
 
-\item{FUN}{see \link[base]{apply} and do see below at details.}
+\item{FUN}{see \link[base]{apply} and see Details.}
 
 \item{...}{arguments passed on to \code{FUN}}
 
@@ -32,12 +33,21 @@
 
 \item{FUTURE}{logical;if \code{TRUE}, use \code{future.apply::future_apply}}
 
-\item{rename}{logical; if \code{TRUE} and \code{X} has only one attribute and \code{FUN} is a simple function name, rename the attribute of the returned object to the function name}
+\item{rename}{logical; if \code{TRUE} and \code{X} has only one attribute and 
+\code{FUN} is a simple function name, rename the attribute of the returned object 
+to the function name}
 
-\item{.fname}{function name for the new attribute name (if one or more dimensions are reduced) or the new dimension (if a new dimension is created); if missing, the name of \code{FUN} is used}
+\item{.fname}{function name for the new attribute name (if one or more 
+dimensions are reduced) or the new dimension (if a new dimension is created); 
+if missing, the name of \code{FUN} is used}
+
+\item{single_arg}{logical; if \code{TRUE}, FUN takes a single argument (like \code{fn_ndvi1} below), 
+if \code{FALSE} FUN takes multiple arguments (like \code{fn_ndvi2} below).}
 }
 \value{
-object of class \code{stars} with accordingly reduced number of dimensions; in case \code{FUN} returns more than one value, a new dimension is created carrying the name of the function used; see the examples.
+object of class \code{stars} with accordingly reduced number of dimensions; 
+in case \code{FUN} returns more than one value, a new dimension is created carrying 
+the name of the function used; see the examples.
 }
 \description{
 st_apply apply a function to array dimensions: aggregate over space, time, or something else
@@ -46,8 +56,11 @@ st_apply apply a function to array dimensions: aggregate over space, time, or so
 FUN is a function which either operates on a single object, which will 
 be the data of each iteration step over dimensions MARGIN, or a function that 
 has as many arguments as there are elements in such an object. See the NDVI 
-examples below. Note that the second form can be very much faster e.g. when a trivial 
+examples below. The second form can be VERY much faster e.g. when a trivial 
 function is not being called for every pixel, but only once (example).
+
+The heuristics for the default of \code{single_arg} work often, but not always; try
+setting this to the right value when \code{st_apply} gives an error.
 }
 \examples{
 tif = system.file("tif/L7_ETMs.tif", package = "stars")
@@ -62,6 +75,8 @@ fn_ndvi2 = function(red,nir) (nir-red)/(nir+red) # n arguments: will be called o
 ndvi1 = st_apply(x, 1:2, fn_ndvi1)
 ndvi2 = st_apply(x[,,,3:4], 1:2, fn_ndvi2) # note that we select bands 3 and 4 in the first argument
 all.equal(ndvi1, ndvi2)
+# compute the (spatial) variance of each band; https://github.com/r-spatial/stars/issues/430
+st_apply(x, 3, function(x) var(as.vector(x))) # as.vector is required!
 # to get a progress bar also in non-interactive mode, specify:
 if (require(pbapply)) { # install it, if FALSE
   pboptions(type = "timer")

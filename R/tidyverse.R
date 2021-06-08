@@ -26,7 +26,7 @@ get_dims = function(d_cube, d_stars) {
 
 #' dplyr verbs for stars objects
 #' 
-#' dplyr verbs for stars objects
+#' dplyr verbs for stars objects; package dplyr needs to be loaded before these methods can be used for stars objects.
 #' @param .data object of class \code{stars}
 #' @param ... see \link[dplyr]{filter}
 #' @name dplyr
@@ -158,6 +158,28 @@ as_tibble.stars = function(.x, ..., add_max = FALSE, center = NA) {
 	)
 }
 
+#' @name dplyr
+#' @param data data set to work on
+#' @param replace see \link[tidyr]{replace_na}: list with variable=value pairs, where value is the replacement value for NA's
+replace_na.stars = function(data, replace, ...) {
+    if (!requireNamespace("tidyr", quietly = TRUE))
+        stop("package tidyr required, please install it first") # nocov
+    if (!requireNamespace("cubelyr", quietly = TRUE))
+        stop("package cubelyr required, please install it first") # nocov
+	cb = cubelyr::as.tbl_cube(data)
+	d = dim(cb$mets[[1]])
+	cb$mets = as.data.frame(lapply(cb$mets, as.vector))
+	cb$mets = unclass(tidyr::replace_na(cb$mets, replace, ...))
+	for (i in seq_along(cb$mets))
+		cb$mets[[i]] = structure(cb$mets[[i]], dim = d)
+	st_as_stars(cb$mets, dimensions = get_dims(cb$dims, st_dimensions(data)))
+}
+
+#' @name dplyr
+replace_na.stars_proxy = function(data, ...) {
+	collect(data, match.call(), "replace_na", "data", env = environment())
+}
+
 
 #' ggplot geom for stars objects
 #' 
@@ -166,7 +188,7 @@ as_tibble.stars = function(.x, ..., add_max = FALSE, center = NA) {
 #' @param mapping see \link[ggplot2:geom_tile]{geom_raster}
 #' @param data see \link[ggplot2:geom_tile]{geom_raster}
 #' @param ... see \link[ggplot2:geom_tile]{geom_raster}
-#' @param downsample downsampling rate: e.g. 3 keeps rows and cols 1, 4, 7, 10 etc.; a value of 0 does not downsample
+#' @param downsample downsampling rate: e.g. 3 keeps rows and cols 1, 4, 7, 10 etc.; a value of 0 does not downsample; can be specified for each dimension, e.g. \code{c(5,5,0)} to downsample the first two dimensions but not the third.
 #' @param sf logical; if \code{TRUE} rasters will be converted to polygons and plotted using \link[ggplot2:ggsf]{geom_sf}.
 #' @details \code{geom_stars} returns (a call to) either \link[ggplot2:geom_tile]{geom_raster}, \link[ggplot2]{geom_tile}, or \link[ggplot2:ggsf]{geom_sf}, depending on the raster or vector geometry; for the first to, an \link[ggplot2]{aes} call is constructed with the raster dimension names and the first array as fill variable. Further calls to \link[ggplot2:coord_fixed]{coord_equal} and \link[ggplot2]{facet_wrap} are needed to control aspect ratio and the layers to be plotted; see examples.
 #' @export
@@ -251,6 +273,8 @@ register_all_s3_methods = function() {
 	register_s3_method("dplyr", "slice", "stars_proxy")
 	register_s3_method("dplyr", "transmute", "stars")
 	register_s3_method("dplyr", "transmute", "stars_proxy")
+	register_s3_method("tidyr", "replace_na", "stars")
+	register_s3_method("tidyr", "replace_na", "stars_proxy")
 	register_s3_method("lwgeom", "st_transform_proj", "stars")
 	register_s3_method("sf", "st_join", "stars")
 	register_s3_method("spatstat.geom", "as.owin", "stars")

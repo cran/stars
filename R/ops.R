@@ -16,13 +16,21 @@
 #' x + 10
 #' all.equal(x * 10, 10 * x)
 #' @export
+#' @details if \code{e1} or \code{e2} is is a numeric vector, or \code{e2}
+#' has less or smaller dimensions than \code{e1}, then \code{e2} is recycled
+#' such that it fits \code{e1}, using usual R array recycling rules. The user
+#' needs to make sure this is sensible; it may be needed to use \code{aperm}
+#' to permutate dimensions first. 
 Ops.stars <- function(e1, e2) {
 	ret = if (missing(e2))
 			lapply(e1, .Generic)
 		else if (!inherits(e2, "stars"))
 			lapply(e1, .Generic, e2 = e2)
 		else {
-			if (!all(dim(e1) == dim(e2))) {
+			# https://github.com/r-spatial/stars/issues/187#issuecomment-834020710 :
+			# if (!all(dim(e1) == dim(e2))) { 
+			if (!is.null(dim(e1)) &&
+					!isTRUE(all.equal(dim(e1), dim(e2), check.attributes = FALSE))) {
 				stopifnot(length(e2) == 1)
 				lapply(e1, .Generic, e2 = as.vector(e2[[1]]))
 			} else
@@ -72,6 +80,13 @@ Math.stars_proxy = function(x, ...) {
 	collect(x, match.call(), .Generic, env = environment())
 }
 
+has_single_arg = function(fun, dots) {
+	sum(!(names(as.list(args(fun))) %in% c("", "...", names(dots)))) <= 1
+}
+can_single_arg = function(fun) {
+	!inherits(try(fun(1:10), silent = TRUE), "try-error")
+}
+
 
 #' @export
 st_apply = function(X, MARGIN, FUN, ...) UseMethod("st_apply")
@@ -82,19 +97,30 @@ st_apply = function(X, MARGIN, FUN, ...) UseMethod("st_apply")
 #' @name st_apply
 #' @param X object of class \code{stars}
 #' @param MARGIN see \link[base]{apply}; index number(s) or name(s) of the dimensions over which \code{FUN} will be applied 
-#' @param FUN see \link[base]{apply} and do see below at details.
+#' @param FUN see \link[base]{apply} and see Details.
 #' @param ... arguments passed on to \code{FUN}
 #' @param CLUSTER cluster to use for parallel apply; see \link[parallel]{makeCluster}
 #' @param PROGRESS logical; if \code{TRUE}, use \code{pbapply::pbapply} to show progress bar
 #' @param FUTURE logical;if \code{TRUE}, use \code{future.apply::future_apply} 
-#' @param rename logical; if \code{TRUE} and \code{X} has only one attribute and \code{FUN} is a simple function name, rename the attribute of the returned object to the function name
-#' @param .fname function name for the new attribute name (if one or more dimensions are reduced) or the new dimension (if a new dimension is created); if missing, the name of \code{FUN} is used
-#' @return object of class \code{stars} with accordingly reduced number of dimensions; in case \code{FUN} returns more than one value, a new dimension is created carrying the name of the function used; see the examples.
+#' @param rename logical; if \code{TRUE} and \code{X} has only one attribute and 
+#' \code{FUN} is a simple function name, rename the attribute of the returned object 
+#' to the function name
+#' @param .fname function name for the new attribute name (if one or more 
+#' dimensions are reduced) or the new dimension (if a new dimension is created); 
+#' if missing, the name of \code{FUN} is used
+#' @param single_arg logical; if \code{TRUE}, FUN takes a single argument (like \code{fn_ndvi1} below), 
+#' if \code{FALSE} FUN takes multiple arguments (like \code{fn_ndvi2} below).
+#' @return object of class \code{stars} with accordingly reduced number of dimensions; 
+#' in case \code{FUN} returns more than one value, a new dimension is created carrying 
+#' the name of the function used; see the examples.
 #' @details FUN is a function which either operates on a single object, which will 
 #' be the data of each iteration step over dimensions MARGIN, or a function that 
 #' has as many arguments as there are elements in such an object. See the NDVI 
-#' examples below. Note that the second form can be very much faster e.g. when a trivial 
+#' examples below. The second form can be VERY much faster e.g. when a trivial 
 #' function is not being called for every pixel, but only once (example).
+#' 
+#' The heuristics for the default of \code{single_arg} work often, but not always; try
+#' setting this to the right value when \code{st_apply} gives an error.
 #' @examples
 #' tif = system.file("tif/L7_ETMs.tif", package = "stars")
 #' x = read_stars(tif)
@@ -108,13 +134,15 @@ st_apply = function(X, MARGIN, FUN, ...) UseMethod("st_apply")
 #' ndvi1 = st_apply(x, 1:2, fn_ndvi1)
 #' ndvi2 = st_apply(x[,,,3:4], 1:2, fn_ndvi2) # note that we select bands 3 and 4 in the first argument
 #' all.equal(ndvi1, ndvi2)
+#' # compute the (spatial) variance of each band; https://github.com/r-spatial/stars/issues/430
+#' st_apply(x, 3, function(x) var(as.vector(x))) # as.vector is required!
 #' # to get a progress bar also in non-interactive mode, specify:
 #' if (require(pbapply)) { # install it, if FALSE
 #'   pboptions(type = "timer")
 #' }
 #' @export
 st_apply.stars = function(X, MARGIN, FUN, ..., CLUSTER = NULL, PROGRESS = FALSE, FUTURE = FALSE, 
-		rename = TRUE, .fname) {
+		rename = TRUE, .fname, single_arg = has_single_arg(FUN, list(...)) || can_single_arg(FUN)) {
 	if (missing(.fname))
 		.fname <- paste(deparse(substitute(FUN), 50), collapse = "\n")
 	if (is.character(MARGIN))
@@ -146,8 +174,7 @@ st_apply.stars = function(X, MARGIN, FUN, ..., CLUSTER = NULL, PROGRESS = FALSE,
 			array(ret, dX)
 	}
 	no_margin = setdiff(seq_along(dim(X)), MARGIN)
-	n_args_cleaned = function(f, n) sum(!(names(as.list(args(f))) %in% c("", "...", n)))
-	ret = if (n_args_cleaned(FUN, names(list(...))) == 1) # single arg, can't chunk ...
+	ret = if (single_arg) 
 			lapply(X, fn, ...) 
 		else # call FUN on full chunks:
 			lapply(X, function(a) do.call(FUN, setNames(append(asplit(a, no_margin), list(...)), NULL)))
@@ -181,3 +208,21 @@ st_apply.stars = function(X, MARGIN, FUN, ..., CLUSTER = NULL, PROGRESS = FALSE,
 		names(dim(ret[[i]])) = names(st_dimensions(ret))
 	ret
 }
+
+if (!isGeneric("%in%"))
+	setGeneric("%in%", function(x, table) standardGeneric("%in%"))
+
+#' evaluate whether cube values are in a given set
+#'
+#' evaluate whether cube values are in a given set
+#' @docType methods
+#' @rdname in-methods
+#' @param x data cube value
+#' @param table values of the set
+#' @exportMethod "%in%"
+setMethod("%in%", signature(x = "stars"),
+	function(x, table) {
+		st_stars(lapply(x, function(y) structure(y %in% table, dim = dim(y))),
+			st_dimensions(x))
+	}
+)

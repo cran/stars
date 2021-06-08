@@ -35,7 +35,7 @@ write_stars = function(obj, dsn, layer, ...) UseMethod("write_stars")
 #' @param layer attribute name; if missing, the first attribute is written
 #' @param ... passed on to \link[sf:gdal]{gdal_write}
 #' @param driver driver driver name; see \link[sf]{st_drivers}
-#' @param options character vector with options
+#' @param options character vector with dataset creation options, passed on to GDAL
 #' @param type character; output binary type, one of: \code{Byte} for eight bit unsigned integer, \code{UInt16} for sixteen bit unsigned integer, \code{Int16} for sixteen bit signed integer, \code{UInt32} for thirty two bit unsigned integer, \code{Int32} for thirty two bit signed integer, \code{Float32} for thirty two bit floating point, \code{Float64} for sixty four bit floating point.
 #' @param NA_value non-NA value that should represent R's \code{NA} value in the target raster file; if set to \code{NA}, it will be ignored.
 #' @param update logical; if \code{TRUE}, an existing file is being updated
@@ -74,7 +74,8 @@ write_stars.stars_proxy = function(obj, dsn, layer = 1, ..., driver = detect.dri
 	if (!missing(layer))
 		obj = obj[layer]
 
-	if (length(obj[[1]]) > 1 || length(obj) > 1) { # collapse bands:
+	cl = attr(obj, "call_list")
+	if (is.null(cl) && (length(obj[[1]]) > 1 || length(obj) > 1)) { # collapse bands:
 		out_file = tempfile(fileext = ".vrt")
 		gdal_utils("buildvrt", unlist(obj), out_file, options = "-separate")
 		obj[[1]] = out_file
@@ -109,7 +110,8 @@ write_stars.stars_proxy = function(obj, dsn, layer = 1, ..., driver = detect.dri
 				di_read[[2]]$to   = di_write[[2]]$to + di_from[2] -1
 				di_write[[2]]$offset = with(di_read[[2]], offset + delta * (from - 1))
 				chunk = st_as_stars(structure(obj, dimensions = di_read))
-				attr(chunk, "dimensions") <- di_write
+				attr(chunk, "dimensions")[[1]] <- di_write[[1]] # x
+				attr(chunk, "dimensions")[[2]] <- di_write[[2]] # y
 
 				if (! created) { # create:
 					d = st_dimensions(chunk)

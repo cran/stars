@@ -20,10 +20,11 @@ print.stars_proxy = function(x, ..., n = 1e5, nfiles = 10, simplify = TRUE) {
 		cat("; showing the first", min(length(x[[1]]), nfiles), "filenames\n")
 	else
 		cat(":\n")
+	names = lapply(x, function(nm) if (is.function(nm)) nm() else nm)
 	if (simplify)
-		print(lapply(x, shorten_names, n = nfiles))
+		print(lapply(names, shorten_names, n = nfiles))
 	else
-		print(lapply(x, head, n = nfiles))
+		print(lapply(names, head, n = nfiles))
 	if (!is.null(attr(x, "NA_value")) && !is.na(attr(x, "NA_value")))
 		cat("NA_value: ", attr(x, "NA_value"), "\n")
 	cat("dimension(s):\n")
@@ -49,6 +50,8 @@ as.data.frame.stars_proxy = function(x, ...) {
 #' @export
 #' @details when plotting a subsetted \code{stars_proxy} object, the default value for argument \code{downsample} will not be computed correctly, and it and has to be set manually.
 plot.stars_proxy = function(x, y, ..., downsample = get_downsample(dim(x))) {
+	if (missing(downsample) && any(downsample > 0))
+		cat(paste0("downsample set to c(", paste(downsample, collapse = ","), ")\n"))
 	x = st_as_stars(x, downsample = downsample, ...)
 	plot(x, ..., downsample = 0)
 }
@@ -79,7 +82,8 @@ add_resolution = function(lst) {
 #' @export
 #' @param along_crs logical; if \code{TRUE}, combine arrays along a CRS dimension
 #' @name c.stars
-c.stars_proxy = function(..., along = NA_integer_, along_crs = FALSE, try_hard = FALSE, nms = names(list(...))) {
+c.stars_proxy = function(..., along = NA_integer_, along_crs = FALSE, try_hard = FALSE, 
+						 nms = names(list(...)), tolerance = sqrt(.Machine$double.eps)) {
 	dots = list(...)
 	# Case 1: merge attributes of several objects by simply putting them together in a single stars object;
 	# dim does not change:
@@ -91,7 +95,7 @@ c.stars_proxy = function(..., along = NA_integer_, along_crs = FALSE, try_hard =
 		if (identical_dimensions(dots))
 			st_stars_proxy(do.call(c, lapply(dots, unclass)), dimensions = st_dimensions(dots[[1]]),
 				NA_value = attr(dots[[1]], "NA_value"), resolutions = NULL)
-		else if (identical_dimensions(dots, ignore_resolution = TRUE)) {
+		else if (identical_dimensions(dots, ignore_resolution = TRUE, tolerance = tolerance)) {
 			dots = add_resolution(dots)
 			st_stars_proxy(do.call(c, lapply(dots, unclass)), dimensions = st_dimensions(dots[[1]]),
 				resolutions = attr(dots, "resolutions"),
@@ -193,7 +197,7 @@ fetch = function(x, downsample = 0, ...) {
 	if (!is.null(bands)) {
 		if (!is.null(bands$values) && is.numeric(bands$values)) 
 			rasterio$bands = bands$values
-		else if (!is.na(bands$from) && !is.na(bands$to))
+		else if (!is.na(bands$from) && !is.na(bands$to) && (bands$to - bands$from + 1) < length(x[[1]]))
 			rasterio$bands = seq(bands$from, bands$to)
 	}
 
@@ -213,7 +217,10 @@ fetch = function(x, downsample = 0, ...) {
 			offset = round(c(mod(dx$from - 1, mult[1]), mod(dy$from - 1, mult[2])))
 		} else
 			offset = c(0,0)
-		ret[[i]] = read_stars(unclass(x)[[i]], RasterIO = rasterio, 
+		file_name = unclass(x)[[i]]
+		if (is.function(file_name)) # realise:
+			file_name = file_name()
+		ret[[i]] = read_stars(file_name, RasterIO = rasterio, 
 			NA_value = attr(x, "NA_value") %||% NA_real_, normalize_path = FALSE,
 			proxy = FALSE, ...)
 		if (i == 1)
@@ -292,7 +299,7 @@ st_as_stars.stars_proxy = function(.x, ..., downsample = 0, url = attr(.x, "url"
 		# TODO: only warn when there is a reason to warn.
 		if (!all(downsample == 0))
 			lapply(attr(.x, "call_list"), check_xy_warn, dimensions = st_dimensions(.x))
-		process_call_list(fetch(.x, ..., downsample = downsample), cl, envir = envir)
+		process_call_list(fetch(.x, ..., downsample = downsample), cl, envir = envir, downsample = downsample)
 	}
 }
 
@@ -310,13 +317,16 @@ st_as_stars_proxy = function(x, fname = tempfile(fileext = rep_len(".tif", lengt
 }
 
 # execute the call list on a stars object
-process_call_list = function(x, cl, envir = new.env()) {
+process_call_list = function(x, cl, envir = new.env(), downsample = 0) {
 	for (i in seq_along(cl)) {
 		if (is.character(cl[[i]]))
 			cl[[i]] = parse(text = cl[[i]])[[1]]
 		stopifnot(is.call(cl[[i]]))
 		env = environment(cl[[i]])
-		env [[ names(cl[[i]])[2] ]] = x
+		env [[ names(cl[[i]])[2] ]] = x # here, a stars_proxy may be replaced with the fetched stars object
+		# so we need to do that for other args too: https://github.com/r-spatial/stars/issues/390 :
+		if ("e2" %in% names(env) && inherits(env$e2, "stars_proxy")) # binary ops: also fetch the second arg
+			env$e2 = st_as_stars(env$e2, downsample = downsample)
 		x = eval(cl[[i]], env, parent.frame())
 	}
 	x
@@ -367,6 +377,19 @@ aperm.stars_proxy = function(a, perm = NULL, ...) {
 }
 
 #' @export
+is.na.stars_proxy = function(x) {
+	collect(x, match.call(), "is.na", "x", env = environment())
+}
+
+#' @export
+"[<-.stars_proxy" = function(x, i, value) {
+	if (inherits(i, "stars_proxy"))
+		i = st_as_stars(i) # FIXME: at all cost? should this be done elsewhere?
+	collect(x, match.call(), "[<-", c("x", "i", "value"), env = environment())
+}
+
+
+#' @export
 split.stars_proxy = function(x, ...) {
 	collect(x, match.call(), "split", env = environment())
 }
@@ -405,11 +428,12 @@ merge.stars_proxy = function(x, y, ..., name = "attributes") {
 	}
 	mc = match.call()
 	lst = as.list(mc)
+	cl = attr(x, "call_list")
 	if (length(lst) < 3)
 		return(x) # 
 	if (missing(i)) # insert:
 		lst = c(lst[1:2], i = TRUE, lst[-(1:2)])
-	if (inherits(i, c("character", "logical", "numeric"))) {
+	if (inherits(i, c("character", "logical", "numeric")) && is.null(cl)) {
 		if (!is.null(unclass(x)[[i]])) { # can/should be selected now:
 			if (!is.null(resolutions <- attr(x, "resolutions")))
 				resolutions = resolutions[i, ]
@@ -431,8 +455,8 @@ merge.stars_proxy = function(x, y, ..., name = "attributes") {
 	}
 
 	# return:
-	if (length(lst) == 3 && isTRUE(lst[["i"]])) 
-		x
+	if (length(lst) == 3 && isTRUE(lst[["i"]]) && is.null(cl)) # all is done
+		x 
 	else # still processing the geometries inside the bbox:
 		collect(x, as.call(lst), "[", c("x", "i", "drop", "crop"), 
 			env = environment()) # postpone every arguments > 3 to after reading cells
