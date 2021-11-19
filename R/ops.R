@@ -112,7 +112,10 @@ st_apply = function(X, MARGIN, FUN, ...) UseMethod("st_apply")
 #' if \code{FALSE} FUN takes multiple arguments (like \code{fn_ndvi2} below).
 #' @return object of class \code{stars} with accordingly reduced number of dimensions; 
 #' in case \code{FUN} returns more than one value, a new dimension is created carrying 
-#' the name of the function used; see the examples.
+#' the name of the function used; see the examples. Following the logic of 
+#' \link[base]{apply}, This new dimension is put before the
+#' other dimensions; use \link{aperm} to rearrange this, see last example.
+#' @param keep logical; if \code{TRUE}, preserve dimension metadata (e.g. time stamps)
 #' @details FUN is a function which either operates on a single object, which will 
 #' be the data of each iteration step over dimensions MARGIN, or a function that 
 #' has as many arguments as there are elements in such an object. See the NDVI 
@@ -127,22 +130,28 @@ st_apply = function(X, MARGIN, FUN, ...) UseMethod("st_apply")
 #' st_apply(x, 1:2, mean) # mean band value for each pixel
 #' st_apply(x, c("x", "y"), mean) # equivalent to the above
 #' st_apply(x, 3, mean)   # mean of all pixels for each band
-#' st_apply(x, "band", mean) # equivalent to the above
-#' st_apply(x, 1:2, range) # min and max band value for each pixel
-#' fn_ndvi1 = function(x) (x[4]-x[3])/(x[4]+x[3]) # ONE argument: will be called for each pixel
-#' fn_ndvi2 = function(red,nir) (nir-red)/(nir+red) # n arguments: will be called only once
-#' ndvi1 = st_apply(x, 1:2, fn_ndvi1)
-#' ndvi2 = st_apply(x[,,,3:4], 1:2, fn_ndvi2) # note that we select bands 3 and 4 in the first argument
-#' all.equal(ndvi1, ndvi2)
-#' # compute the (spatial) variance of each band; https://github.com/r-spatial/stars/issues/430
-#' st_apply(x, 3, function(x) var(as.vector(x))) # as.vector is required!
-#' # to get a progress bar also in non-interactive mode, specify:
-#' if (require(pbapply)) { # install it, if FALSE
-#'   pboptions(type = "timer")
+#' \dontrun{
+#'  st_apply(x, "band", mean) # equivalent to the above
+#'  st_apply(x, 1:2, range) # min and max band value for each pixel
+#'  fn_ndvi1 = function(x) (x[4]-x[3])/(x[4]+x[3]) # ONE argument: will be called for each pixel
+#'  fn_ndvi2 = function(red,nir) (nir-red)/(nir+red) # n arguments: will be called only once
+#'  ndvi1 = st_apply(x, 1:2, fn_ndvi1)
+#'    # note that we can select bands 3 and 4 in the first argument:
+#'  ndvi2 = st_apply(x[,,,3:4], 1:2, fn_ndvi2) 
+#'  all.equal(ndvi1, ndvi2)
+#'  # compute the (spatial) variance of each band; https://github.com/r-spatial/stars/issues/430
+#'  st_apply(x, 3, function(x) var(as.vector(x))) # as.vector is required!
+#'  # to get a progress bar also in non-interactive mode, specify:
+#'  if (require(pbapply)) { # install it, if FALSE
+#'    pboptions(type = "timer")
+#'  }
+#'  st_apply(x, 1:2, range) # dimension "range" is first; rearrange by:
+#'  st_apply(x, 1:2, range) %>% aperm(c(2,3,1))
 #' }
 #' @export
 st_apply.stars = function(X, MARGIN, FUN, ..., CLUSTER = NULL, PROGRESS = FALSE, FUTURE = FALSE, 
-		rename = TRUE, .fname, single_arg = has_single_arg(FUN, list(...)) || can_single_arg(FUN)) {
+		rename = TRUE, .fname, single_arg = has_single_arg(FUN, list(...)) || can_single_arg(FUN),
+		keep = FALSE) {
 	if (missing(.fname))
 		.fname <- paste(deparse(substitute(FUN), 50), collapse = "\n")
 	if (is.character(MARGIN))
@@ -196,11 +205,15 @@ st_apply.stars = function(X, MARGIN, FUN, ..., CLUSTER = NULL, PROGRESS = FALSE,
 			} else {
 				orig = st_dimensions(X)[MARGIN]
 				r = attr(orig, "raster")
-				dims = c(structure(list(list()), names = .fname), orig)
-				dims[[1]] = if (!is.null(dimnames(ret[[1]])[[1]])) # FUN returned named vector:
-						create_dimension(values = dimnames(ret[[1]])[[1]])
-					else
-						create_dimension(to = dim_ret[1])
+				dims = if (keep) {
+						c(st_dimensions(X)[no_margin], orig)
+					} else {
+						dim1 = if (!is.null(dimnames(ret[[1]])[[1]])) # FUN returned named vector:
+								create_dimension(values = dimnames(ret[[1]])[[1]])
+							else
+								create_dimension(to = dim_ret[1])
+						c(structure(list(dim1), names = .fname), orig)
+					}
 			}
 			st_stars(ret, dimensions = create_dimensions(dims, r))
 		}

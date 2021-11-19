@@ -1,5 +1,5 @@
 
-R version 4.0.5 (2021-03-31) -- "Shake and Throw"
+R version 4.1.1 (2021-08-10) -- "Kick Things"
 Copyright (C) 2021 The R Foundation for Statistical Computing
 Platform: x86_64-pc-linux-gnu (64-bit)
 
@@ -24,9 +24,9 @@ attribute(s):
              Min. 1st Qu. Median   Mean 3rd Qu.   Max.
 area [m^2] 812.25  812.25 812.25 812.25  812.25 812.25
 dimension(s):
-  from  to  offset delta                       refsys point values x/y
-x    1 349  288776  28.5 UTM Zone 25, Southern Hem... FALSE   NULL [x]
-y    1 352 9120761 -28.5 UTM Zone 25, Southern Hem... FALSE   NULL [y]
+  from  to  offset delta                     refsys point values x/y
+x    1 349  288776  28.5 SIRGAS 2000 / UTM zone 25S FALSE   NULL [x]
+y    1 352 9120761 -28.5 SIRGAS 2000 / UTM zone 25S FALSE   NULL [y]
 > 
 > m = matrix(1:20, nrow = 5, ncol = 4)
 > x = c(0, 0.5, 1, 2, 4, 5)  # 6 numbers: boundaries!
@@ -70,7 +70,7 @@ y    1  4     NA    NA     NA FALSE [0.3,0.5),...,[2,2.2) [y]
 stars object with 2 dimensions and 1 attribute
 attribute(s):
                Min.  1st Qu.   Median     Mean  3rd Qu.      Max.
-area [m^2] 25990150 28050933 35705689 42968454 54640139 101184840
+area [m^2] 25983110 28008871 35690854 42912281 54562137 100943458
 dimension(s):
   from  to offset delta refsys point                                 values x/y
 x    1 450     NA    NA WGS 84    NA [450x278] -5.81066 [°],...,30.9468 [°] [x]
@@ -80,4 +80,4 @@ There were 15 warnings (use warnings() to see them)
 > 
 > proc.time()
    user  system elapsed 
-  7.935   0.151   8.079 
+  8.324   0.076   8.391 

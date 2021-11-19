@@ -48,22 +48,21 @@ as.data.frame.stars_proxy = function(x, ...) {
 
 #' @name plot
 #' @export
-#' @details when plotting a subsetted \code{stars_proxy} object, the default value for argument \code{downsample} will not be computed correctly, and it and has to be set manually.
+#' @details when plotting a subsetted \code{stars_proxy} object, the default value for argument \code{downsample} will not be computed correctly, and has to be set manually.
 plot.stars_proxy = function(x, y, ..., downsample = get_downsample(dim(x))) {
-	if (missing(downsample) && any(downsample > 0))
-		cat(paste0("downsample set to c(", paste(downsample, collapse = ","), ")\n"))
-	x = st_as_stars(x, downsample = downsample, ...)
-	plot(x, ..., downsample = 0)
+	plot(st_as_stars(x, downsample = downsample, ...), ..., downsample = 0)
 }
 
-st_stars_proxy = function(x, dimensions, ..., NA_value, resolutions) {
+st_stars_proxy = function(x, dimensions, ..., NA_value, resolutions, RasterIO = list()) {
 	stopifnot(!missing(NA_value))
 	stopifnot(!missing(resolutions))
 	stopifnot(length(list(...)) == 0)
 	stopifnot(is.list(x))
 	stopifnot(inherits(dimensions, "dimensions"))
+	if (length(RasterIO) == 0)
+		RasterIO = NULL
 	structure(x, dimensions = dimensions, NA_value = NA_value, resolutions = resolutions,
-		class = c("stars_proxy", "stars"))
+		RasterIO = RasterIO, class = c("stars_proxy", "stars"))
 }
 
 add_resolution = function(lst) {
@@ -180,6 +179,7 @@ fetch = function(x, downsample = 0, ...) {
 	xy = attr(d, "raster")$dimensions
 	dx = d[[ xy[1] ]]
 	dy = d[[ xy[2] ]]
+
 	nBufXSize = nXSize = dx$to - dx$from + 1
 	nBufYSize = nYSize = dy$to - dy$from + 1
 
@@ -189,8 +189,11 @@ fetch = function(x, downsample = 0, ...) {
 	if (downsample[2] > 0)
 		nBufYSize = ceiling(nBufYSize / (downsample[2] + 1))
 
-	rasterio = list(nXOff = dx$from, nYOff = dy$from, nXSize = nXSize, nYSize = nYSize, 
-		nBufXSize = nBufXSize, nBufYSize = nBufYSize)
+	# issue #438:
+	if (any(downsample > 0) && !is.null(attr(x, "RasterIO")))
+		warning("with RasterIO defined, argument downsample is ignored")
+	rasterio = attr(x, "RasterIO") %||% list(nXOff = dx$from, nYOff = dy$from, 
+			nXSize = nXSize, nYSize = nYSize, nBufXSize = nBufXSize, nBufYSize = nBufYSize)
 
 	# select bands?
 	bands <- d[["band"]]
@@ -253,7 +256,10 @@ fetch = function(x, downsample = 0, ...) {
 			names(new_dim)[dm] = names(d)[dm]
 		}
 
-	st_set_crs(st_stars(setNames(ret, names(x)), new_dim), st_crs(x))
+	ret = unclass(ret)
+	for (i in seq_along(ret))
+		dim(ret[[i]]) = dim(new_dim)
+	adrop(st_set_crs(st_stars(setNames(ret, names(x)), new_dim), st_crs(x)))
 }
 
 check_xy_warn = function(call, dimensions) {
@@ -324,10 +330,16 @@ process_call_list = function(x, cl, envir = new.env(), downsample = 0) {
 		stopifnot(is.call(cl[[i]]))
 		env = environment(cl[[i]])
 		env [[ names(cl[[i]])[2] ]] = x # here, a stars_proxy may be replaced with the fetched stars object
+		old_downsample = env$downsample # might be NULL
+		if (!is.null(env$downsample) && any(env$downsample != downsample)) {
+			cat(paste0("overriding downsample of (sub)expression to c(", paste(downsample, collapse = ","), ")\n"))
+			env$downsample = downsample
+		}
 		# so we need to do that for other args too: https://github.com/r-spatial/stars/issues/390 :
 		if ("e2" %in% names(env) && inherits(env$e2, "stars_proxy")) # binary ops: also fetch the second arg
 			env$e2 = st_as_stars(env$e2, downsample = downsample)
 		x = eval(cl[[i]], env, parent.frame())
+		env$downsample = old_downsample
 	}
 	x
 }
@@ -382,10 +394,8 @@ is.na.stars_proxy = function(x) {
 }
 
 #' @export
-"[<-.stars_proxy" = function(x, i, value) {
-	if (inherits(i, "stars_proxy"))
-		i = st_as_stars(i) # FIXME: at all cost? should this be done elsewhere?
-	collect(x, match.call(), "[<-", c("x", "i", "value"), env = environment())
+"[<-.stars_proxy" = function(x, i, downsample = 0, value) {
+	collect(x, match.call(), "[<-", c("x", "i", "value", "downsample"), env = environment())
 }
 
 
@@ -514,7 +524,7 @@ st_apply.stars_proxy = function(X, MARGIN, FUN, ..., CLUSTER = NULL, PROGRESS = 
 	FUTURE = FALSE, rename = TRUE, .fname) {
 	mc = match.call()
 	if (missing(.fname))
-		.fname = as.character(mc[["FUN"]])
+		.fname = as.character(mc[["FUN"]])[1]
 	collect(X, mc, "st_apply", c("X", "MARGIN", "FUN", "CLUSTER", "PROGRESS", "FUTURE", 
 		"rename", ".fname"), env = environment(), ...)
 }

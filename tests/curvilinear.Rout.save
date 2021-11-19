@@ -1,5 +1,5 @@
 
-R version 4.0.5 (2021-03-31) -- "Shake and Throw"
+R version 4.1.0 (2021-05-18) -- "Camp Pontanezen"
 Copyright (C) 2021 The R Foundation for Statistical Computing
 Platform: x86_64-pc-linux-gnu (64-bit)
 
@@ -72,12 +72,10 @@ Type 'q()' to quit R.
 /PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_summed_total_column, 
 stars object with 3 dimensions and 1 attribute
 attribute(s):
-                                             Min.      1st Qu.       Median
-nitrogendioxide_summed_total_column  3.650813e-05 7.451281e-05 8.296968e-05
-                                             Mean      3rd Qu.         Max.
-nitrogendioxide_summed_total_column  8.581399e-05 9.397442e-05 0.0004535302
-                                     NA's
-nitrogendioxide_summed_total_column   330
+                                           Min.      1st Qu.       Median
+nitrogendioxide_summed_total_c...  3.650813e-05 7.451281e-05 8.296968e-05
+                                           Mean      3rd Qu.         Max. NA's
+nitrogendioxide_summed_total_c...  8.581399e-05 9.397442e-05 0.0004535302  330
 dimension(s):
      from  to offset delta refsys point                                 values
 x       1 450     NA    NA WGS 84    NA [450x278] -5.81066 [°],...,30.9468 [°]
@@ -91,15 +89,13 @@ curvilinear grid
 stars object with 3 dimensions and 1 attribute
 attribute(s):
                                            Min.      1st Qu.       Median
-nitrogendioxide_summed_total_column  5.2174e-05 7.538364e-05 8.273005e-05
-                                             Mean      3rd Qu.         Max.
-nitrogendioxide_summed_total_column  8.607436e-05 9.393939e-05 0.0002323525
-                                     NA's
-nitrogendioxide_summed_total_column    37
+nitrogendioxide_summed_total_c...  4.383528e-05 7.480038e-05 8.344652e-05
+                                           Mean      3rd Qu.        Max. NA's
+nitrogendioxide_summed_total_c...  8.607374e-05 9.398567e-05 0.000192237   32
 dimension(s):
      from to offset delta refsys point                               values x/y
-x       1 57     NA    NA WGS 84    NA [57x35] -5.81066 [°],...,30.8108 [°] [x]
-y       1 35     NA    NA WGS 84    NA  [57x35] 28.6622 [°],...,51.4679 [°] [y]
+x       1 50     NA    NA WGS 84    NA [50x31] -5.81066 [°],...,30.1405 [°] [x]
+y       1 31     NA    NA WGS 84    NA  [50x31] 28.7828 [°],...,51.4686 [°] [y]
 time    1  1     NA    NA     NA    NA                                 NULL    
 curvilinear grid
 null device 
@@ -108,4 +104,4 @@ There were 15 warnings (use warnings() to see them)
 > 
 > proc.time()
    user  system elapsed 
-  7.116   0.112   7.220 
+  7.037   0.135   7.166 

@@ -66,8 +66,14 @@
 	for (i in seq_along(mc)) { 
 		if ((is.call(mc[[i]]) || is.name(mc[[i]])) && !identical(as.character(mc[[i]]), "")) # try to "get" it:
 			mc[[i]] = eval(mc[[i]], parent.frame())
-		if (is.numeric(mc[[i]]) || is.call(mc[[i]]) || is.name(mc[[i]])) { # FIXME: or something else?
-			args[[i]] = mc[[i]]
+		if (is.numeric(mc[[i]]) || is.call(mc[[i]]) || is.name(mc[[i]]) || is.character(mc[[i]])) { # FIXME: or something else?
+			args[[i]] = if (is.character(mc[[i]])) {
+						m = match(mc[[i]], d[[i]]$values)
+						if (length(m) == 0 || any(is.na(m)))
+							stop("selecting using invalid value label(s)?")
+						m
+					} else
+						mc[[i]]
 			do_select = TRUE
 		}
 	}
@@ -123,10 +129,13 @@
 }
 
 #' @name stars_subset
+#' @param downsample downsampling rate used in case \code{i} is a \code{stars_proxy} object
 #' @param value array of dimensions equal to those in \code{x}, or a vector or value that will be recycled to such an array
 #' @export
 #' @details in an assignment (or replacement form, \code{[<-}), argument \code{i} needs to be a \code{stars} object with dimensions identical to \code{x}, and \code{value} will be recycled to the dimensions of the arrays in \code{x}.
-"[<-.stars" = function(x, i, value) {
+"[<-.stars" = function(x, i, downsample = 0, value) {
+	if (inherits(i, "stars_proxy"))
+		i = st_as_stars(i, downsample = downsample)
 	if (!inherits(i, "stars"))
 		stop("selector should be a stars object")
 	fun = function(x, y, value) { x[y] = value; x }
@@ -200,6 +209,7 @@
 #' plot(st_as_sfc(bb), add = TRUE, border = 'green', lwd = 2)
 st_crop.stars = function(x, y, ..., crop = TRUE, epsilon = sqrt(.Machine$double.eps), 
 		as_points = all(st_dimension(y) == 2, na.rm = TRUE)) {
+	x = st_upfront(x) # put spatial dimensions up front; https://github.com/r-spatial/stars/issues/457
 	d = dim(x)
 	dm = st_dimensions(x)
 	args = rep(list(rlang::missing_arg()), length(d)+1)
@@ -221,7 +231,7 @@ st_crop.stars = function(x, y, ..., crop = TRUE, epsilon = sqrt(.Machine$double.
 			stop("NA values in bounding box of y")
 		if (epsilon != 0)
 			bb = bb_shrink(bb, epsilon)
-		cr = colrow_from_xy(matrix(bb, 2, byrow = TRUE), dm, NA_outside = TRUE)
+		cr = colrow_from_xy(matrix(bb, 2, byrow = TRUE), dm, NA_outside = FALSE) # FALSE: https://github.com/r-spatial/stars/issues/455
 		cr[,1] = cr[,1] - dm[[xd]]$from + 1
 		cr[,2] = cr[,2] - dm[[yd]]$from + 1
 		for (i in seq_along(d)) {

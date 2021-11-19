@@ -20,7 +20,7 @@ st_as_stars.list = function(.x, ..., dimensions = NULL) {
 		for (i in seq_along(.x)[-1])
 			if (!all(dim(.x[[1]]) == dim(.x[[i]])))
 				stop("dim attributes not identical")
-		if (!is.null(names(.x)))
+		if (!is.null(n <- names(.x)) && (any(n == "") || length(n) != length(unique(n))))
 			names(.x) = make.names(names(.x), unique = TRUE)
 
 		# check dimensions, if set:
@@ -356,17 +356,23 @@ as.data.frame.stars = function(x, ..., add_max = FALSE, center = NA) {
 		lapply(x, function(y) structure(y, dim = NULL)))
 }
 
-
 #' @export
-print.stars = function(x, ..., n = 1e5) {
+print.stars = function(x, ..., n = 1e5, abbrev = 30) {
 	add_units = function(x) {
 		f = function(obj) if (inherits(obj, "units")) paste0("[", enc2utf8(as.character(units(obj))), "]") else ""
 		paste(names(x), sapply(x, f))
+	}
+	shorten = function(s) {
+		if (nchar(s) > abbrev)
+			paste0(substr(s, 1, abbrev), "...")
+		else
+			s
 	}
 	cat("stars object with", length(dim(x)), "dimensions and", 
 		length(x), if (length(x) != 1) "attributes\n" else "attribute\n")
 	if (length(x)) {
 		cat("attribute(s)")
+		names(x) = sapply(names(x), shorten)
 		df = if (prod(dim(x)) > 10 * n) {
 			cat(paste0(", summary of first ", n, " cells:\n"))                       # nocov
 			as.data.frame(lapply(x, function(y) structure(y, dim = NULL)[1:n]), optional = TRUE) # nocov
@@ -428,6 +434,10 @@ propagate_units = function(new, old) {
 #' @param tolerance numeric; values used in \link{all.equal} to compare dimension values
 #' combine those that dimensions matching to the first array
 #' @param nms character; vector with array names
+#' @returns a single \code{stars} object with merged (binded) arrays.
+#' @details An error is raised when attempting to combine arrays with different
+#' measurement units into a single array. If this was intentded, \code{drop_units} 
+#' can be used to remove units of a \code{stars} object before merging.
 #' @export
 #' @examples
 #' tif = system.file("tif/L7_ETMs.tif", package = "stars")
@@ -492,6 +502,7 @@ c.stars = function(..., along = NA_integer_, try_hard = FALSE, nms = names(list(
 					along_dim
 			} else
 				along
+			stopifnot_identical_units(dots)
 			ret = propagate_units(mapply(abind, ..., along = along_dim, SIMPLIFY = FALSE), dots[[1]])
 			dims = combine_dimensions(dots, along_dim)
 			if (along_dim == length(d) + 1)
@@ -500,6 +511,17 @@ c.stars = function(..., along = NA_integer_, try_hard = FALSE, nms = names(list(
 		}
 	}
 }
+
+stopifnot_identical_units = function(lst) {
+	a1 = lst[[1]][[1]]
+	for (i in seq_along(lst[-1])) {
+		ai = lst[[i+1]][[1]]
+		if (inherits(a1, "units") && !identical(units(a1), units(ai)))
+			stop("cannot merge subarrays with different units")
+	}
+	TRUE
+}
+
 
 #' @export
 adrop.stars = function(x, drop = which(dim(x) == 1), ...) {
@@ -744,7 +766,7 @@ st_redimension.stars = function(x, new_dims = st_dimensions(x),
 		di = new_dims
 		new_dims = create_dimensions(di)
 	}
-	if (! identical(setNames(di, NULL), setNames(dim(x), NULL))) {
+	if (!isTRUE(all.equal(di, dim(x), check.attributes = FALSE))) {
 		if (prod(dim(x)) != prod(di))
 			stop("product of dim(new_dim) does not match that of x")
 		for (i in seq_len(min(length(di), length(dim(x)))))
@@ -851,21 +873,30 @@ drop_units.stars = function(x) {
 #' @name predict.stars
 #' @param object object of class `stars`
 #' @param model model object of a class that has a predict method; check with `methods(class = class(object))`
+#' @param drop_dimensions logical; if `TRUE`, remove dimensions (coordinates etc) from `data.frame` with predictors
 #' @param ... arguments passed on to this predict method
 #' @details separate predictors in object need to be separate attributes in object; 
 #' in case they are e.g. in a band dimension, use `split(object)`
-predict.stars = function(object, model, ...) {
+predict.stars = function(object, model, ..., drop_dimensions = FALSE) {
 	obj_df = as.data.frame(st_as_stars(object))
+	if (drop_dimensions)
+		obj_df = obj_df[-seq_along(dim(object))]
 	na_ids = which(is.na(obj_df), arr.ind = TRUE) # identify rows with NA's in the predictors
 	obj_df[na_ids] = 0  # fill with something valid (e.g. 0)
-	pr = predict(model, obj_df, ...)
-	if (!inherits(pr, "data.frame"))
-		pr = if (is.null(colnames(pr)))
-				data.frame(prediction = pr)
-			else
-				as.data.frame(pr)
-	pr[unique(data.frame(na_ids)[,1]), ] = NA # Mask with original NA's
-	st_stars(lapply(pr, function(y) structure(y, dim = dim(object))), st_dimensions(object))
+	pr = try(predict(model, obj_df, ...), silent = TRUE)
+	if (inherits(pr, "try-error")) { # https://github.com/r-spatial/stars/issues/448
+		m = paste0("prediction on array(s) `", paste(names(object), collapse = ","), "' failed; will try to split() dimension `", tail(names(dim(object)), 1), "' over attributes")
+		message(m)
+		predict(split(object), model, ..., drop_dimensions = drop_dimensions) # returns
+	} else {
+		if (!inherits(pr, "data.frame"))
+			pr = if (is.null(colnames(pr)))
+					data.frame(prediction = pr)
+				else
+					as.data.frame(pr)
+		pr[unique(data.frame(na_ids)[,1]), ] = NA # Mask with original NA's
+		st_stars(lapply(pr, function(y) structure(y, dim = dim(object))), st_dimensions(object))
+	}
 }
 
 
@@ -890,16 +921,28 @@ st_dim_to_attr = function(x, which = seq_along(dim(x))) {
 	l = vector("list", length = length(which))
 	e = expand_dimensions(x)
 	for (i in seq_along(which)) {
-		dp = c(which[i], setdiff(seq_along(dim(x)), which[i]))
-		l[[i]] = aperm(array(e[[ which[i] ]], d[dp]), order(dp))
+		l [[i]] = if (is.null(dim(e[[i]]))) {
+				dp = c(which[i], setdiff(seq_along(dim(x)), which[i]))
+				aperm(array(e[[ which[i] ]], d[dp]), order(dp))
+			} else # curvilinear:
+				array(e[[i]], d)
 	}
 	st_stars(setNames(l, names(d)[which]), st_dimensions(x))
 }
 
 #' @export
 st_interpolate_aw.stars = function(x, to, extensive, ...) {
-	x = st_as_sf(x)
-	NextMethod()
+	ret = sf::st_interpolate_aw(st_as_sf(x), to, extensive, ...)
+	geom = attr(ret, "sf_column")
+	dx = dim(x)
+	if (length(dx) > 2 && length(x) == 1 && length(ret) > 2) {
+		ret = merge(st_as_stars(ret))
+		nd = names(st_dimensions(x))
+		ret = st_set_dimensions(ret, seq_along(dx), 
+								names = c(geom, paste0(nd[-(1:2)], collapse = ".")))
+		setNames(ret, names(x))
+	} else
+		ret
 }
 
 #' get the raster type (if any) of a stars object

@@ -1,13 +1,13 @@
 make_label = function(x, i = 1) {
 	dims = dim(x)
 	if ((length(dims) <= 2 || dims[3] == 1) && inherits(x[[i]], "units"))
-		make_unit_label(names(x)[i], units(x[[i]]))
+		make_unit_label(paste0("'", names(x)[i], "'"), units(x[[i]]))
 	else
 		names(x)[i]
 }
 
 #' plot stars object, with subplots for each level of first non-spatial dimension
-#' 
+#'
 #' plot stars object, with subplots for each level of first non-spatial dimension, and customization of legend key
 #'
 #' @name plot
@@ -16,7 +16,7 @@ make_label = function(x, i = 1) {
 #' @param join_zlim logical; if \code{TRUE}, compute a single, joint zlim (color scale) for all subplots from \code{x}
 #' @param main character; subplot title prefix; use \code{""} to get only time, use \code{NULL} to suppress subplot titles
 #' @param axes logical; should axes and box be added to the plot?
-#' @param downsample logical or numeric; if \code{TRUE} will try to plot not many more pixels than actually are visible, if \code{FALSE}, no downsampling takes place, if numeric, the downsampling rate; see Details.
+#' @param downsample logical or numeric; if \code{TRUE} will try to plot not many more pixels than actually are visible, if \code{FALSE}, no downsampling takes place, if numeric, the number of pixels/lines/bands etc that will be skipped; see Details.
 #' @param nbreaks number of color breaks; should be one more than number of colors. If missing and \code{col} is specified, it is derived from that.
 #' @param breaks actual color breaks, or a method name used for \link[classInt]{classIntervals}.
 #' @param col colors to use for grid cells
@@ -24,17 +24,17 @@ make_label = function(x, i = 1) {
 #' @param key.pos integer; side to plot a color key: 1 bottom, 2 left, 3 top, 4 right; set to \code{NULL} to omit key. Ignored if multiple columns are plotted in a single function call. Default depends on plot size, map aspect, and, if set, parameter \code{asp}.
 #' @param key.width amount of space reserved for width of the key (labels); relative or absolute (using lcm)
 #' @param key.length amount of space reserved for length of the key (labels); relative or absolute (using lcm)
-#' @param reset logical; if \code{FALSE}, keep the plot in a mode that allows adding further map elements; if \code{TRUE} restore original mode after plotting; see details.
+#' @param reset logical; if \code{FALSE}, keep the plot in a mode that allows adding further map elements; if \code{TRUE} restore original mode after plotting
 #' @param box_col color for box around sub-plots; use \code{0} to suppress plotting of boxes around sub-plots.
 #' @param center_time logical; if \code{TRUE}, sub-plot titles will show the center of time intervals, otherwise their start
 #' @param hook NULL or function; hook function that will be called on every sub-plot.
 #' @param mfrow length-2 integer vector with nrows, ncolumns of a composite plot, to override the default layout
-#' @details 
-#' Downsampling: a value for \code{downsample} of 0 or 1 causes no downsampling, 2 that every second dimension value is sampled, 3 that every third dimension value is sampled, and so on; can be specified for each dimension.
+#' @details
+#' Downsampling: a value for \code{downsample} of 0: no downsampling, 1: after every dimension value (pixel/line/band), one value is skipped (half of the original resolution), 2: after every dimension value, 2 values are skipped (one third of the original resolution), etc. 
 #' @export
-plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes = FALSE, 
+plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes = FALSE,
 		downsample = TRUE, nbreaks = 11, breaks = "quantile", col = grey(1:(nbreaks-1)/nbreaks),
-		key.pos = get_key_pos(x, ...), key.width = lcm(1.8), key.length = 0.618, 
+		key.pos = get_key_pos(x, ...), key.width = lcm(1.8), key.length = 0.618,
 		reset = TRUE, box_col = grey(.8), center_time = FALSE, hook = NULL, mfrow = NULL) {
 
 	flatten = function(x, i) { # collapse all non-x/y dims into one, and select "layer" i
@@ -66,7 +66,9 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 		x = droplevels(x) # https://github.com/r-spatial/stars/issues/339
 
 	if (join_zlim && !is.character(x[[1]])) {
-		breaks = as.numeric(get_breaks(x, breaks, nbreaks, dots$logz))
+		breaks = get_breaks(x, breaks, nbreaks, dots$logz)
+		if (!inherits(breaks, c("POSIXt", "Date")))
+			breaks = as.numeric(breaks)
 		if (length(breaks) > 2)
 			breaks = unique(breaks)
 		nbreaks = length(breaks) # might be shorter than originally intended!
@@ -89,10 +91,8 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 				rep(NA_real_, 2)
 		dims = dim(x)
 		x = if (isTRUE(downsample)) {
-				n = dims * 0 + 1 # keep names
-				n[dxy] = get_downsample(dims)
-				if (any(n > 0))
-					cat(paste0("downsample set to c(", paste(n, collapse = ","), ")\n"))
+				n = dims * 0 # keep names
+				n[dxy] = get_downsample(dims, rgb = is.numeric(dots$rgb))
 				st_downsample(x, n)
 			} else if (is.numeric(downsample))
 				st_downsample(x, downsample)
@@ -114,8 +114,8 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 					.image_scale_factor(levels(values), col, key.pos = key.pos,
 						key.width = key.width, key.length = key.length, axes = axes, ...)
 				else
-					.image_scale(values, col, breaks = breaks, key.pos = key.pos, 
-						key.width = key.width, key.length = key.length, axes = axes, ...) 
+					.image_scale(values, col, breaks = breaks, key.pos = key.pos,
+						key.width = key.width, key.length = key.length, axes = axes, ...)
 			}
 
 			# map panel:
@@ -125,7 +125,7 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 			par(mar = mar)
 
 			# plot the map:
-			image(x, ..., axes = axes, breaks = breaks, col = col, key.pos = key.pos, 
+			image(x, ..., axes = axes, breaks = breaks, col = col, key.pos = key.pos,
 				key.width = key.width, key.length = key.length, main = NULL)
 			if (!is.null(main))
 				title(main)
@@ -136,7 +136,7 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 				key.pos = NULL
 			lt = sf::.get_layout(st_bbox(x), dims[3], par("din"),
 						if (join_zlim && key.pos.missing) -1 else key.pos, key.width, mfrow = mfrow)
-			title_size = if (is.null(main)) 
+			title_size = if (is.null(main))
 					0
 				else
 					1.2
@@ -171,14 +171,14 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 					.image_scale_factor(levels(values), col, key.pos = lt$key.pos,
 						key.width = key.width, key.length = key.length, axes = axes,...)
 				else
-					.image_scale(values, col, breaks = breaks, key.pos = lt$key.pos, 
+					.image_scale(values, col, breaks = breaks, key.pos = lt$key.pos,
 						key.width = key.width, key.length = key.length, axes = axes,...)
 			}
 		}
 	} else if (has_sfc(x)) {
 #		if (key.pos.missing)
 #			key.pos = -1
-		plot(st_as_sf(x), ..., breaks = breaks, key.pos = key.pos, key.length = key.length, 
+		plot(st_as_sf(x), ..., breaks = breaks, key.pos = key.pos, key.length = key.length,
 			key.width = key.width, reset = reset, axes = axes, main = main)
 	} else
 		stop("no raster, no features geometries: no default plot method set up yet!")
@@ -201,7 +201,7 @@ get_breaks = function(x, breaks, nbreaks, logz = NULL) {
 			values = as.numeric(values)
 		n.unq = length(unique(na.omit(values)))
 		if (! all(is.na(values)) && n.unq > 1)
-			classInt::classIntervals(na.omit(values), min(nbreaks-1, n.unq), breaks, 
+			classInt::classIntervals(na.omit(values), min(nbreaks-1, n.unq), breaks,
 				warnSmallN = FALSE)$brks
 		else
 			range(values, na.rm = TRUE) # lowest and highest!
@@ -235,10 +235,10 @@ get_breaks = function(x, breaks, nbreaks, logz = NULL) {
 #' x = read_stars(tif)
 #' image(x, col = grey((3:9)/10))
 #' image(x, rgb = c(1,3,5)) # rgb composite
-image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL, 
+image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL,
 		maxColorValue = ifelse(inherits(rgb, "data.frame"), 255, max(x[[attr]], na.rm = TRUE)),
 		xlab = if (!axes) "" else names(d)[1], ylab = if (!axes) "" else names(d)[2],
-		xlim = st_bbox(extent)$xlim, ylim = st_bbox(extent)$ylim, text_values = FALSE, 
+		xlim = st_bbox(extent)$xlim, ylim = st_bbox(extent)$ylim, text_values = FALSE,
 		text_color = 'black', axes = FALSE,
 		interpolate = FALSE, as_points = FALSE, key.pos = NULL, logz = FALSE,
 		key.width = lcm(1.8), key.length = 0.618, add.geom = NULL, border = NA,
@@ -281,7 +281,7 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL,
 		y_is_neg = all(diff(dims[[ dimy ]]) < 0)
 		if (y_is_neg)
 			dims[[ dimy ]] = rev(dims[[ dimy ]])
-	}
+	} 
 
 	if (is.null(asp))
 		asp = if (isTRUE(st_is_longlat(x))) {
@@ -307,13 +307,20 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL,
 	ar = aperm(ar, c(dimxn, dimyn, others))
 	if (text_values)
 		ar_text = ar # keep original order for cell text labels
-	
+
 	if (is.null(rgb) && is.character(ar))
 		rgb = TRUE
 
 	if (! is.null(rgb)) {
-		if (is_curvilinear(x))
-			warning("when using rgb, curvilinear grid is plotted as regular grid")
+		if (is_curvilinear(x)) {
+			x.sf = st_as_sf(x, as_points = as_points)
+			plot_sf = function(x, col, ...) plot(x, ...) # absorb col
+			if (!is.null(co)) # #456:
+				plot_sf(x.sf, pal = co, border = FALSE, ...)
+			else
+				plot(x.sf, border = FALSE, ...)
+			return()
+		}
 		xy = dim(ar)[1:2]
 		if (! y_is_neg) { # need to flip y?
 			ar = if (length(dim(ar)) == 3)
@@ -360,8 +367,8 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL,
 			else
 				plot(x, pal = col, ...) # need to swap arg names: FIXME:?
 		}
-		mplot(x, xlab = xlab, ylab = ylab, xlim = xlim, ylim = ylim, axes = axes, reset = FALSE, 
-			key.pos = key.pos, key.width = key.width, key.length = key.length, logz = logz, 
+		mplot(x, xlab = xlab, ylab = ylab, xlim = xlim, ylim = ylim, axes = axes, reset = FALSE,
+			key.pos = key.pos, key.width = key.width, key.length = key.length, logz = logz,
 			border = border, ...)
 	} else { # regular & rectilinear grid, no RGB:
 		if (y_is_neg) { # need to flip y?
@@ -370,7 +377,7 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL,
 				else
 					ar[ , rev(seq_len(dim(ar)[2])), band] # FIXME: breaks if more than 3?
 		}
-		image.default(dims[[ dimx ]], dims[[ dimy ]], ar, asp = asp, xlab = xlab, ylab = ylab, 
+		image.default(dims[[ dimx ]], dims[[ dimy ]], ar, asp = asp, xlab = xlab, ylab = ylab,
 			xlim = xlim, ylim = ylim, axes = FALSE, useRaster = useRaster && !is_rectilinear(x), ...)
 	}
 	if (text_values) {
@@ -380,8 +387,14 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL,
 	}
 	if (axes) { # FIXME: see sf::plot.sf for refinements to be ported here?
         if (isTRUE(st_is_longlat(x))) {
-            .degAxis(1)
-            .degAxis(2)
+			if (isTRUE(all.equal(st_bbox(x), st_bbox(), tolerance = .1, 
+								 check.attributes = FALSE))) {
+				.degAxis(1, at = seq(-180, 180, 60))
+				.degAxis(2, at = seq(-90, 90, 30))
+			} else {
+				.degAxis(1)
+				.degAxis(2)
+			}
         } else {
             axis(1)
             axis(2)
@@ -394,10 +407,14 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL,
 	}
 }
 
-# compute the degree of downsampling allowed to still have more than 
+# compute the degree of downsampling allowed to still have more than
 # one cell per screen/device pixel:
-get_downsample = function(dims, px = dev.size("px")) { 
-	floor(sqrt(prod(dims) / prod(px)))
+get_downsample = function(dims, px = dev.size("px"), rgb = FALSE) {
+	if (rgb)
+		dims = dims[1:2]
+	if (n <- max(0L, floor(sqrt(prod(dims) / prod(px))) - 1.0))
+		message(paste0("downsample set to ", n))
+	n
 }
 
 
@@ -429,16 +446,21 @@ contour.stars = function(x, ...) {
 }
 
 #' reduce dimension to rgb (alpha) hex values
-#' 
+#'
 #' @export
 #' @param x object of class \code{stars}
 #' @param dimension dimension name or number to reduce
 #' @param use_alpha logical; if TRUE, the fourth band will be used as alpha values
 #' @param maxColorValue integer; maximum value for colors
-#' @param stretch logical; if \code{TRUE}, each band is stretched to 0 ... \code{maxColorValue}
-#' @param probs probability values for quantiles used for stretching
+#' @param stretch logical or character; if \code{TRUE} or \code{"percent"},
+#' each band is stretched to 0 ... maxColorValue by "percent clip" method using
+#' probs values. If \code{"histogram"}, a "histogram equalization" is performed
+#' (\code{probs} values are ignored). If stretch is \code{NULL} or \code{FALSE}, no stretching
+#' is performed. Other character values are interpreted as "percent" and a message
+#' will be printed.
+#' @param probs probability values for quantiles used for stretching by "percent".
 #' @seealso \link{st_apply}, \link[grDevices]{rgb}
-#' @details the dimension's bands are mapped to red, green, blue, alpha; if a different 
+#' @details the dimension's bands are mapped to red, green, blue, alpha; if a different
 #' ordering is wanted, use \link{[.stars} to reorder a dimension, see examples
 #' @examples
 #' tif = system.file("tif/L7_ETMs.tif", package = "stars")
@@ -448,46 +470,91 @@ contour.stars = function(x, ...) {
 #' if (require(ggplot2)) {
 #'  ggplot() + geom_stars(data = r) + scale_fill_identity()
 #' }
-st_rgb = function(x, dimension = 3, use_alpha = dim(x)[dimension] == 4, maxColorValue = 255L, 
-		probs = c(0., 1.), stretch = FALSE) {
+#' r = st_rgb(x[,,,3:1],
+#' 		   probs = c(0.01, 0.99),
+#' 		   stretch = "percent")
+#' plot(r)
+#' r = st_rgb(x[,,,3:1],
+#' 		   probs = c(0.01, 0.99),
+#' 		   stretch = "histogram")
+#' plot(r)
+st_rgb <- function (x,
+					dimension = 3,
+					use_alpha = dim(x)[dimension] == 4,
+					maxColorValue = 255L,
+					probs = c(0, 1),
+					stretch = NULL) {
 	if (is.character(dimension))
 		dimension = match(dimension, names(dim(x)))
-	stopifnot(is.numeric(dimension), length(dimension)==1)
-	if (!dim(x)[dimension] %in% c(3,4))
-		stop(paste("number of bands along dimension", dimension, "should be 3 or 4"))
+	stopifnot(is.numeric(dimension), length(dimension) == 1)
+	if (!dim(x)[dimension] %in% c(3, 4))
+		stop(paste("number of bands along dimension", dimension,
+				   "should be 3 or 4"))
 	dims = setdiff(seq_along(dim(x)), dimension)
-	cutoff = function(x, probs) {
-		qs = if (all(probs == c(0., 1.)))
+	cutoff = function(x, probs, stretch.method = "percent") {
+		if(stretch.method == "percent"){
+			qs = if (all(probs == c(0, 1)))
 				range(x)
-			else
-				quantile(x, probs, na.rm = TRUE)
-		x = (x - qs[1])/(qs[2] - qs[1])
-		x[x > 1] = 1
-		x[x < 0] = 0
-		x * maxColorValue
+			else quantile(x, probs, na.rm = TRUE)
+			x = (x - qs[1])/(qs[2] - qs[1])
+			x[x > 1] = 1
+			x[x < 0] = 0
+			x * maxColorValue
+		} else if(stretch.method == "histogram"){
+			x = stats::ecdf(x)(x)
+			x * maxColorValue
+		} else {
+			qs = range(x)
+			(x - qs[1])/(qs[2] - qs[1]) * maxColorValue
+		}
 	}
-	if (stretch)
-		x = st_apply(x, dimension, cutoff, probs = probs)
+
+	if(is.null(stretch)) {
+		stretch.method = "none"
+		stretch = FALSE
+	}
+
+	if(is.logical(stretch)) {
+		if(stretch){
+			stretch.method = "percent"
+		} else {
+			maxColorValue = max(maxColorValue, max(x[[1]]))
+		}
+	}
+
+	if(is.character(stretch)) {
+		if(!stretch %in% c("percent", "histogram")){
+			stretch.method = "percent"
+		} else {
+			stretch.method = stretch
+		}
+		stretch = TRUE
+	}
+
+	if(stretch)
+		x = st_apply(x, dimension, cutoff, probs = probs, stretch.method = stretch.method)
+
 	if (anyNA(x[[1]])) {
 		rgb4 = function(r, g, b, a) {
-			r = cbind(as.vector(r), as.vector(g), as.vector(b), as.vector(a))
+			r = cbind(as.vector(r), as.vector(g), as.vector(b),
+					  as.vector(a))
 			sel = !apply(r, 1, anyNA)
 			ret = rep(NA_character_, nrow(r))
-			ret[sel] = rgb(r[sel,1:3], alpha = a[sel], maxColorValue = maxColorValue) 
+			ret[sel] = rgb(r[sel, 1:3], alpha = a[sel], maxColorValue = maxColorValue)
 			structure(ret, dim = dim(g))
 		}
 		rgb3 = function(r, g, b) {
 			r = cbind(as.vector(r), as.vector(g), as.vector(b))
 			sel = !apply(r, 1, anyNA)
 			ret = rep(NA_character_, nrow(r))
-			ret[sel] = rgb(r[sel,1:3], maxColorValue = maxColorValue) 
+			ret[sel] = rgb(r[sel, 1:3], maxColorValue = maxColorValue)
 			structure(ret, dim = dim(g))
 		}
 	} else {
-		rgb4 = function(r, g, b, a) 
-			structure(rgb(r, g, b, a, maxColorValue = maxColorValue), dim = dim(r))
+		rgb4 = function(r, g, b, a)
+			structure(rgb(r, g, b, a,maxColorValue = maxColorValue), dim = dim(r))
 		rgb3 = function(r, g, b)
-			structure(rgb(r, g, b,    maxColorValue = maxColorValue), dim = dim(r))
+			structure(rgb(r, g, b, maxColorValue = maxColorValue), dim = dim(r))
 	}
 	st_apply(x, dims, if (use_alpha) rgb4 else rgb3)
 }

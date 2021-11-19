@@ -54,7 +54,7 @@ mutate.stars <- function(.data, ...) {
 
 #' @name dplyr
 mutate.stars_proxy = function(.data, ...) {
-	collect(.data, match.call(), "mutate", ".data", env = environment())
+	collect(.data, match.call(), "mutate", ".data", env = parent.frame())
 }
 
 #' @name dplyr
@@ -81,6 +81,19 @@ select.stars <- function(.data, ...) {
 #' @name dplyr
 select.stars_proxy = function(.data, ...) {
 	collect(.data, match.call(), "select", ".data", env = environment())
+}
+
+#' @name dplyr
+rename.stars <- function(.data, ...) {
+    if (!requireNamespace("dplyr", quietly = TRUE))
+        stop("package dplyr required, please install it first") # nocov
+    ret <- dplyr::rename(to_df(.data), ...)
+	st_as_stars(set_dim(ret, dim(.data)), dimensions = st_dimensions(.data))
+}
+
+#' @name dplyr
+rename.stars_proxy = function(.data, ...) {
+	collect(.data, match.call(), "rename", ".data", env = environment())
 }
 
 #' @param var see \link[dplyr]{pull}
@@ -142,7 +155,7 @@ slice.stars <- function(.data, along, index, ..., drop = length(index) == 1) {
 
 #' @name dplyr
 slice.stars_proxy = function(.data, ...) {
-	collect(.data, match.call(), "slice", ".data", env = environment())
+	collect(.data, match.call(), "slice", ".data", env = parent.frame())
 }
 
 #' @name st_coordinates
@@ -269,6 +282,8 @@ register_all_s3_methods = function() {
 	register_s3_method("dplyr", "mutate", "stars_proxy")
 	register_s3_method("dplyr", "pull", "stars")
 	register_s3_method("dplyr", "pull", "stars_proxy")
+	register_s3_method("dplyr", "rename", "stars")
+	register_s3_method("dplyr", "rename", "stars_proxy")
 	register_s3_method("dplyr", "slice", "stars")
 	register_s3_method("dplyr", "slice", "stars_proxy")
 	register_s3_method("dplyr", "transmute", "stars")
@@ -278,6 +293,7 @@ register_all_s3_methods = function() {
 	register_s3_method("lwgeom", "st_transform_proj", "stars")
 	register_s3_method("sf", "st_join", "stars")
 	register_s3_method("spatstat.geom", "as.owin", "stars")
+	register_s3_method("spatstat.geom", "as.im", "stars")
 	register_s3_method("xts", "as.xts", "stars") # nocov end
 }
 

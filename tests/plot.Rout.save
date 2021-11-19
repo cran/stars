@@ -1,5 +1,5 @@
 
-R version 4.0.4 (2021-02-15) -- "Lost Library Book"
+R version 4.1.0 (2021-05-18) -- "Camp Pontanezen"
 Copyright (C) 2021 The R Foundation for Statistical Computing
 Platform: x86_64-pc-linux-gnu (64-bit)
 
@@ -54,4 +54,4 @@ In plot.stars(output) :
 > 
 > proc.time()
    user  system elapsed 
-  3.353   0.145   3.491 
+  2.558   0.068   2.618 

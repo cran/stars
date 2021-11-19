@@ -51,9 +51,9 @@ is_functions = function(x) {
 #'
 #' \code{RasterIO} is a list with zero or more of the following named arguments:
 #' \code{nXOff}, \code{nYOff} (both 1-based: the first row/col has offset value 1),
-#' \code{nXSize}, \code{nYSize}, \code{nBufXSize}, \code{nBufYSize}, \code{bands}, code{resample}.
-#' see https://www.gdal.org/classGDALDataset.html for their meaning;
-#' \code{bands} is an integer vector containing the band numbers to be read (1-based: first band is 1)
+#' \code{nXSize}, \code{nYSize}, \code{nBufXSize}, \code{nBufYSize}, \code{bands}, \code{resample}.
+#' See \url{https://gdal.org/doxygen/classGDALDataset.html} for their meaning;
+#' \code{bands} is an integer vector containing the band numbers to be read (1-based: first band is 1).
 #' Note that if \code{nBufXSize} or \code{nBufYSize} are specified for downsampling an image,
 #' resulting in an adjusted geotransform. \code{resample} reflects the resampling method and
 #' has to be one of: "nearest_neighbour" (the default),
@@ -94,7 +94,7 @@ is_functions = function(x) {
 #' file.remove(tmp)
 read_stars = function(.x, ..., options = character(0), driver = character(0),
 		sub = TRUE, quiet = FALSE, NA_value = NA_real_, along = NA_integer_,
-		RasterIO = list(), proxy = is_functions(.x) || (!length(curvilinear) && 
+		RasterIO = list(), proxy = is_functions(.x) || (!length(curvilinear) &&
 				is_big(.x, sub = sub, driver=driver, normalize_path = normalize_path, ...)),
 		curvilinear = character(0), normalize_path = TRUE, RAT = character(0),
 		tolerance = 1e-10) {
@@ -199,6 +199,8 @@ read_stars = function(.x, ..., options = character(0), driver = character(0),
 		# handle color table and/or attribute table
 		ct = meta_data$color_tables
 		at = meta_data$attribute_tables
+		if (meta_data$driver[1] == "AIG" && identical(names(at[[1]]), c("VALUE", "COUNT")))
+			at = list() # skip it: https://github.com/r-spatial/stars/issues/435
 		# FIXME: how to handle multiple color, category or attribute tables?
 		if (!proxy && (any(lengths(ct) > 0) || any(lengths(at) > 0))) {
 			min_value = if (!is.null(meta_data$ranges) && meta_data$ranges[1,2] == 1)
@@ -248,18 +250,21 @@ read_stars = function(.x, ..., options = character(0), driver = character(0),
 				NULL
 
 		# return:
-		name_x = if (is.function(.x))
+		name_x = if (!is.null(meta_data$long_name) && !is.na(meta_data$long_name))
+				meta_data$long_name
+			else if (is.function(.x))
 				names(.x()) %||% .x()
 			else
 				x
+		name_x = tail(strsplit(name_x, '[\\\\/]+')[[1]], 1)
 		ret = if (proxy) { # no data present, subclass of "stars":
-				st_stars_proxy(setNames(list(x), names(.x) %||% tail(strsplit(name_x, '[\\\\/]+')[[1]], 1)),
+				st_stars_proxy(setNames(list(x), names(.x) %||% name_x),
 					create_dimensions_from_gdal_meta(dims, meta_data), NA_value = NA_value,
-					resolutions = NULL)
+					resolutions = NULL, RasterIO = RasterIO)
 			} else
-				st_stars(setNames(list(data), names(.x) %||% tail(strsplit(name_x, '[\\\\/:]+')[[1]], 1)),
+				st_stars(setNames(list(data), names(.x) %||% name_x),
 					create_dimensions_from_gdal_meta(dim(data), meta_data))
-	
+
 		if (is.list(curvilinear))
 			st_as_stars(ret, curvilinear = curvilinear, ...)
 		else
@@ -295,13 +300,11 @@ get_data_units = function(data) {
 }
 
 read_mdim = function(x, variable = character(0), ..., options = character(0), raster = NULL) {
-	if (packageVersion("sf") <= "0.9-8")
-		gdal_read_mdim = function(...) stop("sf > 0.9-8 required")
 	ret = gdal_read_mdim(x, variable, options)
 	create_units = function(x) {
 		u <- attr(x, "units")
 		if (is.null(u) || u == "")
-			x 
+			x
 		else {
 			u = units::set_units(x, u, mode = "standard")
 			p = try(as.POSIXct(u), silent = TRUE)
@@ -322,8 +325,6 @@ read_mdim = function(x, variable = character(0), ..., options = character(0), ra
 
 write_mdim = function(x, filename, ...) {
 	stopifnot(inherits(x, "stars"))
-	if (packageVersion("sf") <= "0.9-8")
-		gdal_write_mdim = function(...) stop("sf > 0.9-8 required")
 	to_units = function(x) if (inherits(x, c("POSIXct", "Date"))) units::as_units(x) else x
 	dimension_values = rev(lapply(expand_dimensions(x), to_units))
 	units = sapply(dimension_values, function(x) if(inherits(x, "units")) as.character(units(x)) else "")
