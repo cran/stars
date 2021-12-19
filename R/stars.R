@@ -140,7 +140,7 @@ pretty_cut = function(lim, n, inside = FALSE, ...) {
 #' @param n the (approximate) target number of grid cells
 #' @param pretty logical; should cell coordinates have \link{pretty} values?
 #' @param inside logical; should all cells entirely fall inside the bbox, potentially not covering it completely?
-#' @details For the \code{bbox} method: if \code{pretty} is \code{TRUE}, raster cells may extend the coordinate range of \code{.x} on all sides. If in addition to \code{nx} and \code{ny}, \code{dx} and \code{dy} are also missing, these are set to a single value computed as \code{sqrt(diff(xlim)*diff(ylim)/n)}. If \code{nx} and \code{ny} are missing, they are computed as the ceiling of the ratio of the (x or y) range divided by (dx or dy), unless \code{inside} is \code{TRUE}, in which case ceiling is replaced by floor. Postive \code{dy} will be made negative. Further named arguments (\code{...}) are passed on to \code{pretty}.
+#' @details For the \code{bbox} method: if \code{pretty} is \code{TRUE}, raster cells may extend the coordinate range of \code{.x} on all sides. If in addition to \code{nx} and \code{ny}, \code{dx} and \code{dy} are also missing, these are set to a single value computed as \code{sqrt(diff(xlim)*diff(ylim)/n)}. If \code{nx} and \code{ny} are missing, they are computed as the ceiling of the ratio of the (x or y) range divided by (dx or dy), unless \code{inside} is \code{TRUE}, in which case ceiling is replaced by floor. Positive \code{dy} will be made negative. Further named arguments (\code{...}) are passed on to \code{pretty}.
 #' @export
 #' @name st_as_stars
 st_as_stars.bbox = function(.x, ..., nx, ny, dx = dy, dy = dx,
@@ -447,6 +447,11 @@ propagate_units = function(new, old) {
 #' c(x, x, along = 3)
 c.stars = function(..., along = NA_integer_, try_hard = FALSE, nms = names(list(...)), tolerance = sqrt(.Machine$double.eps)) {
 	dots = list(...)
+	if (!all(sapply(dots, function(x) inherits(x, "stars"))))
+		stop("all arguments to c() should be stars objects")
+	if (any(sapply(dots, function(x) inherits(x, "stars_proxy"))))
+		stop("convert stars_proxy objects to stars first using st_as_stars()")
+
 	if (length(dots) == 1) {
 		if (!missing(along))
 			warning("along argument ignored; maybe you wanted to use st_redimension?")
@@ -454,9 +459,15 @@ c.stars = function(..., along = NA_integer_, try_hard = FALSE, nms = names(list(
 	} else if (identical(along, NA_integer_)) { 
 		# Case 1: merge attributes of several objects by simply putting them together in a single stars object;
 		# dim does not change:
-		if (identical_dimensions(dots, tolerance = tolerance))
-			st_as_stars(do.call(c, lapply(dots, unclass)), dimensions = st_dimensions(dots[[1]]))
-		else {
+		if (identical_dimensions(dots, tolerance = tolerance)) {
+			ret = st_as_stars(do.call(c, lapply(dots, unclass)), dimensions = st_dimensions(dots[[1]]))
+			if (!missing(nms)) {
+				if (length(nms) != length(ret))
+					stop("length of argument nms must equal the number of attributes")
+				names(ret) = nms
+			}
+			ret
+		} else {
 			# currently catches only the special case of ... being a broken up time series:
 			along = sort_out_along(dots)
 			if (!is.na(along))
@@ -524,7 +535,12 @@ stopifnot_identical_units = function(lst) {
 
 
 #' @export
-adrop.stars = function(x, drop = which(dim(x) == 1), ...) {
+adrop.stars = function(x, drop = which(dim(x) == 1), ..., drop_xy = FALSE) {
+	if (missing(drop) && !drop_xy) { # hanlde drop_xy: by default, don't drop x/y
+		d = st_dimensions(x)
+		xy = attr(d, "raster")$dimensions
+		drop = setdiff(drop, match(xy, names(d)))
+	}
 	if (is.logical(drop))
 		drop = which(drop)
 	if (any(dim(x) > 1) && length(drop) > 0) {
@@ -947,15 +963,32 @@ st_interpolate_aw.stars = function(x, to, extensive, ...) {
 
 #' get the raster type (if any) of a stars object
 #' @param x object of class \code{stars}
-#' @return one of \code{NA} (if the object does not have raster dimensions), 
-#' \code{"curvilinear"}, \code{"rectilinear"}, \code{"affine"}, or \code{"regular"}
+#' @param dimension optional: numbers or names of dimension(s) to get per-dimension type
+#' @return if \code{dimension} is not specified, return the spatial raster type: 
+#' one of \code{NA} (if the object does not have raster dimensions), 
+#' \code{"curvilinear"}, \code{"rectilinear"}, \code{"affine"}, or \code{"regular"}.
+#' In case dimension(s) are specified, return one of \code{"regular"}, \code{"rectilinear"}
+#' (irregular but numeric), or \code{"discrete"} (anything else).
+#' @details categories \code{"curvilinear"} and \code{"affine"} only refer to
+#' the relationship between a pair of spatial (raster) dimensions.
 #' @examples
 #' tif = system.file("tif/L7_ETMs.tif", package = "stars")
 #' x = read_stars(tif)
 #' st_raster_type(x)
+#' st_raster_type(x, 1:3)
 #' @export
-st_raster_type = function(x) {
-	if (!has_raster(x))
+st_raster_type = function(x, dimension = character(0)) {
+	dimension_type = function(d) {
+		if (!any(is.na(c(d$offset, d$delta))))
+			"regular"
+		else if (!is.null(d$values) && is.numeric(d$values))
+			"rectilinear"
+		else
+			"discrete"
+	}
+	if (length(dimension))
+		sapply(st_dimensions(x)[dimension], dimension_type)
+	else if (!has_raster(x))
 		NA_character_
 	else if (is_curvilinear(x))
 		"curvilinear"

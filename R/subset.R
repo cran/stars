@@ -37,6 +37,7 @@
 #' plot(buf, add = TRUE, col = NA)
 "[.stars" = function(x, i = TRUE, ..., drop = FALSE, crop = !is_curvilinear(x)) {
 	missing.i = missing(i)
+
 	# special case:
 	if (! missing.i && inherits(i, c("sf", "sfc", "bbox"))) {
 		x = if (has_raster(x))
@@ -170,6 +171,8 @@
 #' 	xmax = offset[1] + 10 * res[1],
 #' 	ymax = offset[2] +  3 * res[2]), crs = st_crs(l7))
 #' l7[bb]
+#' # equivalent:
+#' st_crop(l7, bb)
 #' 
 #' plot(l7[,1:13,1:13,1], reset = FALSE)
 #' image(l7[bb,,,1], add = TRUE, col = sf.colors())

@@ -1,3 +1,11 @@
+# version 0.5-5
+
+* `st_rasterize()` has option `align = TRUE` to use a template for aligning the new raster to; #489
+
+* `adrop.stars()` with missing dimensions no longer drops x/y raster dimensions; #485
+
+* `aggregate.stars()` propagates units of arrays; #477
+
 # version 0.5-4
 
 * `c.stars()` fails if it tries to merge arrays with different units; #475

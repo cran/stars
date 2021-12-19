@@ -28,6 +28,15 @@ st_dimensions.dimensions = function(.x, ...) .x
 
 #' @export
 #' @name st_dimensions
+`st_dimensions<-.stars_proxy` = function(x, value) {
+	if (!is.null(attr(x, "call_list")))
+		stop("st_dimensions<- on a stars_proxy object only works if there is no call list")
+	NextMethod()
+}
+
+
+#' @export
+#' @name st_dimensions
 `st_dimensions<-.list` = function(x, value) {
 	st_as_stars(x, dimensions = value)
 }
@@ -125,10 +134,12 @@ st_set_dimensions = function(.x, which, values = NULL, point = NULL, names = NUL
 		d[[which]] = create_dimension(values = values, point = point %||% d[[which]]$point, ...)
 		if (! is.null(names) && length(names) == 1)
 			base::names(d)[which] = names
-		if (!is.matrix(values) && isTRUE(attr(d, "raster")$curvilinear)) {
+		r = attr(d, "raster")
+		if (isTRUE(r$curvilinear)) {
 			# FIXME: there's much more that should be checked for curvilinear grids...
 			# https://github.com/r-spatial/stars/issues/460
-			attr(d, "raster")$curvilinear = FALSE 
+			if (which %in% r$dimensions && !is.matrix(values))
+				attr(d, "raster")$curvilinear = FALSE 
 		}
 #		else if (inherits(values, "sfc"))
 #			base::names(d)[which] = "sfc"
