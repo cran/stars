@@ -20,17 +20,17 @@ plot(x, axes = TRUE)
 x
 
 ## ----eval=ev------------------------------------------------------------------
-library(cubelyr)
-as.tbl_cube(x)
+#  library(cubelyr)
+#  as.tbl_cube(x)
 
 ## -----------------------------------------------------------------------------
 (x.spl = split(x, "band"))
 merge(x.spl)
 
 ## -----------------------------------------------------------------------------
-merge(x.spl) %>% 
-  setNames(names(x)) %>%
-  st_set_dimensions(3, values = paste0("band", 1:6)) %>%
+merge(x.spl) |>
+  setNames(names(x)) |> 
+  st_set_dimensions(3, values = paste0("band", 1:6)) |>
   st_set_dimensions(names = c("x", "y", "band"))
 
 ## -----------------------------------------------------------------------------
@@ -60,55 +60,55 @@ plot(circle, col = NA, border = 'red', add = TRUE, lwd = 2)
 #  image(x3[,,,1])
 
 ## ----eval=ev------------------------------------------------------------------
-system.file("nc/bcsd_obs_1999.nc", package = "stars") %>%
-	read_stars() -> w
+#  system.file("nc/bcsd_obs_1999.nc", package = "stars") |>
+#  	read_stars() -> w
 
 ## ----eval=ev------------------------------------------------------------------
-w
+#  w
 
 ## -----------------------------------------------------------------------------
-system.file("nc/bcsd_obs_1999.nc", package = "stars") %>%
+system.file("nc/bcsd_obs_1999.nc", package = "stars") |>
     read_ncdf()
 
 ## ----eval=ev------------------------------------------------------------------
-x = c(
-"avhrr-only-v2.19810901.nc",
-"avhrr-only-v2.19810902.nc",
-"avhrr-only-v2.19810903.nc",
-"avhrr-only-v2.19810904.nc",
-"avhrr-only-v2.19810905.nc",
-"avhrr-only-v2.19810906.nc",
-"avhrr-only-v2.19810907.nc",
-"avhrr-only-v2.19810908.nc",
-"avhrr-only-v2.19810909.nc"
-)
-# see the second vignette:
-# install.packages("starsdata", repos = "http://pebesma.staff.ifgi.de", type = "source")
-file_list = system.file(paste0("netcdf/", x), package = "starsdata")
-(y = read_stars(file_list, quiet = TRUE))
+#  x = c(
+#  "avhrr-only-v2.19810901.nc",
+#  "avhrr-only-v2.19810902.nc",
+#  "avhrr-only-v2.19810903.nc",
+#  "avhrr-only-v2.19810904.nc",
+#  "avhrr-only-v2.19810905.nc",
+#  "avhrr-only-v2.19810906.nc",
+#  "avhrr-only-v2.19810907.nc",
+#  "avhrr-only-v2.19810908.nc",
+#  "avhrr-only-v2.19810909.nc"
+#  )
+#  # see the second vignette:
+#  # install.packages("starsdata", repos = "http://pebesma.staff.ifgi.de", type = "source")
+#  file_list = system.file(paste0("netcdf/", x), package = "starsdata")
+#  (y = read_stars(file_list, quiet = TRUE))
 
 ## ----eval=ev------------------------------------------------------------------
-library(dplyr)
-library(abind)
-z <- y %>% select(sst) %>% adrop()
+#  library(dplyr)
+#  library(abind)
+#  z <- y |> select(sst) |> adrop()
 
 ## ----eval=ev------------------------------------------------------------------
-# convert POSIXct time to character, to please ggplot's facet_wrap()
-z1 = st_set_dimensions(z, 3, values = as.character(st_get_dimension_values(z, 3)))
-library(ggplot2)
-library(viridis)
-library(ggthemes)
-ggplot() +  
-  geom_stars(data = z1[1], alpha = 0.8, downsample = c(10, 10, 1)) + 
-  facet_wrap("time") +
-  scale_fill_viridis() +
-  coord_equal() +
-  theme_map() +
-  theme(legend.position = "bottom") +
-  theme(legend.key.width = unit(2, "cm"))
+#  # convert POSIXct time to character, to please ggplot's facet_wrap()
+#  z1 = st_set_dimensions(z, 3, values = as.character(st_get_dimension_values(z, 3)))
+#  library(ggplot2)
+#  library(viridis)
+#  library(ggthemes)
+#  ggplot() +
+#    geom_stars(data = z1[1], alpha = 0.8, downsample = c(10, 10, 1)) +
+#    facet_wrap("time") +
+#    scale_fill_viridis() +
+#    coord_equal() +
+#    theme_map() +
+#    theme(legend.position = "bottom") +
+#    theme(legend.key.width = unit(2, "cm"))
 
 ## ----eval=ev------------------------------------------------------------------
-write_stars(adrop(y[1]), "sst.tif")
+#  write_stars(adrop(y[1]), "sst.tif")
 
 ## -----------------------------------------------------------------------------
 prec_file = system.file("nc/test_stageiv_xyt.nc", package = "stars")
@@ -146,16 +146,32 @@ traffic = array(rpois(prod(n), 10), dim = n) # simulated traffic counts
 (st = st_as_stars(list(traffic = traffic),  dimensions = dims))
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  st %>% as.tbl_cube()
+#  st |> as.tbl_cube()
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  b <- st %>%
-#    as.tbl_cube() %>%
-#    filter(mode == "bike") %>%
-#    group_by(hour) %>%
-#    summarise(traffic = mean(traffic)) %>%
+#  b <- st |>
+#    as.tbl_cube() |>
+#    filter(mode == "bike") |>
+#    group_by(hour) |>
+#    summarise(traffic = mean(traffic)) |>
 #    as.data.frame()
 #  require(ggforce) # for plotting a units variable
 #  ggplot() +
 #    geom_line(data = b, aes(x = hour, y = traffic))
+
+## -----------------------------------------------------------------------------
+s = system.file("tif/lc.tif", package = "stars")
+r = read_stars(s, proxy = FALSE) |> droplevels()
+st_point(c(3190631, 3125)) |> st_sfc(crs = st_crs(r)) |> st_buffer(25000) -> pol1
+st_point(c(3233847, 21027)) |> st_sfc(crs = st_crs(r)) |> st_buffer(10000) -> pol2
+if (isTRUE(dev.capabilities()$rasterImage == "yes")) {
+  plot(r, key.width = lcm(4), reset = FALSE, key.pos = 4)
+  plot(c(pol1, pol2), col = NA, border = c('yellow', 'green'), lwd = 2, add = TRUE)
+}
+
+## -----------------------------------------------------------------------------
+f = function(x) { tb = table(x); names(tb)[which.max(tb)] }
+
+## -----------------------------------------------------------------------------
+aggregate(r, c(pol1, pol2), f) |> st_as_sf()
 

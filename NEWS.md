@@ -1,4 +1,44 @@
+# version 0.5-6
+
+* export `read_mdim()`, a reader using GDAL's multidimensional array API (for sf <= 1.0-8)
+
+* remove `tos_O1_2001-2002.nc` from packaged datasets to keep source package size below 5 Mb
+
+* `as.POSIXct.stars()` converts `PCICt` dimensions to `POSIXct` values.
+
+* improve handling of `PCICt` 360 or 365 day calendars; read them in `read_mdim` (requires sf >= 1.0-9)
+
+* `read_stars()` reads factor levels better from attribute table; #484 thanks to @ailich
+
+* `read_stars()` puts band names from `band_meta` DESCRIPTION= tags into `values`;
+
+* improve handling of categorical rasters, and their exchange with `terra`; #484
+
+* `plot()` handles auto colors better for factor arrays
+
+* `read_ncdf()` handles units more formally in setting crs; #533
+
+* print message that dimensions of proxy objects do not reflect unevaluated operations; #530
+
+* passing `na.action = na.omit` to `geom_stars()` removes `NA` values; #532
+
+* `read_stars()` detects curvilinear grids automatically; #513
+
+* `st_warp()` warps curvilinear grids (using Euclidean distances only on coordinates); #513
+
+* `Ops.stars()` errors when (common) dimension are not identical; #506
+
+* `guess_raster()` accepts empty rows/columns and sparse grids; #509
+
+* speed up `rgb` plotting; #503
+
+* Added a new helper function `st_tile()` to specify the block
+  parameters (`nXOff`, `nYOff`, `nXsize`, `nYSize`) required by `RasterIO` 
+  argument in `read_stars()`; #492 thanks to Krzysztof Dyba
+
 # version 0.5-5
+
+* `st_as_stars.bbox()` creates an empy raster file if `proxy = TRUE`; #489
 
 * `st_rasterize()` has option `align = TRUE` to use a template for aligning the new raster to; #489
 

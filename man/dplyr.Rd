@@ -49,7 +49,7 @@ as.tbl_cube.stars(x, ...)
 
 slice.stars(.data, along, index, ..., drop = length(index) == 1)
 
-slice.stars_proxy(.data, ...)
+slice.stars_proxy(.data, along, index, ...)
 
 replace_na.stars(data, replace, ...)
 
@@ -80,7 +80,8 @@ dplyr verbs for stars objects; package dplyr needs to be loaded before these met
 \examples{
 tif = system.file("tif/L7_ETMs.tif", package = "stars")
 x1 = read_stars(tif)
-library(dplyr)
-x1 \%>\% slice("band", 2:3)
-x1 \%>\% slice("x", 50:100)
+if (require(dplyr, quietly = TRUE)) {
+ x1 \%>\% slice("band", 2:3)
+ x1 \%>\% slice("x", 50:100)
+}
 }

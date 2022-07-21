@@ -1,5 +1,5 @@
 maybe_normalizePath = function(.x, np = FALSE) {
-	prefixes = c("NETCDF:", "HDF5:", "HDF4:", "HDF4_EOS:", "SENTINEL2_L1", "SENTINEL2_L2", "GPKG:")
+	prefixes = c("NETCDF:", "HDF5:", "HDF4:", "HDF4_EOS:", "SENTINEL2_L1", "SENTINEL2_L2", "GPKG:", "/vsi", "http://", "https://")
 	has_prefix = function(pf, x) substr(x, 1, nchar(pf)) == pf
 	if (is.function(.x) || !np || any(sapply(prefixes, has_prefix, x = .x)))
 		.x
@@ -46,6 +46,7 @@ is_functions = function(x) {
 #' @param RAT character; raster attribute table column name to use as factor levels
 #' @param tolerance numeric; passed on to \link{all.equal} for comparing dimension parameters.
 #' @param ... passed on to \link{st_as_stars} if \code{curvilinear} was set
+#' @param exclude character; vector with category value(s) to exclude
 #' @return object of class \code{stars}
 #' @details In case \code{.x} contains multiple files, they will all be read and combined with \link{c.stars}. Along which dimension, or how should objects be merged? If \code{along} is set to \code{NA} it will merge arrays as new attributes if all objects have identical dimensions, or else try to merge along time if a dimension called \code{time} indicates different time stamps. A single name (or positive value) for \code{along} will merge along that dimension, or create a new one if it does not already exist. If the arrays should be arranged along one of more dimensions with values (e.g. time stamps), a named list can passed to \code{along} to specify them; see example.
 #'
@@ -58,6 +59,8 @@ is_functions = function(x) {
 #' resulting in an adjusted geotransform. \code{resample} reflects the resampling method and
 #' has to be one of: "nearest_neighbour" (the default),
 #' "bilinear", "cubic", "cubic_spline", "lanczos", "average", "mode", or "Gauss".
+#'
+#' Data that are read into memory (\code{proxy=FALSE}) are read into a numeric (double) array, except for categorical variables which are read into an numeric (integer) array of class \code{factor}.
 #' @export
 #' @examples
 #' tif = system.file("tif/L7_ETMs.tif", package = "stars")
@@ -97,7 +100,7 @@ read_stars = function(.x, ..., options = character(0), driver = character(0),
 		RasterIO = list(), proxy = is_functions(.x) || (!length(curvilinear) &&
 				is_big(.x, sub = sub, driver=driver, normalize_path = normalize_path, ...)),
 		curvilinear = character(0), normalize_path = TRUE, RAT = character(0),
-		tolerance = 1e-10) {
+		tolerance = 1e-10, exclude = "") {
 
 	x = if (is.list(.x)) {
 			f = function(y, np) enc2utf8char(maybe_normalizePath(y, np))
@@ -105,7 +108,26 @@ read_stars = function(.x, ..., options = character(0), driver = character(0),
 		} else
 			enc2utf8char(maybe_normalizePath(.x, np = normalize_path))
 
-	if (length(curvilinear) == 2 && is.character(curvilinear)) {
+	if (missing(curvilinear)) { # see if we can get it from metadata item "GEOLOCATION":
+		geolocation <- try(gdal_metadata(.x, "GEOLOCATION"), silent = TRUE)
+		if (!inherits(geolocation, "try-error")) { # the thing has x and y arrays:
+			# read coordinate arrays:
+			gxy = c(geolocation$X_DATASET, geolocation$Y_DATASET)
+			lon = adrop(read_stars(gxy[1], driver = driver, quiet = quiet, NA_value = NA_value,
+				RasterIO = RasterIO, proxy = FALSE, curvilinear = character(0), ...))
+			lat = adrop(read_stars(gxy[2], driver = driver, quiet = quiet, NA_value = NA_value,
+				RasterIO = RasterIO, proxy = FALSE, curvilinear = character(0), ...))
+			if (all(dim(lon) > 1) && all(dim(lat) > 1)) # both are 2-D matrices:
+				curvilinear = setNames(c(st_set_dimensions(lon, names = c("x", "y")),
+					st_set_dimensions(lat, names = c("x", "y"))), c("x", "y"))
+			else {
+				ulon = unique(diff(as.vector(lon[[1]])))
+				ulat = unique(diff(as.vector(lat[[1]])))
+				if (length(ulon) > 1 || length(ulat) > 1)
+					warning("ignoring irregular (rectilinear) x and/or y coordinates!")
+			}
+		}
+	} else if (length(curvilinear) == 2 && is.character(curvilinear)) { # user-set, read them
 		lon = adrop(read_stars(.x, sub = curvilinear[1], driver = driver, quiet = quiet, NA_value = NA_value,
 			RasterIO = RasterIO, proxy = FALSE, ..., sub_required = TRUE))
 		lat = adrop(read_stars(.x, sub = curvilinear[2], driver = driver, quiet = quiet, NA_value = NA_value,
@@ -113,11 +135,13 @@ read_stars = function(.x, ..., options = character(0), driver = character(0),
 		curvilinear = setNames(c(st_set_dimensions(lon, names = c("x", "y")),
 			st_set_dimensions(lat, names = c("x", "y"))), c("x", "y"))
 	}
+	if (length(curvilinear) && proxy)
+		warning("proxy = TRUE may not work for curvilinear rasters")
 
 	if (length(x) > 1) { # loop over data sources and RETURNS:
 		ret = lapply(x, read_stars, options = options, driver = driver, sub = sub, quiet = quiet,
 			NA_value = NA_value, RasterIO = as.list(RasterIO), proxy = proxy, curvilinear = curvilinear,
-			along = if (length(along) > 1) along[-1] else NA_integer_)
+			along = if (length(along) > 1) along[-1] else NA_integer_, normalize_path = normalize_path)
 		return(do.call(c, append(ret, list(along = along, tolerance = tolerance))))
 	}
 
@@ -169,7 +193,7 @@ read_stars = function(.x, ..., options = character(0), driver = character(0),
 			else
 				ret
 		}
-	} else { # we have one single array:
+	} else { # we have one single array: read it
 		if (!isTRUE(sub)) {
 			sub_required = if (is.null(list(...)$sub_required))
 					FALSE
@@ -203,37 +227,50 @@ read_stars = function(.x, ..., options = character(0), driver = character(0),
 			at = list() # skip it: https://github.com/r-spatial/stars/issues/435
 		# FIXME: how to handle multiple color, category or attribute tables?
 		if (!proxy && (any(lengths(ct) > 0) || any(lengths(at) > 0))) {
-			min_value = if (!is.null(meta_data$ranges) && meta_data$ranges[1,2] == 1)
-					meta_data$ranges[1,1]
-				else
-					min(data, na.rm = TRUE)
-			data[data < min_value] = NA
-			if (min_value < 0)
-				stop("categorical values should have minimum value >= 0")
-			if (any(lengths(ct) > 0)) {
-				ct = ct[[ which(length(ct) > 0)[1] ]]
-				co = apply(ct, 1, function(x) rgb(x[1], x[2], x[3], x[4], maxColorValue = 255))
-				if (min_value > 0)
-					co = co[-seq_len(min_value)] # removes [0,...,(min_value-1)]
-				f = factor(as.vector(data), levels = seq(min_value, length.out = length(co)))
-				data = structure(f, dim = dim(data), colors = co)
+			if (any(meta_data$ranges[1, c(2,4)] == 1)) { # adjust data to min/max values from image metadata
+				r = range(data, na.rm = TRUE)
+				min_value = if (meta_data$ranges[1,2] == 1)
+						meta_data$ranges[1,1]
+					else
+						r[1]
+				max_value = if (meta_data$ranges[1,4] == 1)
+						meta_data$ranges[1,3]
+					else
+						r[2]
+				data[data < min_value | data > max_value] = NA
 			}
+
+			# convert color table ct to a vector of R colors:
+			co = if (any(lengths(ct) > 0)) {
+				ct = ct[[ which(length(ct) > 0)[1] ]]
+				apply(ct, 1, function(x) rgb(x[1], x[2], x[3], x[4], maxColorValue = 255))
+			} else
+				NULL
+
 			if (any(lengths(at) > 0)) {
+				# select attribute table:
 				which.at = which(lengths(at) > 0)[1]
 				which.column = if (length(RAT))
 						RAT
 					else
 						which(sapply(at[[which.at]], class) == "character")[1]
-				at = at[[ which.at ]][[ which.column ]]
-				if (min_value > 0)
-					at = at[-seq_len(min_value)]
-				if (!is.factor(data) && min_value == 0) {
-					data = data + 1
-					warning("categorical data values starting at 0 are shifted with one to start at 1")
-				}
-				attr(data, "levels") = at
+				labels = at = at[[ which.at ]][[ which.column ]]
+				levels = 0:(length(at) - 1)
+				if (length(exclude)) {
+					ex = at %in% exclude
+					labels = labels[!ex]
+					levels = levels[!ex]
+					min_value = min(levels)
+					if (!is.null(co))
+						co = co[!ex]
+				} else
+					ex = rep(FALSE, length(levels))
+				f = factor(as.vector(data), levels = levels, labels = labels)
+			} else {
+				f = factor(as.vector(data))
+				ex = rep(FALSE, length(levels(f)))
 			}
-			data = structure(data, class = "factor")
+			data = structure(f, dim = dim(data), colors = co, exclude = ex)
 		}
 
 		dims = if (proxy) {
@@ -256,7 +293,7 @@ read_stars = function(.x, ..., options = character(0), driver = character(0),
 				names(.x()) %||% .x()
 			else
 				x
-		name_x = tail(strsplit(name_x, '[\\\\/]+')[[1]], 1)
+		name_x = tail(strsplit(name_x, '[\\\\/:]+')[[1]], 1)
 		ret = if (proxy) { # no data present, subclass of "stars":
 				st_stars_proxy(setNames(list(x), names(.x) %||% name_x),
 					create_dimensions_from_gdal_meta(dims, meta_data), NA_value = NA_value,
@@ -299,25 +336,77 @@ get_data_units = function(data) {
 	}
 }
 
-read_mdim = function(x, variable = character(0), ..., options = character(0), raster = NULL) {
+#' Read data using GDAL's multidimensional array API (experimental)
+#' 
+#' Read data using GDAL's multidimensional array API (experimental)
+#' @param x data source name
+#' @param variable name of the array to be read
+#' @param options array opening options
+#' @param raster names of the raster variables (default: first two)
+#' @param offset integer; offset for each dimension (pixels) of sub-array to read (default: 0,0,0,...) (requires sf >= 1.0-9)
+#' @param count integer; size for each dimension (pixels) of sub-array to read (default: read all) (requires sf >= 1.0-9)
+#' @param step integer; step size for each dimension (pixels) of sub-aray to read (requires sf >= 1.0-9)
+#' @param proxy logical; return proxy object? (not functional yet)
+#' @param debug logical; print debug info?
+#' @details it is assumed that the first two dimensions are easting / northing
+#' @param ... ignored
+#' @export
+read_mdim = function(x, variable = character(0), ..., options = character(0), raster = NULL,
+					 offset = integer(0), count = integer(0), step = integer(0), proxy = FALSE, 
+					 debug = FALSE) {
+#	ret = if (packageVersion("sf") >= "1.0-9")
+#			gdal_read_mdim(x, variable, options, rev(offset), rev(count), rev(step), proxy, debug)
+#		else
+#			gdal_read_mdim(x, variable, options)
+	if (packageVersion("sf") >= "1.0-9") {
+		message("update stars to > 0.5-6")
+		return(NULL)
+	}
 	ret = gdal_read_mdim(x, variable, options)
 	create_units = function(x) {
 		u <- attr(x, "units")
 		if (is.null(u) || u == "")
 			x
 		else {
-			u = units::set_units(x, u, mode = "standard")
-			p = try(as.POSIXct(u), silent = TRUE)
-			if (inherits(p, "POSIXct"))
-				p
-			else
-				u
+			if (!is.null(a <- attr(x, "attributes")) && !is.na(cal <- a["calendar"]) && 
+						cal %in% c("360_day", "365_day", "noleap"))
+				get_pcict(x, u, cal)
+			else {
+				u = units::set_units(x, u, mode = "standard")
+				p = try(as.POSIXct(u), silent = TRUE)
+				if (inherits(p, "POSIXct"))
+					p
+				else
+					u
+			}
 		}
 	}
-	l = lapply(ret$dimensions, function(x) create_units(x$values[[1]]))
-	d = rev(lapply(l, function(x) create_dimension(values = x)))
+	l = rev(lapply(ret$dimensions, function(x) create_units(x$values[[1]])))
+	if (length(offset) != 0 || length(step) != 0 || length(count) != 0) {
+		if (length(offset) == 0)
+			offset = rep(0, length(l))
+		if (length(step) == 0)
+			step = rep(1, length(l))
+		if (length(count) == 0)
+			count = floor((lengths(l) - offset)/step)
+		for (i in seq_along(l)) {
+			l[[i]] = l[[i]][seq(from = offset[i]+1, length.out = count[i], by = step[i])]
+		}
+	}
+	d = mapply(function(x, i) create_dimension(values = x, is_raster = i %in% 1:2), l, seq_along(l),
+			SIMPLIFY = FALSE)
 	if (is.null(raster))
 		raster = get_raster(dimensions = names(d)[1:2])
+	else
+		raster = get_raster(dimensions = raster)
+
+	if (proxy)
+		stop("proxy not yet implemented in read_mdim()")
+
+	# handle array units:
+	for (i in seq_along(ret$array_list))
+		if (nchar(u <- attr(ret$array_list[[i]], "units")))
+			ret$array_list[[i]] = units::set_units(ret$array_list[[i]], u, mode = "standard")
 	lst = lapply(ret$array_list, function(x) structure(x, dim = rev(dim(x))))
 	st_set_crs(st_stars(lst, dimensions = structure(d, raster = raster, class = "dimensions")),
 		ret$srs)

@@ -21,7 +21,7 @@
 \arguments{
 \item{x}{object of class \code{stars} with information to be aggregated}
 
-\item{by}{object of class \code{sf} or \code{sfc} for spatial aggregation, for temporal aggregation a vector with time values (\code{Date}, \code{POSIXct}, or \code{PCICt}) that is interpreted as a sequence of left-closed, right-open time intervals or a string like "months", "5 days" or the like (see \link{cut.POSIXt}); if by is an object of class \code{stars}, it is converted to sfc by \code{st_as_sfc(by, as_points = FALSE)} thus ignoring its time component.}
+\item{by}{object of class \code{sf} or \code{sfc} for spatial aggregation, for temporal aggregation a vector with time values (\code{Date}, \code{POSIXct}, or \code{PCICt}) that is interpreted as a sequence of left-closed, right-open time intervals or a string like "months", "5 days" or the like (see \link{cut.POSIXt}); if by is an object of class \code{stars}, it is converted to sfc by \code{st_as_sfc(by, as_points = FALSE)} thus ignoring its time component. Note: each pixel is assigned to only a single group (in the order the groups occur) so non-overlapping spatial features and temporal windows are recommended.}
 
 \item{FUN}{aggregation function, such as \code{mean}}
 
@@ -54,7 +54,8 @@ x_agg_time = aggregate(x, by = t1 + c(0, 2, 4), FUN = max)
 by_t = "2 days"
 x_agg_time2 = aggregate(x, by = by_t, FUN = max) 
 st_get_dimension_values(x_agg_time2, "time")
-x_agg_time - x_agg_time2
+#TBD:
+#x_agg_time - x_agg_time2
 
 # aggregate time dimension in format POSIXct
 x = st_set_dimensions(x, 4, values = as.POSIXct(c("2018-07-31", 
@@ -65,16 +66,19 @@ x = st_set_dimensions(x, 4, values = as.POSIXct(c("2018-07-31",
 by_t = as.POSIXct(c("2018-07-31", "2018-08-02"))
 x_agg_posix = aggregate(x, by = by_t, FUN = max)
 st_get_dimension_values(x_agg_posix, "time")
-x_agg_time - x_agg_posix
+#TBD:
+# x_agg_time - x_agg_posix
 aggregate(x, "2 days", mean)
-# Spatial aggregation, see https://github.com/r-spatial/stars/issues/299
-prec_file = system.file("nc/test_stageiv_xyt.nc", package = "stars")
-prec = read_ncdf(prec_file, curvilinear = c("lon", "lat"))
-prec_slice = dplyr::slice(prec, index = 17, along = "time")
-nc = sf::read_sf(system.file("gpkg/nc.gpkg", package = "sf"), "nc.gpkg")
-nc = st_transform(nc, st_crs(prec_slice))
-agg = aggregate(prec_slice, st_geometry(nc), mean)
-plot(agg)
+if (require(ncmeta, quietly = TRUE)) {
+ # Spatial aggregation, see https://github.com/r-spatial/stars/issues/299
+ prec_file = system.file("nc/test_stageiv_xyt.nc", package = "stars")
+ prec = read_ncdf(prec_file, curvilinear = c("lon", "lat"))
+ prec_slice = dplyr::slice(prec, index = 17, along = "time")
+ nc = sf::read_sf(system.file("gpkg/nc.gpkg", package = "sf"), "nc.gpkg")
+ nc = st_transform(nc, st_crs(prec_slice))
+ agg = aggregate(prec_slice, st_geometry(nc), mean)
+ plot(agg)
+}
 
 # example of using a function for "by": aggregate by month-of-year
 d = c(10, 10, 150)

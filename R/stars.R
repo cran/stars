@@ -9,7 +9,9 @@ split_strings = function(md, split = "=") {
 #' convert objects into a stars object
 #' @export
 #' @param .x object to convert
-#' @param ... in case \code{.x} is of class \code{bbox}, arguments passed on to \link{pretty}
+#' @param ... in case \code{.x} is of class \code{bbox}, arguments passed on to 
+#' \link{pretty}. In case \code{.x} is of class \code{nc_proxy}, arguments
+#' passed on to \code{\link{read_ncdf}}.
 st_as_stars = function(.x, ...) UseMethod("st_as_stars")
 
 #' @name st_as_stars
@@ -46,14 +48,14 @@ st_as_stars.list = function(.x, ..., dimensions = NULL) {
 	st_stars(.x, dimensions %||% create_dimensions(dim(.x[[1]])))
 }
 
-st_stars = function(x, dimensions) {
+st_stars = function(x, dimensions, class = "stars") {
 	# sanity checks:
 	stopifnot(is.list(x))
 	stopifnot(inherits(dimensions, "dimensions"))
 	stopifnot(!is.null(attr(dimensions, "raster")))
-#	for (i in seq_along(x))
-#		names(dim(x[[i]])) = names(dimensions)
-	structure(x, dimensions = dimensions, class = "stars")
+# 	for (i in seq_along(x))
+# 		names(dim(x[[i]])) = names(dimensions)
+	structure(x, dimensions = dimensions, class = class)
 }
 
 
@@ -132,20 +134,22 @@ pretty_cut = function(lim, n, inside = FALSE, ...) {
 #' @param nx integer; number of cells in x direction; see details
 #' @param ny integer; number of cells in y direction; see details
 #' @param nz integer; number of cells in z direction; if missing no z-dimension is created.
-#' @param dx numeric; cell size in x direction; see details
-#' @param dy numeric; cell size in y direction; see details
+#' @param dx numeric or object of class units; cell size in x direction; see details
+#' @param dy numeric or object of class units; cell size in y direction; see details
 #' @param xlim length 2 numeric vector with extent (min, max) in x direction
 #' @param ylim length 2 numeric vector with extent (min, max) in y direction
 #' @param values value(s) to populate the raster values with
 #' @param n the (approximate) target number of grid cells
 #' @param pretty logical; should cell coordinates have \link{pretty} values?
-#' @param inside logical; should all cells entirely fall inside the bbox, potentially not covering it completely?
-#' @details For the \code{bbox} method: if \code{pretty} is \code{TRUE}, raster cells may extend the coordinate range of \code{.x} on all sides. If in addition to \code{nx} and \code{ny}, \code{dx} and \code{dy} are also missing, these are set to a single value computed as \code{sqrt(diff(xlim)*diff(ylim)/n)}. If \code{nx} and \code{ny} are missing, they are computed as the ceiling of the ratio of the (x or y) range divided by (dx or dy), unless \code{inside} is \code{TRUE}, in which case ceiling is replaced by floor. Positive \code{dy} will be made negative. Further named arguments (\code{...}) are passed on to \code{pretty}.
+#' @param inside logical; should all cells entirely fall inside the bbox, potentially not covering it completely (\code{TRUE}), or allways cover the bbox (\code{FALSE}), or find a good approximation (\code{NA}, default)?
+#' @param proxy logical; should a \code{stars_proxy} object be created? (requires gdal_create binary when sf < 1.0-6)
+#' @details For the \code{bbox} method: if \code{pretty} is \code{TRUE}, raster cells may extend the coordinate range of \code{.x} on all sides. If in addition to \code{nx} and \code{ny}, \code{dx} and \code{dy} are also missing, these are set to a single value computed as \code{sqrt(diff(xlim)*diff(ylim)/n)}. If \code{nx} and \code{ny} are missing, they are computed as the (ceiling, floor, or rounded to integer value) of the ratio of the (x or y) range divided by (dx or dy), depending on the value of \code{inside}. Positive \code{dy} will be made negative. Further named arguments (\code{...}) are passed on to \code{pretty}. If \code{dx} or \code{dy} are \code{units} objects, their value is converted to the units of \code{st_crs(.x)} (only when sf >= 1.0-7).
 #' @export
 #' @name st_as_stars
 st_as_stars.bbox = function(.x, ..., nx, ny, dx = dy, dy = dx,
 		xlim = .x[c("xmin", "xmax")], ylim = .x[c("ymin", "ymax")], 
-		values = 0., n = 64800, pretty = FALSE, inside = FALSE, nz) {
+		values = 0., n = 64800, pretty = FALSE, inside = FALSE, nz, 
+		proxy = FALSE) {
 
 	if (xor(missing(nx), missing(ny)))
 		stop("either specify both nx and ny, or none of them")
@@ -160,15 +164,33 @@ st_as_stars.bbox = function(.x, ..., nx, ny, dx = dy, dy = dx,
 			dx = diff(xlim)/nx
 			dy = -diff(ylim)/ny
 		}
+	} else { 
+		u <- st_crs(.x)$ud_unit
+		if (inherits(u, "units")) {
+			if (inherits(dx, "units"))
+				units(dx) = u # might convert value
+			if (inherits(dy, "units"))
+				units(dy) = u # might convert value
+		}
+		dx = as.numeric(dx) # drop units if present
+		dy = as.numeric(dy) # drop units if present
 	}
 
+	consider_inside = function(x, inside) {
+		if (is.na(inside))
+			round(x)
+		else if (inside)
+			floor(x)
+		else
+			ceiling(x)
+	}
 	if (missing(nx))
-		nx = ifelse(inside, floor(diff(xlim) / dx), ceiling(diff(xlim) / dx))
+		nx = consider_inside(diff(xlim) / dx, inside)
 
 	if (missing(ny)) {
 		if (dy > 0)
 			dy = -dy
-		ny = ifelse(inside, floor(-diff(ylim) / dy), ceiling(-diff(ylim) / dy))
+		ny = consider_inside(-diff(ylim) / dy, inside)
 	}
 
 	if (pretty) {
@@ -184,12 +206,18 @@ st_as_stars.bbox = function(.x, ..., nx, ny, dx = dy, dy = dx,
 		y = create_dimension(from = 1, to = ny, offset = unname(ylim[2]),
 			delta = unname(dy), refsys = st_crs(.x))
 	}
-	if (missing(nz)) # 2D:
-		st_as_stars(values = array(values, c(x = nx[[1L]], y = ny[[1L]])), # [[1]] unnames
-			dims = create_dimensions(list(x = x, y = y), get_raster()))
-	else {
+	if (missing(nz)) { # 2D:
+		if (proxy) {
+			f = tempfile(fileext = ".tif")
+			sf::gdal_create(f, c(nx, ny), values, st_crs(.x), xlim, ylim)
+			read_stars(f, proxy = TRUE)
+		} else
+			st_as_stars(values = array(values, c(x = nx[[1L]], y = ny[[1L]])), # [[ unnames
+				dims = create_dimensions(list(x = x, y = y), get_raster()))
+	} else {
+		stopifnot(proxy == FALSE)
 		z = create_dimension(from = 1, to = nz[[1]])
-		st_as_stars(values = array(values, c(x = nx[[1L]], y = ny[[1L]], z = nz[[1]])), # [[1]] unnames
+		st_as_stars(values = array(values, c(x = nx[[1L]], y = ny[[1L]], z = nz[[1]])), # [[ unnames
 			dims = create_dimensions(list(x = x, y = y, z = z), get_raster()))
 	}
 }
@@ -214,8 +242,14 @@ colrow_from_xy = function(x, obj, NA_outside = FALSE) {
 
 	if (isTRUE(st_is_longlat(st_crs(obj)))) {
 		bb = st_bbox(obj)
-		sign = ifelse(x[,1] < bb["xmin"], 1., ifelse(x[,1] > bb["xmax"], -1., 0.))
-		x[,1] = x[,1] + sign * 360.
+# see https://github.com/r-spatial/stars/issues/519 where this is problematic;
+# not sure whether this introduces new problems.
+#		sign = ifelse(x[,1] < bb["xmin"], 1., ifelse(x[,1] > bb["xmax"], -1., 0.))
+#		x[,1] = x[,1] + sign * 360.
+		if (x[1,1] > bb["xmax"])
+				x[1,1] = x[1,1] - 360.
+		if (x[2,1] < bb["xmin"])
+				x[2,1] = x[2,1] + 360.
 	}
 	if (!any(is.na(gt))) { # have geotransform
 		inv_gt = gdal_inv_geotransform(gt)
@@ -356,12 +390,13 @@ as.data.frame.stars = function(x, ..., add_max = FALSE, center = NA) {
 		lapply(x, function(y) structure(y, dim = NULL)))
 }
 
+add_units = function(x) {
+	f = function(obj) if (inherits(obj, "units")) paste0("[", enc2utf8(as.character(units(obj))), "]") else ""
+	paste(names(x), sapply(x, f))
+}
+
 #' @export
 print.stars = function(x, ..., n = 1e5, abbrev = 30) {
-	add_units = function(x) {
-		f = function(obj) if (inherits(obj, "units")) paste0("[", enc2utf8(as.character(units(obj))), "]") else ""
-		paste(names(x), sapply(x, f))
-	}
 	shorten = function(s) {
 		if (nchar(s) > abbrev)
 			paste0(substr(s, 1, abbrev), "...")
@@ -430,7 +465,7 @@ propagate_units = function(new, old) {
 #' combine multiple stars objects, or combine multiple attributes in a single stars object into a single array
 #' @param ... object(s) of class \code{star}: in case of multiple arguments, these are combined into a single stars object, in case of a single argument, its attributes are combined into a single attribute. In case of multiple objects, all objects should have the same dimensionality.
 #' @param along integer; see \link{read_stars}
-#' @param try_hard logical; if \code{TRUE} and some arrays have different dimensions, 
+#' @param try_hard logical; if \code{TRUE} and some arrays have different dimensions, combine those that dimensions matching to the first array
 #' @param tolerance numeric; values used in \link{all.equal} to compare dimension values
 #' combine those that dimensions matching to the first array
 #' @param nms character; vector with array names
@@ -693,6 +728,14 @@ st_geometry.stars = function(obj,...) {
 	d[[ which_sfc(obj) ]]$values
 }
 
+# make sure asub works for factor too:
+asub.factor = function(x, idx, dims, drop = NULL, ...) {
+	l = levels(x)
+	x = unclass(x)
+	ret = NextMethod()
+	structure(ret, class = "factor", levels = l)
+}
+
 #' @name merge
 #' @aliases split
 #' @param f the name or index of the dimension to split; by default the last dimension
@@ -729,9 +772,7 @@ merge.stars = function(x, y, ..., name = "attributes") {
 	if (!missing(y))
 		stop("argument y needs to be missing: merging attributes of x")
 	old_dim = st_dimensions(x)
-	out = do.call(abind, st_redimension(x))
-	if (is.factor(x[[1]]) && is.character(out))
-		out = structure(factor(as.vector(out), levels = levels(x[[1]])), dim = dim(out))
+	out = st_redimension(x)
 	new_dim = if (length(dots))
 			create_dimension(values = dots[[1]])
 		else
@@ -740,7 +781,7 @@ merge.stars = function(x, y, ..., name = "attributes") {
 	d = create_dimensions(dims, raster = attr(old_dim, "raster"))
 	if (!is.null(names(dots)))
 		names(d)[length(d)] = names(dots)
-	st_as_stars(out, dimensions = d)
+	st_stars(out, dimensions = d) # overwrite dimensions of out
 }
 
 sort_out_along = function(ret) { 
@@ -800,8 +841,8 @@ st_redimension.stars = function(x, new_dims = st_dimensions(x),
 			dims = create_dimensions(c(d, new_dim = list(new_dim)), attr(d, "raster"))
 			if (length(names(along)) == 1)
 				names(dims)[names(dims) == "new_dim"] = names(along)
-			ret = list(attr = do.call(abind, c(unclass(x), along = length(dim(x)) + 1)))
-			st_stars(setNames(ret, paste(names(x), collapse = ".")), dimensions = dims)
+			ret = structure(do.call(c, x), dim = dim(dims))
+			st_stars(setNames(list(ret), paste(names(x), collapse = ".")), dimensions = dims)
 		}
 	}
 }
@@ -827,7 +868,7 @@ st_redimension.stars = function(x, new_dims = st_dimensions(x),
 		}
 		value = if (inherits(value, c("factor", "POSIXct")))
 				structure(rep(value, length.out = prod(dim(x))), dim = dim(x), colors = attr(value, "colors"),
-					rgba = attr(value, "rgba"))
+					rgba = attr(value, "rgba"), exclude = attr(value, "exclude"))
 			else if (!is.array(value) || !isTRUE(all.equal(dim(value), dim(x), check.attributes = FALSE)))
 				array(value, dim(x))
 			else
@@ -900,6 +941,12 @@ predict.stars = function(object, model, ..., drop_dimensions = FALSE) {
 	na_ids = which(is.na(obj_df), arr.ind = TRUE) # identify rows with NA's in the predictors
 	obj_df[na_ids] = 0  # fill with something valid (e.g. 0)
 	pr = try(predict(model, obj_df, ...), silent = TRUE)
+	has_method = function(generic, cls) {
+		m = row.names(attr(methods(generic), "info"))
+		cls %in% substring(m, nchar(generic) + 2, 1e4)
+	}
+	if (inherits(pr, "try-error") && !has_method("predict", class(model)))
+		stop(paste("No predict method found for objects of class", class(model)))
 	if (inherits(pr, "try-error")) { # https://github.com/r-spatial/stars/issues/448
 		m = paste0("prediction on array(s) `", paste(names(object), collapse = ","), "' failed; will try to split() dimension `", tail(names(dim(object)), 1), "' over attributes")
 		message(m)

@@ -5,7 +5,14 @@
 \alias{theme_stars}
 \title{ggplot geom for stars objects}
 \usage{
-geom_stars(mapping = NULL, data = NULL, ..., downsample = 0, sf = FALSE)
+geom_stars(
+  mapping = NULL,
+  data = NULL,
+  ...,
+  downsample = 0,
+  sf = FALSE,
+  na.action = na.pass
+)
 
 theme_stars(...)
 }
@@ -19,20 +26,26 @@ theme_stars(...)
 \item{downsample}{downsampling rate: e.g. 3 keeps rows and cols 1, 4, 7, 10 etc.; a value of 0 does not downsample; can be specified for each dimension, e.g. \code{c(5,5,0)} to downsample the first two dimensions but not the third.}
 
 \item{sf}{logical; if \code{TRUE} rasters will be converted to polygons and plotted using \link[ggplot2:ggsf]{geom_sf}.}
+
+\item{na.action}{function; if \code{NA} values need to be removed before plotting use the value \code{na.omit} here (only applies to objects with raster dimensions)}
 }
 \description{
 ggplot geom for stars objects
 }
 \details{
-\code{geom_stars} returns (a call to) either \link[ggplot2:geom_tile]{geom_raster}, \link[ggplot2]{geom_tile}, or \link[ggplot2:ggsf]{geom_sf}, depending on the raster or vector geometry; for the first to, an \link[ggplot2]{aes} call is constructed with the raster dimension names and the first array as fill variable. Further calls to \link[ggplot2:coord_fixed]{coord_equal} and \link[ggplot2]{facet_wrap} are needed to control aspect ratio and the layers to be plotted; see examples.
+\code{geom_stars} returns (a call to) either \link[ggplot2:geom_tile]{geom_raster}, \link[ggplot2]{geom_tile}, or \link[ggplot2:ggsf]{geom_sf}, depending on the raster or vector geometry; for the first to, an \link[ggplot2]{aes} call is constructed with the raster dimension names and the first array as fill variable. Further calls to \link[ggplot2:coord_fixed]{coord_equal} and \link[ggplot2]{facet_wrap} are needed to control aspect ratio and the layers to be plotted; see examples. If a \code{stars} array contains hex color values, and no \code{fill} parameter is given, the color values are used as fill color; see the example below.
 }
 \examples{
 system.file("tif/L7_ETMs.tif", package = "stars") \%>\% read_stars() -> x
-library(ggplot2)
-ggplot() + geom_stars(data = x) +
+if (require(ggplot2, quietly = TRUE)) {
+  ggplot() + geom_stars(data = x) +
     coord_equal() +
     facet_wrap(~band) +
     theme_void() +
     scale_x_discrete(expand=c(0,0))+
     scale_y_discrete(expand=c(0,0))
+  # plot rgb composite:
+  st_as_stars(L7_ETMs)[,,,1:3] |> st_rgb() -> x # x contains colors as pixel values
+  ggplot() + geom_stars(data = x)
+}
 }

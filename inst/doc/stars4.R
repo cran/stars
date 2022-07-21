@@ -75,35 +75,40 @@ x = st_as_stars(matrix(1:9, 3, 3),
 EVAL = s5p != ""
 
 ## ----eval=EVAL----------------------------------------------------------------
-nit.c = read_stars(s5p, sub = "//PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_summed_total_column",
-	curvilinear = c("//PRODUCT/longitude", "//PRODUCT/latitude"), driver = NULL)
-if (inherits(nit.c[[1]], "units")) {
-	threshold = units::set_units(9e+36, mol/m^2)
-} else {
-	threshold = 9e+36
-}
-nit.c[[1]][nit.c[[1]] > threshold] = NA
-st_crs(nit.c) = 4326
-nit.c
+#  subs = gdal_subdatasets(s5p)
+#  subs[[6]]
 
 ## ----eval=EVAL----------------------------------------------------------------
-plot(nit.c, breaks = "equal", reset = FALSE, axes = TRUE, as_points = TRUE, 
-		 pch = 16,  logz = TRUE, key.length = 1)
-maps::map('world', add = TRUE, col = 'red')
+#  gdal_metadata(subs[[6]], "GEOLOCATION")
 
 ## ----eval=EVAL----------------------------------------------------------------
-plot(nit.c, breaks = "equal", reset = FALSE, axes = TRUE, as_points = FALSE, 
-		 border = NA, logz = TRUE, key.length = 1)
-maps::map('world', add = TRUE, col = 'red')
+#  nit.c = read_stars(subs[[6]])
+#  threshold = units::set_units(9e+36, mol/m^2)
+#  nit.c[[1]][nit.c[[1]] > threshold] = NA
+#  nit.c
 
 ## ----eval=EVAL----------------------------------------------------------------
-(nit.c = stars:::st_downsample(nit.c, 8))
-plot(nit.c, breaks = "equal", reset = FALSE, axes = TRUE, as_points = TRUE, 
-		 pch = 16, logz = TRUE, key.length = 1)
-maps::map('world', add = TRUE, col = 'red')
+#  plot(nit.c, breaks = "equal", reset = FALSE, axes = TRUE, as_points = TRUE,
+#  		 pch = 16,  logz = TRUE, key.length = 1)
+#  maps::map('world', add = TRUE, col = 'red')
 
 ## ----eval=EVAL----------------------------------------------------------------
-plot(nit.c, breaks = "equal", reset = FALSE, axes = TRUE, as_points = FALSE, 
-		 border = NA, logz = TRUE, key.length = 1)
-maps::map('world', add = TRUE, col = 'red')
+#  plot(nit.c, breaks = "equal", reset = FALSE, axes = TRUE, as_points = FALSE,
+#  		 border = NA, logz = TRUE, key.length = 1)
+#  maps::map('world', add = TRUE, col = 'red')
+
+## ----eval=EVAL----------------------------------------------------------------
+#  (nit.c_ds = stars:::st_downsample(nit.c, 8))
+#  plot(nit.c_ds, breaks = "equal", reset = FALSE, axes = TRUE, as_points = TRUE,
+#  		 pch = 16, logz = TRUE, key.length = 1)
+#  maps::map('world', add = TRUE, col = 'red')
+
+## ----eval=EVAL----------------------------------------------------------------
+#  plot(nit.c_ds, breaks = "equal", reset = FALSE, axes = TRUE, as_points = FALSE,
+#  		 border = NA, logz = TRUE, key.length = 1)
+#  maps::map('world', add = TRUE, col = 'red')
+
+## ----eval=EVAL----------------------------------------------------------------
+#  w = st_warp(nit.c, crs = 4326, cellsize = 0.25)
+#  plot(w)
 

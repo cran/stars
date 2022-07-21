@@ -30,7 +30,9 @@ make_label = function(x, i = 1) {
 #' @param hook NULL or function; hook function that will be called on every sub-plot.
 #' @param mfrow length-2 integer vector with nrows, ncolumns of a composite plot, to override the default layout
 #' @details
-#' Downsampling: a value for \code{downsample} of 0: no downsampling, 1: after every dimension value (pixel/line/band), one value is skipped (half of the original resolution), 2: after every dimension value, 2 values are skipped (one third of the original resolution), etc. 
+#' Downsampling: a value for \code{downsample} of 0: no downsampling, 1: after every dimension value (pixel/line/band), one value is skipped (half of the original resolution), 2: after every dimension value, 2 values are skipped (one third of the original resolution), etc.
+#'
+#' To remove unused classes in a categorical raster, use the \link[base]{droplevels} function.
 #' @export
 plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes = FALSE,
 		downsample = TRUE, nbreaks = 11, breaks = "quantile", col = grey(1:(nbreaks-1)/nbreaks),
@@ -51,8 +53,13 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 	x = st_normalize(x)
 	if (is.character(x[[1]])) # rgb values
 		key.pos = NULL
-	if (missing(col) && is.factor(x[[1]]))
-		col = attr(x[[1]], "colors") %||% sf.colors(length(levels(x[[1]])), categorical = TRUE)
+	if (is.factor(x[[1]])) {
+		if (missing(col))
+			col = attr(x[[1]], "colors") %||% sf.colors(length(levels(x[[1]])), categorical = TRUE)
+		else
+			attr(x[[1]], "colors") = col
+	}
+	
 	key.pos.missing = missing(key.pos)
 	breaks.missing = missing(breaks)
 	if (missing(nbreaks) && !missing(col))
@@ -65,8 +72,11 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 	if (is.factor(x[[1]]) && any(is.na(levels(x[[1]]))))
 		x = droplevels(x) # https://github.com/r-spatial/stars/issues/339
 
-	if (join_zlim && !is.character(x[[1]])) {
-		breaks = get_breaks(x, breaks, nbreaks, dots$logz)
+	if (join_zlim && !is.character(x[[1]]) && is.null(dots$rgb)) {
+		breaks = if (is.factor(x[[1]]))
+					seq(.5, length.out = length(levels(x[[1]])) + 1)
+				else
+					get_breaks(x, breaks, nbreaks, dots$logz)
 		if (!inherits(breaks, c("POSIXt", "Date")))
 			breaks = as.numeric(breaks)
 		if (length(breaks) > 2)
@@ -85,7 +95,7 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 		dxy = attr(st_dimensions(x), "raster")$dimensions
 		loop = setdiff(names(dim(x)), dxy) # dimension (name) over which we loop, if any
 		x = aperm(x, c(dxy, loop))
-		zlim = if (join_zlim)
+		zlim = if (join_zlim && is.null(dots$rgb))
 				range(unclass(x[[1]]), na.rm = TRUE)
 			else
 				rep(NA_real_, 2)
@@ -94,16 +104,18 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 				n = dims * 0 # keep names
 				n[dxy] = get_downsample(dims, rgb = is.numeric(dots$rgb))
 				st_downsample(x, n)
-			} else if (is.numeric(downsample))
+			} else if (is.numeric(downsample)) {
 				st_downsample(x, downsample)
+			} else
+				x
 		dims = dim(x) # may have changed by st_downsample
 
 		if (length(dims) == 2 || dims[3] == 1 || (!is.null(dots$rgb) && is.numeric(dots$rgb))) { ## ONE IMAGE:
 			# set up key region
 			values = structure(x[[1]], dim = NULL) # array -> vector
-			if (! isTRUE(dots$add) && ! is.null(key.pos) && !all(is.na(values)) &&
+			if (! isTRUE(dots$add) && ! is.null(key.pos) && !all(is.na(values)) && is.null(dots$rgb) &&
 					(is.factor(values) || length(unique(na.omit(values))) > 1) &&
-					length(col) > 1 && is.null(dots$rgb) && !is_curvilinear(x)) { # plot key?
+					length(col) > 1 && !is_curvilinear(x)) { # plot key?
 				switch(key.pos,
 					layout(matrix(c(2,1), nrow = 2, ncol = 1), widths = 1, heights = c(1, key.width)),  # 1 bottom
 					layout(matrix(c(1,2), nrow = 1, ncol = 2), widths = c(key.width, 1), heights = 1),  # 2 left
@@ -178,7 +190,9 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 	} else if (has_sfc(x)) {
 #		if (key.pos.missing)
 #			key.pos = -1
-		plot(st_as_sf(x), ..., breaks = breaks, key.pos = key.pos, key.length = key.length,
+		if (! join_zlim)
+			key.pos = NULL # omit key
+		plot(st_as_sf(x[1]), ..., breaks = breaks, key.pos = key.pos, key.length = key.length,
 			key.width = key.width, reset = reset, axes = axes, main = main)
 	} else
 		stop("no raster, no features geometries: no default plot method set up yet!")
@@ -242,7 +256,7 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL,
 		text_color = 'black', axes = FALSE,
 		interpolate = FALSE, as_points = FALSE, key.pos = NULL, logz = FALSE,
 		key.width = lcm(1.8), key.length = 0.618, add.geom = NULL, border = NA,
-		useRaster = isTRUE(dev.capabilities("rasterImage")$rasterImage == "yes"), extent = x) {
+		useRaster = isTRUE(dev.capabilities()$rasterImage == "yes"), extent = x) {
 
 	dots = list(...)
 
@@ -336,7 +350,8 @@ image.stars = function(x, ..., band = 1, attr = 1, asp = NULL, rgb = NULL,
 		}
 		if (is.numeric(rgb) && length(rgb) == 3) {
 			ar = structure(ar[ , , rgb], dim = c(prod(xy), 3)) # flattens x/y
-			nas = apply(ar, 1, function(x) any(is.na(x)))
+			#nas = apply(ar, 1, function(x) any(is.na(x))) #503
+			nas = !complete.cases(ar)
 			ar = grDevices::rgb(ar[!nas,], maxColorValue = maxColorValue)
 			mat = rep(NA_character_, prod(xy))
 			mat[!nas] = ar

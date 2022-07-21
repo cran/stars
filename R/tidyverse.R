@@ -135,9 +135,10 @@ as.tbl_cube.stars = function(x, ...) {
 #' @examples
 #' tif = system.file("tif/L7_ETMs.tif", package = "stars")
 #' x1 = read_stars(tif)
-#' library(dplyr)
-#' x1 %>% slice("band", 2:3)
-#' x1 %>% slice("x", 50:100)
+#' if (require(dplyr, quietly = TRUE)) {
+#'  x1 %>% slice("band", 2:3)
+#'  x1 %>% slice("x", 50:100)
+#' }
 slice.stars <- function(.data, along, index, ..., drop = length(index) == 1) {
   #stopifnot(length(index) == 1)
   if (!requireNamespace("rlang", quietly = TRUE))
@@ -154,8 +155,60 @@ slice.stars <- function(.data, along, index, ..., drop = length(index) == 1) {
 }
 
 #' @name dplyr
-slice.stars_proxy = function(.data, ...) {
-	collect(.data, match.call(), "slice", ".data", env = parent.frame())
+slice.stars_proxy <- function(.data, along, index, ...) {
+  # TODO: add adrop argument, this requires an eager implementation of
+  # adrop.stars_proxy
+
+  # If there are already operations queued, just add to the queue
+  if (!is.null(attr(.data, "call_list")))
+    return(collect(.data, match.call(), "slice", ".data",
+                   env = parent.frame(), ...))
+
+  # figure out which dimensions are part of the files
+  vecsize <- rev(cumprod(rev(dim(.data))))
+
+  # NOTE: The first set of dimensions corresponds to the dimensions in the
+  # files. The second set of dimensions corresponds to the list of files. It may
+  # be undecided where exactly the break is (at least without reading in the
+  # files) if there are a singleton dimensions, I am not sure if this matters,
+  # for now just assume the maximum index, this should be the safe choice.
+  # Singleton dimensions that are part of files probably need some logic
+  # somewhere else and cannot just be ignored.
+
+  # Can we assume, that all elements of .data are the same?
+  first_concat_dim <- max(which(vecsize == length(.data[[1]])))
+  stopifnot(first_concat_dim > 0)
+  all_dims <- st_dimensions(.data)
+  file_dims <- all_dims[seq_len(first_concat_dim - 1)]
+  concat_dims <- all_dims[first_concat_dim:length(dim(.data))]
+  d_concat_dims <- dim(concat_dims)
+  l_concat_vec <- prod(d_concat_dims)
+
+  # what is the dimension we have to subset
+  ix <- which(names(all_dims) == along) - length(file_dims)
+  stopifnot(length(ix) == 1)
+
+  # if the slice is on file dimensions we have to queue the operation
+  if (ix <= 0)
+    return(collect(.data, match.call(), "slice", ".data",
+                   env = parent.frame(), ...))
+
+  # subset indices for the files, it may be faster to calculate these and not
+  # take them from an array.
+  d <- array(seq_len(l_concat_vec), d_concat_dims)
+  idx <- rep(list(quote(expr = )), length(d_concat_dims))
+  idx[[ix]] <- index
+  vidx <- as.vector(do.call(`[`, c(list(d), idx)))
+
+  # The actual subsetting of files and dimensions
+  file_list_new <- lapply(.data, function(x) x[vidx])
+  all_dims[[along]] <- all_dims[[along]][index]
+
+  # construct stars_proxy
+  st_stars_proxy(as.list(file_list_new), all_dims,
+                 NA_value = attr(.data, "NA_value"),
+                 resolutions = attr(.data, "resolutions"),
+                 RasterIO = attr(.data, "RasterIO"))
 }
 
 #' @name st_coordinates
@@ -203,18 +256,24 @@ replace_na.stars_proxy = function(data, ...) {
 #' @param ... see \link[ggplot2:geom_tile]{geom_raster}
 #' @param downsample downsampling rate: e.g. 3 keeps rows and cols 1, 4, 7, 10 etc.; a value of 0 does not downsample; can be specified for each dimension, e.g. \code{c(5,5,0)} to downsample the first two dimensions but not the third.
 #' @param sf logical; if \code{TRUE} rasters will be converted to polygons and plotted using \link[ggplot2:ggsf]{geom_sf}.
-#' @details \code{geom_stars} returns (a call to) either \link[ggplot2:geom_tile]{geom_raster}, \link[ggplot2]{geom_tile}, or \link[ggplot2:ggsf]{geom_sf}, depending on the raster or vector geometry; for the first to, an \link[ggplot2]{aes} call is constructed with the raster dimension names and the first array as fill variable. Further calls to \link[ggplot2:coord_fixed]{coord_equal} and \link[ggplot2]{facet_wrap} are needed to control aspect ratio and the layers to be plotted; see examples.
+#' @param na.action function; if \code{NA} values need to be removed before plotting use the value \code{na.omit} here (only applies to objects with raster dimensions)
+#' @details \code{geom_stars} returns (a call to) either \link[ggplot2:geom_tile]{geom_raster}, \link[ggplot2]{geom_tile}, or \link[ggplot2:ggsf]{geom_sf}, depending on the raster or vector geometry; for the first to, an \link[ggplot2]{aes} call is constructed with the raster dimension names and the first array as fill variable. Further calls to \link[ggplot2:coord_fixed]{coord_equal} and \link[ggplot2]{facet_wrap} are needed to control aspect ratio and the layers to be plotted; see examples. If a \code{stars} array contains hex color values, and no \code{fill} parameter is given, the color values are used as fill color; see the example below.
 #' @export
 #' @examples
 #' system.file("tif/L7_ETMs.tif", package = "stars") %>% read_stars() -> x
-#' library(ggplot2)
-#' ggplot() + geom_stars(data = x) +
+#' if (require(ggplot2, quietly = TRUE)) {
+#'   ggplot() + geom_stars(data = x) +
 #'     coord_equal() +
 #'     facet_wrap(~band) +
 #'     theme_void() +
 #'     scale_x_discrete(expand=c(0,0))+
 #'     scale_y_discrete(expand=c(0,0))
-geom_stars = function(mapping = NULL, data = NULL, ..., downsample = 0, sf = FALSE) {
+#'   # plot rgb composite:
+#'   st_as_stars(L7_ETMs)[,,,1:3] |> st_rgb() -> x # x contains colors as pixel values
+#'   ggplot() + geom_stars(data = x)
+#' }
+geom_stars = function(mapping = NULL, data = NULL, ..., downsample = 0, sf = FALSE, 
+					  na.action = na.pass) {
 
 	if (!requireNamespace("ggplot2", quietly = TRUE))
 		stop("package ggplot2 required, please install it first") # nocov
@@ -229,9 +288,16 @@ geom_stars = function(mapping = NULL, data = NULL, ..., downsample = 0, sf = FAL
 		data = st_as_stars(data, downsample = downsample) # fetches data
 	else if (any(downsample > 0))
 		data = st_downsample(data, downsample)
+	
+	all_colors = function (x) {
+		is.character(x) && all(nchar(x) %in% c(7, 9) & substr(x, 1, 1) == "#", na.rm = TRUE)
+	}
+	if (is.null(list(...)$fill) && all_colors(fill <- as.vector(data[[1]])))
+		return(geom_stars(mapping = mapping, data = data, sf = sf, na.action = na.action, 
+						  ..., fill = fill)) # RETURNS/recurses
 
 	if (is_curvilinear(data) || sf)
-		data = st_xy2sfc(data, as_points = FALSE)
+		data = st_xy2sfc(data, as_points = FALSE) # removes NA's by default
 
 	d = st_dimensions(data)
 
@@ -241,14 +307,16 @@ geom_stars = function(mapping = NULL, data = NULL, ..., downsample = 0, sf = FAL
 			if (is.null(mapping))
 				mapping = ggplot2::aes(x = !!rlang::sym(xy[1]), y = !!rlang::sym(xy[2]),
 					fill = !!rlang::sym(names(data)[1]))
-			ggplot2::geom_raster(mapping = mapping, data = dplyr::as_tibble(data), ...)
+			data = na.action(dplyr::as_tibble(data))
+			ggplot2::geom_raster(mapping = mapping, data = data, ...)
 		} else {  # rectilinear: use geom_rect, passing on cell boundaries
 			xy_max = paste0(xy, "_max")
 			if (is.null(mapping))
 				mapping = ggplot2::aes(xmin = !!rlang::sym(xy[1]), ymin = !!rlang::sym(xy[2]),
 					xmax = !!rlang::sym(xy_max[1]), ymax = !!rlang::sym(xy_max[2]),
 					fill = !!rlang::sym(names(data)[1]))
-			ggplot2::geom_rect(mapping = mapping, data = dplyr::as_tibble(data, add_max = TRUE), ...)
+			data = na.action(dplyr::as_tibble(data, add_max = TRUE))
+			ggplot2::geom_rect(mapping = mapping, data = data, ...)
 		}
 	} else if (has_sfc(d)) {
 		if (is.null(mapping))

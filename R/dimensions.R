@@ -31,7 +31,7 @@ st_dimensions.dimensions = function(.x, ...) .x
 `st_dimensions<-.stars_proxy` = function(x, value) {
 	if (!is.null(attr(x, "call_list")))
 		stop("st_dimensions<- on a stars_proxy object only works if there is no call list")
-	NextMethod()
+	structure(NextMethod(), class = class(x))
 }
 
 
@@ -119,6 +119,9 @@ st_set_dimensions = function(.x, which, values = NULL, point = NULL, names = NUL
 	if (! is.null(values)) {
 		if (is.na(which))
 			stop("which should be a name or index of an existing dimensions")
+		if (inherits(values, "units") && names(d)[which] %in% attr(d, "raster")$xy 
+				&& !is.na(st_crs(.x)))
+			stop("units in x/y dimension values only allowed if object has no CRS")
 		if (inherits(values, "dimensions")) {
 			if (is.null(names))
 				names <- names(values)
@@ -132,8 +135,6 @@ st_set_dimensions = function(.x, which, values = NULL, point = NULL, names = NUL
 					") does not match length of dimension", which, "(", dim(.x)[which], ")"))
 		}
 		d[[which]] = create_dimension(values = values, point = point %||% d[[which]]$point, ...)
-		if (! is.null(names) && length(names) == 1)
-			base::names(d)[which] = names
 		r = attr(d, "raster")
 		if (isTRUE(r$curvilinear)) {
 			# FIXME: there's much more that should be checked for curvilinear grids...
@@ -143,9 +144,17 @@ st_set_dimensions = function(.x, which, values = NULL, point = NULL, names = NUL
 		}
 #		else if (inherits(values, "sfc"))
 #			base::names(d)[which] = "sfc"
-	} else if (!is.null(point) && is.logical(point)) {
+	}
+	if (!is.null(point) && is.logical(point)) {
 		d[[which]]$point = point
-	} else if (!missing(names)) {
+	}
+	if (! missing(xy)) {
+		stopifnot(length(xy) == 2)
+		r = attr(d, "raster")
+		r$dimensions = as.character(xy)
+		attr(d, "raster") = r
+	}
+	if (!missing(names)) {
 		if (length(d) != length(names) && length(names) != 1)
 			stop("length of names should match number of dimensions")
 		r = attr(d, "raster")
@@ -163,13 +172,10 @@ st_set_dimensions = function(.x, which, values = NULL, point = NULL, names = NUL
 		}
 		attr(d, "raster") = r
 		base::names(d) = new_names
-	} else if (! missing(xy)) {
-		stopifnot(length(xy) == 2)
-		r = attr(d, "raster")
-		r$dimensions = as.character(xy)
-		attr(d, "raster") = r
-	} else
+	}
+	if (length(list(...)))
 		d[[which]] = create_dimension(from = 1, to = dim(.x)[which], ...)
+
 	if (inherits(.x, "stars_proxy"))
 		structure(.x, dimensions = d)
 	else
@@ -228,7 +234,7 @@ regular_intervals = function(x, epsilon = 1e-10) {
 	if (length(x) <= 1)
 		FALSE
 	else {
-		ud = if (is.atomic(x) && (is.numeric(x) || inherits(x, c("POSIXt", "Date"))))
+		ud = if (is.atomic(x) && (is.numeric(x) || inherits(x, c("POSIXt", "Date", "PCICt"))))
 				unique(diff(x))
 			else {
 				if (inherits(x, "intervals") && identical(tail(x$end, -1), head(x$start, -1)))
@@ -275,7 +281,7 @@ create_dimension = function(from = 1, to, offset = NA_real_, delta = NA_real_,
 		else if (inherits(example, "Date"))
 			refsys = "Date"
 		else if (inherits(example, "PCICt"))
-			refsys = "PCICt"
+			refsys = paste0("PCICt_", attr(example, "cal"))
 		else if (inherits(example, "units"))
 			refsys = "udunits"
 
@@ -364,17 +370,30 @@ create_dimensions_from_gdal_meta = function(dims, pr) {
 	# handle band descriptions, if present:
 	if (!is.null(lst$band) && !is.null(pr$descriptions) && all(pr$descriptions != ""))
 		lst$band$values = pr$descriptions
+	else if (!is.null(pr$band_meta)) {
+		bm = unlist(pr$band_meta)
+		if (any(a <- grepl("DESCRIPTION=", bm)))
+			lst$band$values = substring(bm[a], 13)
+	}
 	# set up raster:
-	raster = get_raster(affine = pr$geotransform[c(3,5)], dimensions = c("x", "y"), curvilinear = FALSE)
+	raster = get_raster(affine = pr$geotransform[c(3,5)],
+						dimensions = c("x", "y"),
+						curvilinear = FALSE, 
+						blocksizes = pr$blocksizes)
 	create_dimensions(lst, raster)
 }
 
-get_raster = function(affine = rep(0, 2), dimensions = c("x", "y"), curvilinear = FALSE) {
-	if (any(is.na(affine))) {
-		# warning("setting NA affine values to zero")
+get_raster = function(affine = rep(0, 2), dimensions = c("x", "y"),
+					  curvilinear = FALSE, blocksizes = NULL) {
+	if (any(is.na(affine)))
 		affine = c(0, 0)
-	}
-	structure(list(affine = affine, dimensions = dimensions, curvilinear = curvilinear), class = "stars_raster")
+	if (!is.null(blocksizes))
+		colnames(blocksizes) = dimensions # columns, rows!
+	structure(list(affine = affine,
+				   dimensions = dimensions,
+				   curvilinear = curvilinear,
+				   blocksizes = blocksizes), 
+		  class = "stars_raster")
 }
 
 get_geotransform = function(x) {
@@ -387,7 +406,8 @@ get_geotransform = function(x) {
 	else {
 		xd = x[[ r$dimensions[1] ]]
 		yd = x[[ r$dimensions[2] ]]
-		c(xd$offset, xd$delta, r$affine[1], yd$offset, r$affine[2], yd$delta)
+		c(as.numeric(xd$offset), as.numeric(xd$delta), r$affine[1], 
+		  as.numeric(yd$offset), r$affine[2], as.numeric(yd$delta))
 	}
 }
 
@@ -409,6 +429,23 @@ get_val = function(pattern, meta) {
 		strsplit(meta[i], "=")[[1]][2]
 	else
 		NA_character_
+}
+
+get_pcict = function(values, unts, calendar) {
+	stopifnot(calendar %in% c("360_day", "365_day", "noleap"))
+	if (!requireNamespace("PCICt", quietly = TRUE))
+		stop("package PCICt required, please install it first") # nocov
+	origin = 0:1
+	units(origin) = try_as_units(unts)
+	delta = if (grepl("months", unts)) { # for these calendars, length of months are different from udunits representation
+			if (calendar == "360_day")
+				set_units(30 * 24 * 3600, "s", mode = "standard")
+			else
+				set_units((365./12) * 24 * 3600, "s", mode = "standard")
+		} else
+			set_units(as_units(diff(as.POSIXct(origin))), "s", mode = "standard")
+	origin_txt = as.character(as.POSIXct(origin[1]))
+	PCICt::as.PCICt(values * as.numeric(delta), calendar, origin_txt)
 }
 
 parse_netcdf_meta = function(pr, name) {
@@ -439,30 +476,16 @@ parse_netcdf_meta = function(pr, name) {
 					rhs = get_val(paste0("NETCDF_DIM_", v), meta) # nocov # FIXME: find example?
 					pr$dim_extra[[v]] = as.numeric(rhs)           # nocov
 				}
-
 				cal = get_val(paste0(v, "#calendar"), meta)
 				u =   get_val(paste0(v, "#units"), meta)
 				if (! is.na(u)) {
-					if (v == "time" && !is.na(cal) && cal %in% c("360_day", "365_day", "noleap")) {
-						origin = 0:1
-						units(origin) = try_as_units(u)
-						delta = if (grepl("months", u)) {
-								if (cal == "360_day")
-									set_units(30 * 24 * 3600, "s", mode = "standard")
-								else
-									set_units((365/12) * 24 * 3600, "s", mode = "standard")
-							} else
-								set_units(as_units(diff(as.POSIXct(origin))), "s", mode = "standard")
-						origin_txt = as.character(as.POSIXct(origin[1]))
-						if (!requireNamespace("PCICt", quietly = TRUE))
-							stop("package PCICt required, please install it first") # nocov
-						pr$dim_extra[[v]] = PCICt::as.PCICt(pr$dim_extra[[v]] * as.numeric(delta), cal, origin_txt)
-					} else {
+					if (v %in% c("t", "time") && !is.na(cal) && cal %in% c("360_day", "365_day", "noleap"))
+						pr$dim_extra[[v]] = get_pcict(pr$dim_extra[[v]], u, cal)
+					else {
 						units(pr$dim_extra[[v]]) = try_as_units(u)
-						if (v == "time" && !inherits(try(as.POSIXct(pr$dim_extra[[v]]), silent = TRUE),
-								"try-error")) {
+						if (v %in% c("t", "time") && !inherits(try(as.POSIXct(pr$dim_extra[[v]]), silent = TRUE),
+								"try-error"))
 							pr$dim_extra[[v]] = as.POSIXct(pr$dim_extra[[v]])
-						}
 					}
 				}
 			}
@@ -585,7 +608,7 @@ as.data.frame.dimensions = function(x, ..., digits = 6, usetz = TRUE, stars_crs 
 		}
 	)
 	mformat = function(x, ..., digits) {
-		if (inherits(x, c("PCICt", "POSIXct"))) 
+		if (inherits(x, c("PCICt", "POSIXct")))
 			format(x, ..., usetz = usetz)
 		else
 			format(x, digits = digits, ...) 
@@ -620,6 +643,8 @@ identical_dimensions = function(lst, ignore_resolution = FALSE, tolerance = 0) {
 					d1[[j]]$delta = d1[[j]]$to = NA_real_
 				for (j in seq_along(di))
 					di[[j]]$delta = di[[j]]$to = NA_real_
+				attr(d1, "raster")$blocksizes = NULL
+				attr(di, "raster")$blocksizes = NULL
 			}
 			if (! isTRUE(all.equal(d1, di, tolerance = tolerance)))
 				return(FALSE)
@@ -706,4 +731,15 @@ dimnames.stars = function(x) {
 		names(dim(x[[i]])) = value
 	names(attr(x, "dimensions")) = value
 	x
+}
+
+#' @export
+as.POSIXct.stars = function(x, ...) {
+	d = st_dimensions(x)
+	if (any(w <- sapply(d, function(i) any(grepl("PCICt", i$refsys))))) {
+		e = expand_dimensions(d)
+		for (i in which(w))
+			d[[i]] = create_dimension(values = as.POSIXct(e[[i]]))
+	}
+	structure(x, dimensions = d)
 }

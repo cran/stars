@@ -1,9 +1,9 @@
 #' spatially or temporally aggregate stars object
 #' 
-#' spatially or temporally aggregate stars object, returning a data cube with lower spatial or temporal resolution 
+#' spatially or temporally aggregate stars object, returning a data cube with lower spatial or temporal resolution
 #' 
 #' @param x object of class \code{stars} with information to be aggregated
-#' @param by object of class \code{sf} or \code{sfc} for spatial aggregation, for temporal aggregation a vector with time values (\code{Date}, \code{POSIXct}, or \code{PCICt}) that is interpreted as a sequence of left-closed, right-open time intervals or a string like "months", "5 days" or the like (see \link{cut.POSIXt}); if by is an object of class \code{stars}, it is converted to sfc by \code{st_as_sfc(by, as_points = FALSE)} thus ignoring its time component.
+#' @param by object of class \code{sf} or \code{sfc} for spatial aggregation, for temporal aggregation a vector with time values (\code{Date}, \code{POSIXct}, or \code{PCICt}) that is interpreted as a sequence of left-closed, right-open time intervals or a string like "months", "5 days" or the like (see \link{cut.POSIXt}); if by is an object of class \code{stars}, it is converted to sfc by \code{st_as_sfc(by, as_points = FALSE)} thus ignoring its time component. Note: each pixel is assigned to only a single group (in the order the groups occur) so non-overlapping spatial features and temporal windows are recommended.
 #' @param FUN aggregation function, such as \code{mean}
 #' @param ... arguments passed on to \code{FUN}, such as \code{na.rm=TRUE}
 #' @param drop logical; ignored
@@ -26,7 +26,8 @@
 #' by_t = "2 days"
 #' x_agg_time2 = aggregate(x, by = by_t, FUN = max) 
 #' st_get_dimension_values(x_agg_time2, "time")
-#' x_agg_time - x_agg_time2
+#' #TBD:
+#' #x_agg_time - x_agg_time2
 #'
 #' # aggregate time dimension in format POSIXct
 #' x = st_set_dimensions(x, 4, values = as.POSIXct(c("2018-07-31", 
@@ -37,16 +38,19 @@
 #' by_t = as.POSIXct(c("2018-07-31", "2018-08-02"))
 #' x_agg_posix = aggregate(x, by = by_t, FUN = max)
 #' st_get_dimension_values(x_agg_posix, "time")
-#' x_agg_time - x_agg_posix
+#' #TBD:
+#' # x_agg_time - x_agg_posix
 #' aggregate(x, "2 days", mean)
-#' # Spatial aggregation, see https://github.com/r-spatial/stars/issues/299
-#' prec_file = system.file("nc/test_stageiv_xyt.nc", package = "stars")
-#' prec = read_ncdf(prec_file, curvilinear = c("lon", "lat"))
-#' prec_slice = dplyr::slice(prec, index = 17, along = "time")
-#' nc = sf::read_sf(system.file("gpkg/nc.gpkg", package = "sf"), "nc.gpkg")
-#' nc = st_transform(nc, st_crs(prec_slice))
-#' agg = aggregate(prec_slice, st_geometry(nc), mean)
-#' plot(agg)
+#' if (require(ncmeta, quietly = TRUE)) {
+#'  # Spatial aggregation, see https://github.com/r-spatial/stars/issues/299
+#'  prec_file = system.file("nc/test_stageiv_xyt.nc", package = "stars")
+#'  prec = read_ncdf(prec_file, curvilinear = c("lon", "lat"))
+#'  prec_slice = dplyr::slice(prec, index = 17, along = "time")
+#'  nc = sf::read_sf(system.file("gpkg/nc.gpkg", package = "sf"), "nc.gpkg")
+#'  nc = st_transform(nc, st_crs(prec_slice))
+#'  agg = aggregate(prec_slice, st_geometry(nc), mean)
+#'  plot(agg)
+#' }
 #'
 #' # example of using a function for "by": aggregate by month-of-year
 #' d = c(10, 10, 150)
@@ -66,15 +70,20 @@ aggregate.stars = function(x, by, FUN, ..., drop = FALSE, join = st_intersects,
 		as_points = any(st_dimension(by) == 2, na.rm = TRUE), rightmost.closed = FALSE,
 		left.open = FALSE, exact = FALSE) {
 
-	if (inherits(by, "stars")) {
-		by = st_as_sfc(by, as_points = FALSE)
-		# and if not, then use st_normalize(by)
-	}
-
-	classes = c("sf", "sfc", "POSIXct", "Date", "PCICt", "character", "function")
+	classes = c("sf", "sfc", "POSIXct", "Date", "PCICt", "character", "function", "stars")
 	if (!is.function(by) && !inherits(by, classes))
 		stop(paste("currently, only `by' arguments of class", 
 			paste(classes, collapse= ", "), "supported"))
+	if (inherits(by, "stars"))
+		by = st_as_sfc(by, as_points = FALSE) # and if not, then use st_normalize(by)
+	if (inherits(by, "sf"))
+		by = st_geometry(by) # sfc
+
+	if (inherits(by, "sf")) {
+		geom = attr(by, "sf_column")
+		by = st_geometry(by)
+	} else
+		geom = "geometry"
 
 	if (missing(FUN))
 		stop("missing FUN argument")
@@ -102,17 +111,16 @@ aggregate.stars = function(x, by, FUN, ..., drop = FALSE, join = st_intersects,
 			x = lapply(x, function(y) { y[is.na(y)] = 0.0; y })
 		agg = lapply(x, function(a) array(t(m) %*% array(a, dim = new_dim), dim = out_dim))
 		# %*% dropped units, so to propagate units, if present we need to copy (mean/sum):
+		d = create_dimensions(append(setNames(list(create_dimension(values = by)), geom),
+			st_dimensions(x)[-(1:2)]))
 		for (i in seq_along(x)) {
 			if (inherits(x[[i]], "units")) 
 				agg[[i]] = units::set_units(agg[[i]], units(x[[i]]), mode = "standard")
+			names(dim(agg[[i]])) = names(d)
 		}
-		ret = st_as_stars(agg, dimensions = 
-			create_dimensions(append(list(sfc = create_dimension(values = by)),
-			st_dimensions(x)[-(1:2)])))
-		return(ret)
+		return(st_as_stars(agg, dimensions = d))
 	}
 
-	geom = "geometry"
 	drop_y = FALSE
 	grps = if (inherits(by, c("sf", "sfc"))) {
 			x = if (has_raster(x)) {
@@ -123,11 +131,6 @@ aggregate.stars = function(x, by, FUN, ..., drop = FALSE, join = st_intersects,
 					ndims = 1
 					st_upfront(x, which_sfc(x))
 				}
-
-			if (inherits(by, "sf")) {
-				geom = attr(by, "sf_column")
-				by = st_geometry(by)
-			}
 	
 			# find groups:
 			# don't use unlist(join(x_geoms, by)) as this would miss the empty groups, 
@@ -195,7 +198,9 @@ aggregate.stars = function(x, by, FUN, ..., drop = FALSE, join = st_intersects,
 					NULL
 			} else
 				NULL
-		x[[i]] = units::set_units(agr_grps(a, grps, seq_along(by), FUN, ...), u, mode = "standard")
+		x[[i]] = agr_grps(a, grps, seq_along(by), FUN, ...)
+		if (is.numeric(x[[i]]) && !is.null(u))
+			x[[i]] = units::set_units(x[[i]], u, mode = "standard")
 	}
 
 	# reconstruct dimensions table:
@@ -207,7 +212,7 @@ aggregate.stars = function(x, by, FUN, ..., drop = FALSE, join = st_intersects,
 	if (drop_y)
 		d = d[-2] # y
 
-	newdim = c(sfc = length(by), dims[-(1:ndims)])
+	newdim = setNames(c(sfc = length(by), dims[-(1:ndims)]), names(d))
 	st_stars(lapply(x, structure, dim = newdim), dimensions = d)
 }
 

@@ -2,6 +2,7 @@ context("read ncdf")
 f <- system.file("nc/reduced.nc", package = "stars")
 
 test_that("basic reduced comes back as expected", {
+  skip_if_not_installed("ncmeta")
   nc <- read_ncdf(f)
   expect_equal(names(nc), c("sst", "anom", "err", "ice"))
   st_dim <- st_dimensions(nc)
@@ -13,16 +14,19 @@ test_that("basic reduced comes back as expected", {
 })
 
 test_that("variable subsetting", {
+  skip_if_not_installed("ncmeta")
   nc <- read_ncdf(f, var = c("anom"))
   expect_equal(names(nc), "anom")
 })
 
 test_that("domain subsetting", {
-  nc <- read_ncdf(f, ncsub = cbind(start = c(1, 1, 1, 1),
+  skip_if_not_installed("ncmeta")
+  nc <- read_ncdf(f, ncsub = cbind(start = c(20, 1, 1, 1),
                                    count = c(10, 12, 1, 1)))
   st_dim <- st_dimensions(nc)
   expect_equal(st_dim$lon$to - st_dim$lon$from, 9)
   expect_equal(st_dim$lat$to - st_dim$lat$from, 11)
+  expect_equal(st_dim$lon$offset, 37)
 
   expect_error(nc <- read_ncdf(f, ncsub = cbind(start = c(1, 1, 1, 1),
                                    count = c(200, 12, 1, 1))),
@@ -44,14 +48,30 @@ test_that("domain subsetting", {
 })
 
 test_that("normal bcsd", {
-  nc <- read_ncdf(system.file("nc/bcsd_obs_1999.nc", package = "stars"))
+  skip_if_not_installed("ncmeta")
+  f <- system.file("nc/bcsd_obs_1999.nc", package = "stars")
+  nc <- read_ncdf(f, package = "stars")
   expect_equal(names(nc), c("pr", "tas"))
   st_dim <- st_dimensions(nc)
   expect_equal(names(st_dim), c("longitude", "latitude", "time"))
   expect_equal(st_dim$longitude$delta, 0.125)
+  
+  file.copy(f, (tf <- tempfile()))
+  
+  nc_tf <- RNetCDF::open.nc(tf, write = TRUE)
+  
+  RNetCDF::var.put.nc(nc_tf, "longitude", 
+  					(360 + stars::st_get_dimension_values(nc, "longitude")))
+  
+  RNetCDF::close.nc(nc_tf)
+  
+  nc <- read_ncdf(tf, package = "stars")
+  
+  expect_equal(stars::st_get_dimension_values(nc, "longitude")[1], -84.9375)
 })
 
 test_that("non canonical axis order is handled right", {
+  skip_if_not_installed("ncmeta")
   expect_warning(nc <- read_ncdf(system.file("nc/3B42_Daily.19991231.7.test.nc",
                                              package = "stars")),
                  "Non-canonical axis order found, attempting to correct.")
@@ -62,6 +82,7 @@ test_that("non canonical axis order is handled right", {
 
 
 test_that("euro cordex extra dimvars", {
+  skip_if_not_installed("ncmeta")
   f <- unzip(zipfile = system.file("nc/EURO-CORDEX_81_DOMAIN000_mask_int.nc.zip", package = "stars"), exdir = tempdir())
 
   expect_warning(out <- read_ncdf(f, var = "mask"),
@@ -78,6 +99,8 @@ test_that("euro cordex extra dimvars", {
   out1 <- suppressWarnings(read_ncdf(f, var = "mask", curvilinear = c("xlat", "xlon")))
   out2 <- suppressWarnings(read_ncdf(f, var = "mask", curvilinear = c("xlon", "xlat")))
 
+  expect_equal(sf::st_crs(out1), sf::st_crs(NULL))
+  
   expect_true(attr(st_dimensions(out1), "raster")$curvilinear)
   expect_true(attr(st_dimensions(out2), "raster")$curvilinear)
 
@@ -85,11 +108,12 @@ test_that("euro cordex extra dimvars", {
 })
 
 test_that("curvilinear", {
+  skip_if_not_installed("ncmeta")
   f <- system.file("nc/test_stageiv_xyt.nc", package = "stars")
 
-  warn <- capture_warnings(out <-read_ncdf(f, curvilinear = c(X = "lon", Y = "lat")))
+  out <-read_ncdf(f, curvilinear = c(X = "lon", Y = "lat"))
 
-  expect_match(warn[1], "bounds for time seem to be reversed; reverting them")
+  # expect_match(warn[1], "bounds for time seem to be reversed; reverting them")
 
   st_dim <- st_dimensions(out)
 
@@ -98,7 +122,14 @@ test_that("curvilinear", {
   expect_true(all(st_dim$y$values < 38 & st_dim$y$values > 32))
 
   expect_equal(dim(st_dim$y$values), setNames(c(87, 118), c("x", "y")))
-
+  
+  nc <- RNetCDF::open.nc(f)
+  
+  expect_equal(st_get_dimension_values(st_dim, "time"), 
+  			 RNetCDF::utcal.nc(RNetCDF::att.get.nc(nc, "time", "units"),
+  			 				  RNetCDF::var.get.nc(nc, "time"), type = "c"))
+  RNetCDF::close.nc(nc)
+  
   # Should also find the curvilinear grid.
   suppressWarnings(out <- read_ncdf(f, var = "Total_precipitation_surface_1_Hour_Accumulation"))
 
@@ -107,6 +138,7 @@ test_that("curvilinear", {
 })
 
 test_that("curvilinear broked", {
+  skip_if_not_installed("ncmeta")
   f <- system.file("nc/test_stageiv_xyt_borked.nc", package = "stars")
 
   expect_error(suppressMessages(read_ncdf(f, curvilinear = c("lon", "lat", "time"))),
@@ -115,7 +147,7 @@ test_that("curvilinear broked", {
   expect_error(read_ncdf(f, curvilinear = c("time", "time_bounds")),
                "Specified curvilinear coordinates are not 2-dimensional.")
 
-  expect_warning(suppressMessages(read_ncdf(f, curvilinear = c("lon", "time_bounds"))),
+  expect_error(suppressMessages(read_ncdf(f, curvilinear = c("lon", "time_bounds"))),
                "Specified curvilinear coordinate variables not found as X/Y coordinate variables.")
 
   warn <- capture_warnings(out <-read_ncdf(f, curvilinear = c(X = "lon", Y = "lat")))
@@ -129,9 +161,13 @@ test_that("curvilinear broked", {
   expect_true(all(st_dim$x$values < 38 & st_dim$x$values > 32))
 
   expect_equal(dim(st_dim$y$values), setNames(c(118, 87), c("y", "x")))
+  
+  expect_equal(as.character(st_dim$time$values), "2018-09-14 05:00:00")
+  
 })
 
 test_that("high-dim from rasterwise", {
+  skip_if_not_installed("ncmeta")
   f <- system.file("nc/test-1.nc", package = "stars")
   out <- suppressWarnings(read_ncdf(f, var = "a"))
 
@@ -139,6 +175,8 @@ test_that("high-dim from rasterwise", {
 })
 
 test_that("timeseries.nc", {
+  skip_if_not_installed("ncmeta")
+  skip_if_not_installed("ncdfgeom")
   skip_on_os("solaris")
 
   f <- system.file("nc/timeseries.nc", package = "stars")
@@ -165,6 +203,7 @@ test_that("timeseries.nc", {
 })
 
 test_that("curvilinear 2", {
+  skip_if_not_installed("ncmeta")
   f <- system.file("nc/c201923412.out1_4.nc", package = "stars")
   nc <- read_ncdf(f)
 
@@ -176,15 +215,17 @@ test_that("curvilinear 2", {
 })
 
 test_that("lon cross 360", {
+  skip_if_not_installed("ncmeta")
   f <- system.file("nc/test_adaptor.cams_regional_fc.nc", package = "stars")
 
-  nc <- read_ncdf(f)
+  suppressWarnings(nc <- read_ncdf(f))
 
   expect_true(head(st_dimensions(nc)$longitude$values, 1) < 0 &
                 tail(st_dimensions(nc)$longitude$values, 1) > 0)
 })
 
 test_that("4d not 4d", {
+  skip_if_not_installed("ncmeta")
   f <- system.file("nc/sub.nc", package = "stars")
 
   nc <- read_ncdf(f)
@@ -195,4 +236,13 @@ test_that("4d not 4d", {
 
   expect_equal(dim$level$to, 2)
 
+})
+
+test_that("units are right with lcc km", {
+	skip_if_not_installed("ncmeta")
+	f <- system.file("nc/lcc_km.nc", package = "stars")
+	
+	nc <- read_ncdf(f)
+	
+	expect_equal(units(sf::st_crs(nc)$ud_unit)$numerator, "km")
 })

@@ -26,6 +26,7 @@ st_align = function(bb, d) {
 #' @param options character; options vector for \code{GDALRasterize}
 #' @param align logical; if \code{TRUE}, \code{template} contain the geometry alignment, 
 #' informing target resolution and offset only.
+#' @param proxy logical; should a proxy object be returned?
 #' @param ... arguments passed on to \link{st_as_stars}
 #' @examples
 #' demo(nc, echo = FALSE, ask = FALSE)
@@ -52,7 +53,7 @@ st_align = function(bb, d) {
 st_rasterize = function(sf, template = guess_raster(sf, ...) %||% 
 			st_as_stars(st_bbox(sf), values = NA_real_, ...), 
 		file = tempfile(), driver = "GTiff", options = character(0),
-		align = FALSE, ...) {
+		align = FALSE, proxy = FALSE, ...) {
 
 	if (align) {
 		if (missing(template))
@@ -61,8 +62,10 @@ st_rasterize = function(sf, template = guess_raster(sf, ...) %||%
 		bb = st_align(st_bbox(sf), d <- st_dimensions(st_normalize(template)))
 		dx = d[[1]]$delta
 		dy = d[[2]]$delta
-		template = st_as_stars(bb, values = NA_real_, dx = dx, dy = dy,
-			nx = round(diff(bb[c("xmin", "xmax")])/dx), ny = round(diff(bb[c("ymin", "ymax")])/dx))
+		template = st_as_stars(bb, values = 0.0, dx = dx, dy = dy,
+			nx = round(diff(bb[c("xmin", "xmax")])/dx), 
+			ny = round(diff(bb[c("ymin", "ymax")])/dy),
+			proxy = proxy)
 	} else
 		template = st_normalize(template)
 	is_numeric = function(x) is.numeric(x) || is.factor(x)
@@ -80,48 +83,50 @@ st_rasterize = function(sf, template = guess_raster(sf, ...) %||%
 	for (i in which(sapply(sf, inherits, "factor"))) # factors:
 		sf[[i]] = as.numeric(sf[[i]])
 	sf::gdal_rasterize(sf, template, get_geotransform(template), file, driver, options)
-	ret = read_stars(file, driver = driver)
-	if (length(dim(ret)) > 2)
-		ret = split(ret)
-	for (i in seq_along(ret)) {
-		ret[[i]][is.nan(ret[[i]])] = NA_real_
-		if (inherits(sf[[i]], "units"))
-			units(ret[[i]]) = units(sf[[i]])
-		if (is.factor(attrs[[i]]))
-			ret[[i]] = structure(ret[[i]], class = "factor", levels = levels(attrs[[i]]))
+	ret = read_stars(file, driver = driver, proxy = proxy)
+	if (!proxy) {
+		if (length(dim(ret)) > 2)
+			ret = split(ret)
+		for (i in seq_along(ret)) {
+			ret[[i]][is.nan(ret[[i]])] = NA_real_
+			if (inherits(sf[[i]], "units"))
+				units(ret[[i]]) = units(sf[[i]])
+			if (is.factor(attrs[[i]]))
+				ret[[i]] = structure(ret[[i]], class = "factor", levels = levels(attrs[[i]]))
+		}
 	}
 	setNames(ret, names(attrs))
 }
 
 guess_raster = function(x, ...) {
-	if (length(list(...)))
+	if (length(list(...))) # ... hints at other arguments meant at not guessing the raster
 		return(NULL)
+	get_cell_size = function(x) {
+		du = unique(diff(x))
+		if (length(du) > 1) {
+			if (var(du)/mean(du) < 1e-8) # some fuzz:
+				du = mean(du)
+			else if (all(du %% min(du) == 0)) # missing cols/rows:
+				du = min(du)
+			else
+				numeric(0) # no regular step size
+		} else
+			du
+	}
 	if (all(st_dimension(x) == 0)) { # POINT
 		cc = st_coordinates(x)
 		ux = sort(unique(cc[,1]))
+		if (length(dux <- get_cell_size(ux)) == 0)
+			return(NULL);
 		uy = sort(unique(cc[,2]))
-		dux = unique(diff(ux))
-		if (length(dux) > 1) {
-			if (var(dux)/mean(dux) < 1e-8)
-				dux = mean(dux)
-			else
-				return(NULL)
-		}
-		duy = unique(diff(uy))
-		if (length(duy) > 1) {
-			if (var(duy)/mean(duy) < 1e-8)
-				duy = mean(dux)
-			else
-				return(NULL)
-		}
-		if (length(ux) * length(uy) <= 2 * nrow(cc)) {
-			bb = st_bbox(x)
-			bb = st_bbox(setNames(c(bb["xmin"] - 0.5 * dux, 
-				bb["ymin"] - 0.5 * duy, 
-				bb["xmax"] + 0.5 * dux, 
-				bb["ymax"] + 0.5 * duy), c("xmin", "ymin", "xmax", "ymax")), crs = st_crs(x))
-			return(st_as_stars(bb, dx = dux, dy = duy))
-		}
+		if (length(duy <- get_cell_size(uy)) == 0)
+			return(NULL);
+		bb = st_bbox(x)
+		bb = st_bbox(setNames(c(bb["xmin"] - 0.5 * dux, 
+			bb["ymin"] - 0.5 * duy, 
+			bb["xmax"] + 0.5 * dux, 
+			bb["ymax"] + 0.5 * duy), c("xmin", "ymin", "xmax", "ymax")), crs = st_crs(x))
+		return(st_as_stars(bb, dx = dux, dy = duy))
 	}
 	NULL
 }
@@ -134,8 +139,12 @@ guess_raster = function(x, ...) {
 #' @param y_decreasing logical; if TRUE, (numeric) y values get a negative delta (decrease with increasing index)
 #' @name st_as_stars
 #' @examples
-#' data(Produc, package = "plm")
-#' st_as_stars(Produc, y_decreasing = FALSE)
+#' if (require(plm, quietly = TRUE)) {
+#'   data(Produc, package = "plm")
+#'   st_as_stars(Produc, y_decreasing = FALSE)
+#'  data(Produc, package = "plm")
+#'  st_as_stars(Produc, y_decreasing = FALSE)
+#' }
 st_as_stars.data.frame = function(.x, ..., dims = coords, xy = dims[1:2], y_decreasing = TRUE, coords = 1:2) {
 
 	if (missing(dims) && !missing(xy))
