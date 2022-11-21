@@ -19,7 +19,7 @@ make_label = function(x, i = 1) {
 #' @param downsample logical or numeric; if \code{TRUE} will try to plot not many more pixels than actually are visible, if \code{FALSE}, no downsampling takes place, if numeric, the number of pixels/lines/bands etc that will be skipped; see Details.
 #' @param nbreaks number of color breaks; should be one more than number of colors. If missing and \code{col} is specified, it is derived from that.
 #' @param breaks actual color breaks, or a method name used for \link[classInt]{classIntervals}.
-#' @param col colors to use for grid cells
+#' @param col colors to use for grid cells, or color palette function
 #' @param ... further arguments: for \code{plot}, passed on to \code{image.stars}; for \code{image}, passed on to \code{image.default} or \code{rasterImage}.
 #' @param key.pos integer; side to plot a color key: 1 bottom, 2 left, 3 top, 4 right; set to \code{NULL} to omit key. Ignored if multiple columns are plotted in a single function call. Default depends on plot size, map aspect, and, if set, parameter \code{asp}.
 #' @param key.width amount of space reserved for width of the key (labels); relative or absolute (using lcm)
@@ -33,6 +33,8 @@ make_label = function(x, i = 1) {
 #' Downsampling: a value for \code{downsample} of 0: no downsampling, 1: after every dimension value (pixel/line/band), one value is skipped (half of the original resolution), 2: after every dimension value, 2 values are skipped (one third of the original resolution), etc.
 #'
 #' To remove unused classes in a categorical raster, use the \link[base]{droplevels} function.
+#'
+#' When bitmaps show visual artefacts (Moiré effects), make sure that device \link{png} is used rather than \code{ragg::agg_png} as the latter uses antialiasing for filled polygons which causes this; see also https://github.com/r-spatial/stars/issues/573 .
 #' @export
 plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes = FALSE,
 		downsample = TRUE, nbreaks = 11, breaks = "quantile", col = grey(1:(nbreaks-1)/nbreaks),
@@ -53,6 +55,8 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 	x = st_normalize(x)
 	if (is.character(x[[1]])) # rgb values
 		key.pos = NULL
+	if (!missing(col) && is.function(col))
+		col = col(nbreaks - 1)
 	if (is.factor(x[[1]])) {
 		if (missing(col))
 			col = attr(x[[1]], "colors") %||% sf.colors(length(levels(x[[1]])), categorical = TRUE)
@@ -533,7 +537,7 @@ st_rgb <- function (x,
 		if(stretch){
 			stretch.method = "percent"
 		} else {
-			maxColorValue = max(maxColorValue, max(x[[1]]))
+			maxColorValue = max(maxColorValue, max(x[[1]], na.rm = TRUE))
 		}
 	}
 

@@ -11,7 +11,7 @@ vignette: >
 **For a better version of the stars vignettes see** https://r-spatial.github.io/stars/articles/
 
 ```{r, include = FALSE}
-knitr::opts_chunk$set(echo = TRUE, collapse = TRUE, comment = "#>")
+knitr::opts_chunk$set(echo = TRUE, collapse = TRUE, comment = "#>", dev = "png")
 suppressPackageStartupMessages(library(dplyr))
 knitr::opts_chunk$set(fig.height = 4.5)
 knitr::opts_chunk$set(fig.width = 6)

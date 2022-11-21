@@ -246,16 +246,17 @@ colrow_from_xy = function(x, obj, NA_outside = FALSE) {
 # not sure whether this introduces new problems.
 #		sign = ifelse(x[,1] < bb["xmin"], 1., ifelse(x[,1] > bb["xmax"], -1., 0.))
 #		x[,1] = x[,1] + sign * 360.
-		if (x[1,1] > bb["xmax"])
-				x[1,1] = x[1,1] - 360.
-		if (x[2,1] < bb["xmin"])
-				x[2,1] = x[2,1] + 360.
+		# one more try: https://github.com/r-spatial/stars/issues/563
+		ix = x[,1] > bb["xmax"] & !is.na(x[,1])
+		x[ix,1] = x[ix,1] - 360.
+		ix = x[,1] < bb["xmin"] & !is.na(x[,1])
+		x[ix,1] = x[ix,1] + 360.
 	}
 	if (!any(is.na(gt))) { # have geotransform
 		inv_gt = gdal_inv_geotransform(gt)
 		if (any(is.na(inv_gt)))
 			stop("geotransform not invertible")
-		ret = floor(xy_from_colrow(x, inv_gt) + 1.)# will return floating point col/row numbers!!
+		ret = floor(xy_from_colrow(x, inv_gt) + 1.) # will return floating point col/row numbers!!
 		if (NA_outside)
 			ret[ ret[,1] < 1 | ret[,1] > obj[[ xy[1] ]]$to | ret[,2] < 1 | ret[,2] > obj[[ xy[2] ]]$to, ] = NA
 		ret
@@ -273,6 +274,41 @@ colrow_from_xy = function(x, obj, NA_outside = FALSE) {
 		stop("colrow_from_xy not supported for curvilinear objects")
 	} else
 		stop("colrow_from_xy not supported for this object")
+}
+
+st_cells_from_row_col = function(x, rows, cols) {
+	nc = dim(x)[1] # ncols
+	(rows - 1) * nc + cols
+}
+
+st_cells_from_xy = function(x, xy) {
+	x = st_upfront(x)
+	cr = colrow_from_xy(xy, x, NA_outside = TRUE)
+	st_cells_from_row_col(x, cr[,2], cr[,1])
+}
+
+
+#' return the cell index corresponding to the location of a set of points
+#' 
+#' return the cell index corresponding to the location of a set of points
+#' @param x object of class \code{stars}
+#' @param sf object of class \code{sf} or \code{sfc}
+#' @examples
+#' set.seed(1345)
+#' st_bbox(L7_ETMs) |> 
+#'   st_as_sfc() |> 
+#'   st_sample(10) -> pts 
+#' (x <- st_cells(L7_ETMs, pts))
+#' # get the pixel values (first band only):
+#' st_as_stars(L7_ETMs)[[1]][x]
+#' # get pixel values for all bands:
+#' st_as_stars(L7_ETMs) |> split() |> sapply(`[`, x)
+#' # compare with st_extract():
+#' st_as_stars(L7_ETMs) |> split() |> st_extract(pts)
+#' @export
+st_cells = function(x, sf) {
+	stopifnot(inherits(x, "stars"), inherits(sf, c("sf", "sfc")), st_crs(x) == st_crs(sf))
+	st_cells_from_xy(x, st_coordinates(sf))
 }
 
 has_rotate_or_shear = function(x) {
@@ -321,7 +357,19 @@ which_time = function(x) {
 		x = st_dimensions(x)
 	which(sapply(x, function(i) 
 		inherits(i$values, c("POSIXct", "Date", "PCICt")) ||
-		(is.character(i$refsys) && i$refsys %in% c("POSIXct", "Date", "PCICt"))))
+		(is.character(i$refsys) && (i$refsys %in% c("POSIXct", "Date", "PCICt") ||
+									grepl("PCICt", i$refsys)))))
+}
+
+#' @export
+time.stars = function(x, ..., which = 1) {
+	w = which_time(x)
+	if (length(w) > 1 && missing(which))
+		warning(paste("using the first of", length(w), "time dimensions"))
+	if (length(w) == 0)
+		stop("object does not have a time dimensions")
+	stopifnot(length(which) == 1)
+	expand_dimensions(x)[[ w[which] ]]
 }
 
 has_sfc = function(x) {
@@ -386,7 +434,7 @@ st_coordinates.dimensions = function(x, ...) {
 #' @name st_coordinates
 #' @export
 as.data.frame.stars = function(x, ..., add_max = FALSE, center = NA) {
-	data.frame(st_coordinates(x, add_max = add_max, center = center), 
+	data.frame(st_coordinates(x, add_max = add_max, center = center, ...), 
 		lapply(x, function(y) structure(y, dim = NULL)))
 }
 
@@ -395,6 +443,14 @@ add_units = function(x) {
 	paste(names(x), sapply(x, f))
 }
 
+#' print stars or dimensions object
+#' 
+#' print stars or dimensions object
+#' @name print_stars
+#' @param x object of class stars or of class dimensions
+#' @param n when prod(dim(x)) > 10 * n, the first n cells are used for attribute summary statistics
+#' @param abbrev number of characters to abbreviate attribute names to
+#' @param ... passed on to \code{as.data.frame.dimensions}
 #' @export
 print.stars = function(x, ..., n = 1e5, abbrev = 30) {
 	shorten = function(s) {
@@ -460,6 +516,14 @@ propagate_units = function(new, old) {
 	new
 }
 
+setNamesIfnn = function(x, nms) { # set names if not NULL
+	stopifnot(is.character(nms) || is.null(nms))
+	if (is.null(nms) || length(nms) != length(x))
+		x
+	else 
+		setNames(x, nms)
+}
+
 #' combine multiple stars objects, or combine multiple attributes in a single stars object into a single array
 #' 
 #' combine multiple stars objects, or combine multiple attributes in a single stars object into a single array
@@ -487,22 +551,15 @@ c.stars = function(..., along = NA_integer_, try_hard = FALSE, nms = names(list(
 	if (any(sapply(dots, function(x) inherits(x, "stars_proxy"))))
 		stop("convert stars_proxy objects to stars first using st_as_stars()")
 
-	if (length(dots) == 1) {
-		if (!missing(along))
-			warning("along argument ignored; maybe you wanted to use st_redimension?")
+	if (length(dots) == 1)
 		dots[[1]]
-	} else if (identical(along, NA_integer_)) { 
+	else if (identical(along, NA_integer_)) { 
 		# Case 1: merge attributes of several objects by simply putting them together in a single stars object;
 		# dim does not change:
-		if (identical_dimensions(dots, tolerance = tolerance)) {
-			ret = st_as_stars(do.call(c, lapply(dots, unclass)), dimensions = st_dimensions(dots[[1]]))
-			if (!missing(nms)) {
-				if (length(nms) != length(ret))
-					stop("length of argument nms must equal the number of attributes")
-				names(ret) = nms
-			}
-			ret
-		} else {
+		if (identical_dimensions(dots, tolerance = tolerance))
+			st_as_stars(setNamesIfnn(do.call(c, lapply(dots, unclass)), nms),
+						dimensions = st_dimensions(dots[[1]]))
+		else {
 			# currently catches only the special case of ... being a broken up time series:
 			along = sort_out_along(dots)
 			if (!is.na(along))
@@ -512,14 +569,16 @@ c.stars = function(..., along = NA_integer_, try_hard = FALSE, nms = names(list(
 			else {
 				d = lapply(dots, st_dimensions)
 				ident = c(TRUE, sapply(d[-1], identical, d[[1]]))
-				if (!all(ident))
+				if (!all(ident)) {
 					warning(paste(
 					"ignored subdataset(s) with dimensions different from first subdataset:", 
 					paste(which(!ident), collapse = ", "), 
 					"\nuse gdal_subdatasets() to find all subdataset names"))
-				setNames(st_as_stars(do.call(c, 
-						lapply(dots[ident], unclass)), dimensions = st_dimensions(dots[[1]])),
-						nms[ident])
+					if (!is.null(nms))
+						nms = nms[ident]
+				}
+				st_as_stars(setNamesIfnn(do.call(c, lapply(dots[ident], unclass)), nms),
+							dimensions = st_dimensions(dots[[1]]))
 			}
 		}
 	} else {
@@ -706,6 +765,9 @@ st_crs.dimensions = function(x, ...) {
 		else
 			stop(paste("crs of class", class(value), "not recognized"))
 
+	if (!is.na(st_crs(x)) && !is.na(value) && st_crs(x) != value)
+		warning("replacing CRS does not reproject data: use st_transform, or st_warp to warp to a new CRS")
+
 	# set CRS in dimensions:
 	xy = attr(x, "raster")$dimensions
 	if (!all(is.na(xy))) { # has x/y spatial dimensions:
@@ -714,8 +776,10 @@ st_crs.dimensions = function(x, ...) {
 	}
 
 	# set crs of sfc's, if any:
-	for (j in which_sfc(x))
+	for (j in which_sfc(x)) {
 		x[[ j ]]$refsys = value
+		st_crs(x[[ j ]]$values) = value
+	}
 	x
 }
 
@@ -772,7 +836,7 @@ merge.stars = function(x, y, ..., name = "attributes") {
 	if (!missing(y))
 		stop("argument y needs to be missing: merging attributes of x")
 	old_dim = st_dimensions(x)
-	out = st_redimension(x)
+	out = st_redimension(x, name = name)
 	new_dim = if (length(dots))
 			create_dimension(values = dots[[1]])
 		else
@@ -812,9 +876,10 @@ st_redimension = function(x, new_dims, along, ...) UseMethod("st_redimension")
 #' @param x object of class \code{stars}
 #' @param new_dims target dimensions: either a `dimensions` object or an integer vector with the dimensions' sizes
 #' @param along named list with new dimension name and values
+#' @param name character name of the new dimension
 #' @param ... ignored
 st_redimension.stars = function(x, new_dims = st_dimensions(x), 
-		along = list(new_dim = names(x)), ...) {
+		along = setNames(list(names(x)), name), ..., name = "new_dim") {
 
 	d = st_dimensions(x)
 	if (inherits(new_dims, "dimensions")) {
@@ -922,7 +987,13 @@ st_area.stars = function(x, ...) {
 
 #' @export
 drop_units.stars = function(x) {
-	st_stars(lapply(x, drop_units), dimensions = st_dimensions(x))
+	try_drop_units = function(x) {
+		if (inherits(x, "units"))
+			units::drop_units(x)
+		else
+			x
+	}
+	st_stars(lapply(x, try_drop_units), dimensions = st_dimensions(x))
 }
 
 #' Predict values, given a model object, for a stars or stars_proxy object
@@ -1045,4 +1116,39 @@ st_raster_type = function(x, dimension = character(0)) {
 		"affine"
 	else
 		"regular"
+}
+
+#' obtain (spatial) resolution of a stars object
+#'
+#' obtain resolution(s) of a stars object: by default only the (absolute) x/y raster dimensions, optionally all \code{delta} dimension parameters 
+#' @param x an object of class \code{stars}
+#' @param all logical; if FALSE return a vector with the x/y raster resolution
+#' @param absolute logical; only works when \code{all = FALSE}; if TRUE return absolute resolution values, if FALSE return \code{delta} values
+#' @returns if \code{all = FALSE} a vector with x/y raster resolutions, otherwise a list with delta values
+#' @examples
+#' st_res(L7_ETMs)
+#' st_res(L7_ETMs, absolute = FALSE)
+#' st_res(L7_ETMs, all = TRUE)
+#' if (require(starsdata)) {
+#'   paste0("netcdf/", c("avhrr-only-v2.19810901.nc", 
+#'     "avhrr-only-v2.19810902.nc",
+#'     "avhrr-only-v2.19810903.nc",
+#'     "avhrr-only-v2.19810904.nc")) |>
+#'   system.file(package = "starsdata") |>
+#'   read_stars(quiet = TRUE) -> x
+#'   st_res(x) |> print()
+#'   st_res(x, all = TRUE) |> print()
+#' }
+#' @export
+st_res = function(x, all = FALSE, absolute = !all) {
+	stopifnot(inherits(x, "stars"))
+	d = st_dimensions(x)
+	l = lapply(d, `[[`, "delta")
+	if (!all) {
+		xy = attr(d, "raster")$dimensions
+		l = unlist(l[xy])
+		if (absolute)
+			l = abs(l)
+	}
+	l
 }

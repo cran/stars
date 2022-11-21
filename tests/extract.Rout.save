@@ -1,7 +1,7 @@
 
-R version 4.1.1 (2021-08-10) -- "Kick Things"
-Copyright (C) 2021 The R Foundation for Statistical Computing
-Platform: x86_64-pc-linux-gnu (64-bit)
+R Under development (unstable) (2022-10-11 r83083 ucrt) -- "Unsuffered Consequences"
+Copyright (C) 2022 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -26,9 +26,9 @@ attribute(s):
     Min. 1st Qu. Median     Mean 3rd Qu. Max. NA's
 A1    94     108    124 130.1879     150  195  732
 dimension(s):
-   from to offset delta refsys point values x/y
-X1    1 61      0     1     NA FALSE   NULL [x]
-X2    1 99      0     1     NA FALSE   NULL [y]
+   from to offset delta point x/y
+X1    1 61      0     1 FALSE [x]
+X2    1 99      0     1 FALSE [y]
 > r = st_set_dimensions(r, 1, offset = 0, delta = 1)
 > r = st_set_dimensions(r, 2, offset = nrow(volcano), delta = -1)
 > 
@@ -146,4 +146,4 @@ X2    1 99      0     1     NA FALSE   NULL [y]
 > 
 > proc.time()
    user  system elapsed 
-  0.718   0.044   0.753 
+   1.07    0.25    1.31 

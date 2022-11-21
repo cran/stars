@@ -36,8 +36,7 @@
   attr = 1,
   asp = NULL,
   rgb = NULL,
-  maxColorValue = ifelse(inherits(rgb, "data.frame"), 255, max(x[[attr]], na.rm =
-    TRUE)),
+  maxColorValue = ifelse(inherits(rgb, "data.frame"), 255, max(x[[attr]], na.rm = TRUE)),
   xlab = if (!axes) "" else names(d)[1],
   ylab = if (!axes) "" else names(d)[2],
   xlim = st_bbox(extent)$xlim,
@@ -80,7 +79,7 @@
 
 \item{breaks}{actual color breaks, or a method name used for \link[classInt]{classIntervals}.}
 
-\item{col}{colors to use for grid cells}
+\item{col}{colors to use for grid cells, or color palette function}
 
 \item{key.pos}{integer; side to plot a color key: 1 bottom, 2 left, 3 top, 4 right; set to \code{NULL} to omit key. Ignored if multiple columns are plotted in a single function call. Default depends on plot size, map aspect, and, if set, parameter \code{asp}.}
 
@@ -143,6 +142,8 @@ plot stars object, with subplots for each level of first non-spatial dimension, 
 Downsampling: a value for \code{downsample} of 0: no downsampling, 1: after every dimension value (pixel/line/band), one value is skipped (half of the original resolution), 2: after every dimension value, 2 values are skipped (one third of the original resolution), etc.
 
 To remove unused classes in a categorical raster, use the \link[base]{droplevels} function.
+
+When bitmaps show visual artefacts (Moiré effects), make sure that device \link{png} is used rather than \code{ragg::agg_png} as the latter uses antialiasing for filled polygons which causes this; see also https://github.com/r-spatial/stars/issues/573 .
 
 use of an rgb color table is experimental; see https://github.com/r-spatial/mapview/issues/208
 

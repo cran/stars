@@ -4,7 +4,7 @@ maybe_normalizePath = function(.x, np = FALSE) {
 	if (is.function(.x) || !np || any(sapply(prefixes, has_prefix, x = .x)))
 		.x
 	else
-		normalizePath(.x, mustWork = FALSE)
+		setNames(normalizePath(.x, mustWork = FALSE), names(.x))
 }
 
 enc2utf8char = function(x) {
@@ -23,6 +23,22 @@ get_names = function(x) {
 
 is_functions = function(x) {
 	is.function(x) || all(sapply(x, is.function))
+}
+
+# strip common start & end parts of x, if remainder != ""
+unique_part = function(x, prefix) {
+	stopifnot(is.character(x), length(x) > 1)
+	original = x
+	while (nchar(x[1]) && length(unique(substr(x, 1, 1))) == 1)
+		x = sapply(x, substring, 2)
+	while ((n <- nchar(x[1])) && length(unique(substr(x, n, n))) == 1)
+		x = sapply(x, substring, 1, n - 1)
+	if (any(x == ""))
+		original
+	else if (is.character(prefix))
+		paste0(prefix, x)
+	else
+		x
 }
 
 
@@ -47,6 +63,7 @@ is_functions = function(x) {
 #' @param tolerance numeric; passed on to \link{all.equal} for comparing dimension parameters.
 #' @param ... passed on to \link{st_as_stars} if \code{curvilinear} was set
 #' @param exclude character; vector with category value(s) to exclude
+#' @param shorten logical or character; if \code{TRUE} and \code{length(.x) > 1}, remove common start and end parts of array names; if character a new prefix
 #' @return object of class \code{stars}
 #' @details In case \code{.x} contains multiple files, they will all be read and combined with \link{c.stars}. Along which dimension, or how should objects be merged? If \code{along} is set to \code{NA} it will merge arrays as new attributes if all objects have identical dimensions, or else try to merge along time if a dimension called \code{time} indicates different time stamps. A single name (or positive value) for \code{along} will merge along that dimension, or create a new one if it does not already exist. If the arrays should be arranged along one of more dimensions with values (e.g. time stamps), a named list can passed to \code{along} to specify them; see example.
 #'
@@ -98,9 +115,14 @@ is_functions = function(x) {
 read_stars = function(.x, ..., options = character(0), driver = character(0),
 		sub = TRUE, quiet = FALSE, NA_value = NA_real_, along = NA_integer_,
 		RasterIO = list(), proxy = is_functions(.x) || (!length(curvilinear) &&
-				is_big(.x, sub = sub, driver=driver, normalize_path = normalize_path, ...)),
+				is_big(.x, sub = sub, driver = driver, normalize_path = normalize_path, ...)),
 		curvilinear = character(0), normalize_path = TRUE, RAT = character(0),
-		tolerance = 1e-10, exclude = "") {
+		tolerance = 1e-10, exclude = "", shorten = TRUE) {
+
+	is_false = function(x) { length(x) == 1 && is.logical(x) && !x }
+	if (!is.list(.x) && length(.x) > 1 && is.null(names(.x)) && !is_false(shorten) &&
+				any((short_names <- unique_part(.x, shorten)) != .x))
+		names(.x) = short_names
 
 	x = if (is.list(.x)) {
 			f = function(y, np) enc2utf8char(maybe_normalizePath(y, np))
@@ -260,17 +282,21 @@ read_stars = function(.x, ..., options = character(0), driver = character(0),
 					ex = at %in% exclude
 					labels = labels[!ex]
 					levels = levels[!ex]
-					min_value = min(levels)
 					if (!is.null(co))
 						co = co[!ex]
 				} else
 					ex = rep(FALSE, length(levels))
-				f = factor(as.vector(data), levels = levels, labels = labels)
 			} else {
-				f = factor(as.vector(data))
-				ex = rep(FALSE, length(levels(f)))
+				levels = sort(unique(data))
+				labels = as.character(levels)
+				ex = rep(FALSE, length(levels))
 			}
-			data = structure(f, dim = dim(data), colors = co, exclude = ex)
+			# f = factor(as.vector(data), levels = levels, labels = labels) # is too costly;
+			# see https://github.com/r-spatial/stars/issues/565:
+			# construct factor array manually:
+			data = structure(match(as.integer(as.vector(data)), levels),
+							 levels = labels, dim = dim(data), 
+							 colors = co, exclude = ex, class = "factor")
 		}
 
 		dims = if (proxy) {
@@ -297,7 +323,7 @@ read_stars = function(.x, ..., options = character(0), driver = character(0),
 		ret = if (proxy) { # no data present, subclass of "stars":
 				st_stars_proxy(setNames(list(x), names(.x) %||% name_x),
 					create_dimensions_from_gdal_meta(dims, meta_data), NA_value = NA_value,
-					resolutions = NULL, RasterIO = RasterIO)
+					resolutions = NULL, RasterIO = RasterIO, file_dim = dims)
 			} else
 				st_stars(setNames(list(data), names(.x) %||% name_x),
 					create_dimensions_from_gdal_meta(dim(data), meta_data))
@@ -334,89 +360,4 @@ get_data_units = function(data) {
 		else
 			structure(data, units = NULL)
 	}
-}
-
-#' Read data using GDAL's multidimensional array API (experimental)
-#' 
-#' Read data using GDAL's multidimensional array API (experimental)
-#' @param x data source name
-#' @param variable name of the array to be read
-#' @param options array opening options
-#' @param raster names of the raster variables (default: first two)
-#' @param offset integer; offset for each dimension (pixels) of sub-array to read (default: 0,0,0,...) (requires sf >= 1.0-9)
-#' @param count integer; size for each dimension (pixels) of sub-array to read (default: read all) (requires sf >= 1.0-9)
-#' @param step integer; step size for each dimension (pixels) of sub-aray to read (requires sf >= 1.0-9)
-#' @param proxy logical; return proxy object? (not functional yet)
-#' @param debug logical; print debug info?
-#' @details it is assumed that the first two dimensions are easting / northing
-#' @param ... ignored
-#' @export
-read_mdim = function(x, variable = character(0), ..., options = character(0), raster = NULL,
-					 offset = integer(0), count = integer(0), step = integer(0), proxy = FALSE, 
-					 debug = FALSE) {
-#	ret = if (packageVersion("sf") >= "1.0-9")
-#			gdal_read_mdim(x, variable, options, rev(offset), rev(count), rev(step), proxy, debug)
-#		else
-#			gdal_read_mdim(x, variable, options)
-	if (packageVersion("sf") >= "1.0-9") {
-		message("update stars to > 0.5-6")
-		return(NULL)
-	}
-	ret = gdal_read_mdim(x, variable, options)
-	create_units = function(x) {
-		u <- attr(x, "units")
-		if (is.null(u) || u == "")
-			x
-		else {
-			if (!is.null(a <- attr(x, "attributes")) && !is.na(cal <- a["calendar"]) && 
-						cal %in% c("360_day", "365_day", "noleap"))
-				get_pcict(x, u, cal)
-			else {
-				u = units::set_units(x, u, mode = "standard")
-				p = try(as.POSIXct(u), silent = TRUE)
-				if (inherits(p, "POSIXct"))
-					p
-				else
-					u
-			}
-		}
-	}
-	l = rev(lapply(ret$dimensions, function(x) create_units(x$values[[1]])))
-	if (length(offset) != 0 || length(step) != 0 || length(count) != 0) {
-		if (length(offset) == 0)
-			offset = rep(0, length(l))
-		if (length(step) == 0)
-			step = rep(1, length(l))
-		if (length(count) == 0)
-			count = floor((lengths(l) - offset)/step)
-		for (i in seq_along(l)) {
-			l[[i]] = l[[i]][seq(from = offset[i]+1, length.out = count[i], by = step[i])]
-		}
-	}
-	d = mapply(function(x, i) create_dimension(values = x, is_raster = i %in% 1:2), l, seq_along(l),
-			SIMPLIFY = FALSE)
-	if (is.null(raster))
-		raster = get_raster(dimensions = names(d)[1:2])
-	else
-		raster = get_raster(dimensions = raster)
-
-	if (proxy)
-		stop("proxy not yet implemented in read_mdim()")
-
-	# handle array units:
-	for (i in seq_along(ret$array_list))
-		if (nchar(u <- attr(ret$array_list[[i]], "units")))
-			ret$array_list[[i]] = units::set_units(ret$array_list[[i]], u, mode = "standard")
-	lst = lapply(ret$array_list, function(x) structure(x, dim = rev(dim(x))))
-	st_set_crs(st_stars(lst, dimensions = structure(d, raster = raster, class = "dimensions")),
-		ret$srs)
-}
-
-write_mdim = function(x, filename, ...) {
-	stopifnot(inherits(x, "stars"))
-	to_units = function(x) if (inherits(x, c("POSIXct", "Date"))) units::as_units(x) else x
-	dimension_values = rev(lapply(expand_dimensions(x), to_units))
-	units = sapply(dimension_values, function(x) if(inherits(x, "units")) as.character(units(x)) else "")
-	gdal_write_mdim(st_as_stars(x), filename, dimension_values, units)
-	invisible(x)
 }

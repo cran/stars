@@ -1,8 +1,12 @@
 first_dimensions_match = function(e1, e2) {
 	d1 = st_dimensions(e1)
 	d2 = st_dimensions(e2)
+	crs1 = st_crs(d1)
+	crs2 = st_crs(d2)
+	st_crs(d1) = st_crs(NA)
+	st_crs(d2) = st_crs(NA)
 	n = min(length(d1), length(d2))
-	isTRUE(all.equal(d1[1:n], d2[1:n], check.attributes = FALSE))
+	isTRUE(all.equal(d1[1:n], d2[1:n], check.attributes = FALSE)) && crs1 == crs2
 }
 
 #' S3 Ops Group Generic Functions for stars objects
@@ -31,6 +35,8 @@ first_dimensions_match = function(e1, e2) {
 Ops.stars <- function(e1, e2) {
 	if (!missing(e2) && inherits(e1, "stars") && inherits(e2, "stars") && !first_dimensions_match(e1, e2))
 		stop("(first) dimensions of e1 and e2 do not match")
+	if (!inherits(e2, "stars"))
+		e1 = drop_units(e1)
 	ret = if (missing(e2))
 			lapply(e1, .Generic)
 		else if (!inherits(e2, "stars"))

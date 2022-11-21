@@ -1,7 +1,7 @@
 
-R version 4.2.1 (2022-06-23) -- "Funny-Looking Kid"
+R Under development (unstable) (2022-10-11 r83083 ucrt) -- "Unsuffered Consequences"
 Copyright (C) 2022 The R Foundation for Statistical Computing
-Platform: x86_64-pc-linux-gnu (64-bit)
+Platform: x86_64-w64-mingw32/x64 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -41,7 +41,7 @@ Type 'q()' to quit R.
 + st_crs(nit.c) = 4326
 + print(nit.c)
 + 
-+ if (capabilities()["png"]) {
++ if (FALSE && capabilities()["png"]) {
 +  png("nit1.png", 800, 800)
 +  plot(nit.c, breaks = "equal", reset = FALSE, axes = TRUE, as_points = TRUE, pch = 16)
 +  maps::map('world', add = TRUE, col = 'red')
@@ -67,7 +67,23 @@ Type 'q()' to quit R.
 + }
 + 
 + }
+/PRODUCT/longitude, 
+/PRODUCT/latitude, 
+/PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_summed_total_column, 
+stars object with 3 dimensions and 1 attribute
+attribute(s):
+                                           Min.      1st Qu.       Median
+nitrogendioxide_summed_total_c...  3.650813e-05 7.451281e-05 8.296968e-05
+                                           Mean      3rd Qu.         Max. NA's
+nitrogendioxide_summed_total_c...  8.581399e-05 9.397442e-05 0.0004535302  330
+dimension(s):
+     from  to refsys                                 values x/y
+x       1 450 WGS 84 [450x278] -5.81066 [°],...,30.9468 [°] [x]
+y       1 278 WGS 84  [450x278] 28.3605 [°],...,51.4686 [°] [y]
+time    1   1     NA                                   NULL    
+curvilinear grid
+There were 15 warnings (use warnings() to see them)
 > 
 > proc.time()
    user  system elapsed 
-  1.030   0.683   0.833 
+   2.79    0.25    3.03 

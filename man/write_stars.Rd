@@ -16,11 +16,11 @@ write_stars(obj, dsn, layer, ...)
   ...,
   driver = detect.driver(dsn),
   options = character(0),
-  type = if (is.factor(obj[[1]]) && length(levels(obj[[1]])) < 256) "Byte" else
-    "Float32",
+  type = if (is.factor(obj[[1]]) && length(levels(obj[[1]])) < 256) "Byte" else "Float32",
   NA_value = NA_real_,
   update = FALSE,
-  normalize_path = TRUE
+  normalize_path = TRUE,
+  scale_offset = c(1, 0)
 )
 
 \method{write_stars}{stars_proxy}(
@@ -30,6 +30,7 @@ write_stars(obj, dsn, layer, ...)
   ...,
   driver = detect.driver(dsn),
   options = character(0),
+  scale_offset = c(1, 0),
   type = "Float32",
   NA_value = NA_real_,
   chunk_size = c(dim(obj)[1], floor(2.5e+07/dim(obj)[1])),
@@ -58,6 +59,8 @@ detect.driver(filename)
 \item{update}{logical; if \code{TRUE}, an existing file is being updated}
 
 \item{normalize_path}{logical; see \link{read_stars}}
+
+\item{scale_offset}{length 2 numeric vector with scale, offset values: raw values computed by raw = (value - offset) / scale are written to dsn; scale and offset values are written to dsn or else a warning is raised}
 
 \item{chunk_size}{length two integer vector with the number of pixels (x, y) used in the read/write loop; see details.}
 

@@ -1,10 +1,8 @@
 ## ----setup, include=FALSE-----------------------------------------------------
-knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(collapse = TRUE)
+knitr::opts_chunk$set(echo = TRUE, collapse = TRUE, dev = "png")
+ev = TRUE
 knitr::opts_chunk$set(fig.height = 4.5)
 knitr::opts_chunk$set(fig.width = 6)
-#ev = FALSE
-ev = TRUE
 
 ## -----------------------------------------------------------------------------
 library(stars)

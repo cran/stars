@@ -1,7 +1,7 @@
 
-R version 4.1.2 (2021-11-01) -- "Bird Hippie"
-Copyright (C) 2021 The R Foundation for Statistical Computing
-Platform: x86_64-pc-linux-gnu (64-bit)
+R Under development (unstable) (2022-10-11 r83083 ucrt) -- "Unsuffered Consequences"
+Copyright (C) 2022 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -55,4 +55,4 @@ POINT (291430.8 9111430)
 > 
 > proc.time()
    user  system elapsed 
-  1.417   0.037   1.448 
+   2.14    0.21    2.32 

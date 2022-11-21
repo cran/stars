@@ -558,10 +558,6 @@ expand_dimensions.dimensions = function(x, ..., max = FALSE, center = NA) {
 	names(lst) = names(dimensions)
 	if (! is.null(xy) && all(!is.na(xy))) { # we have raster: where defaulting to 0.5
 		where[xy] = ifelse(!max[xy] & (is.na(center[xy]) | center[xy]), 0.5, where[xy])
-#		where_xy = if (!max && (is.na(center) || center))
-#				0.5
-#			else
-#				where
 		if (xy[1] %in% names(lst)) # x
 			lst[[ xy[1] ]] = get_dimension_values(dimensions[[ xy[1] ]], where[[ xy[1] ]], gt, "x")
 		if (xy[2] %in% names(lst))  # y
@@ -586,45 +582,66 @@ dim.dimensions = function(x) {
 		lengths(expand_dimensions(x)) # FIXME: optimise?
 }
 
+#' @name print_stars
+#' @param digits number of digits to print numbers
+#' @param usetz logical; used to format \code{PCICt} or \code{POSIXct} values
+#' @param stars_crs maximum width of string for CRS objects
+#' @param all logical; if \code{TRUE} print also fields entirely filled with \code{NA} or \code{NULL}
 #' @export
-as.data.frame.dimensions = function(x, ..., digits = 6, usetz = TRUE, stars_crs = getOption("stars.crs") %||% 28) {
-	lst = lapply(x, function(y) {
-			if (length(y$values) > 3) {
-				y$values = if (is.array(y$values))
-						paste0("[", paste(dim(y$values), collapse = "x"), "] ", 
-							format(min(y$values), digits = digits), ",...,", 
-							format(max(y$values), digits = digits))
-					else if (inherits(y$values[[1]], "crs"))
-						paste0(format(y$values[[1]]), ",...,", format(y$values[[length(y$values)]]))
-					else
-						paste0(format(head(y$values, 1)), ",...,", 
-							format(tail(y$values, 1)))
-			}
-			if (is.na(y$refsys))
-				y$refsys = NA_character_
-			else if (nchar(tail(format(y$refsys), 1)) > stars_crs)
-				y$refsys = paste0(substr(tail(format(y$refsys), 1), 1L, stars_crs - 3),"...")
-			y
-		}
-	)
+as.data.frame.dimensions = function(x, ..., digits = 6, usetz = TRUE, stars_crs = getOption("stars.crs") %||% 28, all = FALSE) {
 	mformat = function(x, ..., digits) {
 		if (inherits(x, c("PCICt", "POSIXct")))
 			format(x, ..., usetz = usetz)
 		else
 			format(x, digits = digits, ...) 
 	}
+	abbrev_dim = function(y) {
+		if (length(y$values) > 3 || (inherits(y$values, "sfc") && length(y$values) > 2)) {
+			y$values = if (is.array(y$values))
+					paste0("[", paste(dim(y$values), collapse = "x"), "] ", 
+						mformat(min(y$values), digits = digits), ",...,", 
+						mformat(max(y$values), digits = digits))
+				else if (inherits(y$values[[1]], "crs"))
+					paste0(format(y$values[[1]]), ",...,", format(y$values[[length(y$values)]]))
+				else if (inherits(y$values, "sfc"))
+					paste0(format(y$values[[1]], width = stars_crs), ",...,", 
+						   format(y$values[[length(y$values)]], width = stars_crs))
+				else
+					paste0(format(head(y$values, 1)), ",...,", 
+						format(tail(y$values, 1)))
+		}
+		if (is.na(y$refsys))
+			y$refsys = NA_character_
+		else if (nchar(tail(format(y$refsys), 1)) > stars_crs)
+			y$refsys = paste0(substr(tail(format(y$refsys), 1), 1L, stars_crs - 3), "...")
+		y
+	}
+	lst = lapply(x, abbrev_dim)
 	lst = lapply(lst, function(x) sapply(x, mformat, digits = digits))
 	ret = data.frame(do.call(rbind, lst), stringsAsFactors = FALSE)
+	if (! all) { # remove fields entirely NA or NULL:
+		if (all(ret$offset == "NA"))
+			ret$offset = NULL
+		if (all(ret$delta == "NA"))
+			ret$delta = NULL
+		if (all(ret$refsys == "NA"))
+			ret$refsys = NULL
+		if (all(ret$point == "NA"))
+			ret$point = NULL
+		if (all(ret$values == "NULL"))
+			ret$values = NULL
+	}
 	r = attr(x, "raster")
 	if (! any(is.na(r$dimensions))) {
 		ret$raster = rep("", nrow(ret))
 		ret[r$dimensions[1], "raster"] = "[x]"
 		ret[r$dimensions[2], "raster"] = "[y]"
-		names(ret) = c(names(lst[[1]]), "x/y")
+		names(ret)[ncol(ret)] = "x/y"
 	}
 	ret
 }
 
+#' @name print_stars
 #' @export
 print.dimensions = function(x, ...) {
 	ret = as.data.frame(x, ...)
@@ -646,7 +663,7 @@ identical_dimensions = function(lst, ignore_resolution = FALSE, tolerance = 0) {
 				attr(d1, "raster")$blocksizes = NULL
 				attr(di, "raster")$blocksizes = NULL
 			}
-			if (! isTRUE(all.equal(d1, di, tolerance = tolerance)))
+			if (! isTRUE(all.equal(d1, di, tolerance = tolerance, check.attributes = FALSE)))
 				return(FALSE)
 		}
 	}
@@ -736,10 +753,11 @@ dimnames.stars = function(x) {
 #' @export
 as.POSIXct.stars = function(x, ...) {
 	d = st_dimensions(x)
-	if (any(w <- sapply(d, function(i) any(grepl("PCICt", i$refsys))))) {
-		e = expand_dimensions(d)
-		for (i in which(w))
-			d[[i]] = create_dimension(values = as.POSIXct(e[[i]]))
+	e = expand_dimensions(d)
+	for (i in seq_along(d)) {
+		p = try(as.POSIXct(e[[i]]), silent = TRUE)
+		if (!inherits(p, "try-error"))
+			d[[i]] = create_dimension(values = p)
 	}
 	structure(x, dimensions = d)
 }

@@ -1,3 +1,33 @@
+# version 0.6-0
+
+* `write_stars()` writes scaled and/or shifted values when using argument `scale_offset`; #589
+
+* `aggregate.stars_proxy()` implements aggregation with non-spatial `by` objects (lazily)
+
+* fix `[.stars_proxy()` when selecting dimension 3 and higher; #561
+
+* in `plot.stars()`, `col` can also be a palette function
+
+* `st_res()` returns spatial resolutions, and optionally all dimension resolutions; #557 thanks to Krzysztof Dyba
+
+* `read_stars()` shortens band or array names that contain a common start or ending, unless names would become empty or `shorten=FALSE` was set; e.g. `shorten="B"` puts a `B` before shortened array names
+
+* printing `stars` dimension tables omits fields with only `NULL` or `NA` values, unless `print(..., all = TRUE)` is given
+
+* improve reading categorical rasters, which now avoids calling `factor()`; #565 thanks to Krzysztof Dyba
+
+* `read_mdim()` will read bounds arrays for coordinates using the `bounds` attribute, and accepts a `bounds` argument to specify them when that attribute is missing
+
+* `time()` returns time stamps of a time dimension
+
+* `st_cells()` returns the cell index for a set of point coordinates, provided as `sf` or `sfc` object; #558
+
+* reading & writing vector data cubes: `read_mdim()` reads CF compliant vector geometries, and reconstructs them into an `sfc` dimension; `write_mdim()` writes them.
+
+* `write_mdim()` uses GDAL multidimensional array API;
+
+* `read_mdim()` uses arguments `offset`, `count` and `step` to read sub-arrays or strided arrays (requires sf >= 1.0-9)
+
 # version 0.5-6
 
 * export `read_mdim()`, a reader using GDAL's multidimensional array API (for sf <= 1.0-8)

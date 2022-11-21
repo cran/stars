@@ -1,7 +1,7 @@
 
-R version 4.2.1 (2022-06-23) -- "Funny-Looking Kid"
+R Under development (unstable) (2022-10-11 r83083 ucrt) -- "Unsuffered Consequences"
 Copyright (C) 2022 The R Foundation for Statistical Computing
-Platform: x86_64-pc-linux-gnu (64-bit)
+Platform: x86_64-w64-mingw32/x64 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -18,15 +18,15 @@ Type 'q()' to quit R.
 > suppressPackageStartupMessages(library(stars))
 > tif = system.file("tif/L7_ETMs.tif", package = "stars")
 > x = read_stars(tif)
-> (a = st_area(x))
+> (a = st_area(x[,1:5,1:5]))
 stars object with 2 dimensions and 1 attribute
 attribute(s):
              Min. 1st Qu. Median   Mean 3rd Qu.   Max.
 area [m^2] 812.25  812.25 812.25 812.25  812.25 812.25
 dimension(s):
-  from  to  offset delta                     refsys point values x/y
-x    1 349  288776  28.5 SIRGAS 2000 / UTM zone 25S FALSE   NULL [x]
-y    1 352 9120761 -28.5 SIRGAS 2000 / UTM zone 25S FALSE   NULL [y]
+  from to  offset delta                     refsys point x/y
+x    1  5  288776  28.5 SIRGAS 2000 / UTM zone 25S FALSE [x]
+y    1  5 9120761 -28.5 SIRGAS 2000 / UTM zone 25S FALSE [y]
 > 
 > m = matrix(1:20, nrow = 5, ncol = 4)
 > x = c(0, 0.5, 1, 2, 4, 5)  # 6 numbers: boundaries!
@@ -37,9 +37,9 @@ attribute(s):
    Min. 1st Qu. Median Mean 3rd Qu. Max.
 m     1    5.75   10.5 10.5   15.25   20
 dimension(s):
-  from to offset delta refsys point                values x/y
-x    1  5     NA    NA     NA FALSE     [0,0.5),...,[4,5) [x]
-y    1  4     NA    NA     NA FALSE [0.3,0.5),...,[2,2.2) [y]
+  from to point                values x/y
+x    1  5 FALSE     [0,0.5),...,[4,5) [x]
+y    1  4 FALSE [0.3,0.5),...,[2,2.2) [y]
 > # image(r, axes = TRUE, col = grey((1:20)/20))
 > (a = st_area(r))
 Missing coordinate reference system: assuming Cartesian coordinates
@@ -48,23 +48,36 @@ attribute(s):
       Min. 1st Qu. Median  Mean 3rd Qu. Max.
 area   0.1     0.2  0.325 0.475     0.5    2
 dimension(s):
-  from to offset delta refsys point                values x/y
-x    1  5     NA    NA     NA FALSE     [0,0.5),...,[4,5) [x]
-y    1  4     NA    NA     NA FALSE [0.3,0.5),...,[2,2.2) [y]
-> plot(a, axes = TRUE)
+  from to point                values x/y
+x    1  5 FALSE     [0,0.5),...,[4,5) [x]
+y    1  4 FALSE [0.3,0.5),...,[2,2.2) [y]
+> #plot(a, axes = TRUE)
 > 
 > s5p = system.file("sentinel5p/S5P_NRTI_L2__NO2____20180717T120113_20180717T120613_03932_01_010002_20180717T125231.nc", package = "starsdata")
 > if (s5p != "") {
-+ nit.c = read_stars(s5p, sub = "//PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_summed_total_column",
++  nit.c = read_stars(s5p, sub = "//PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_summed_total_column",
 + 	curvilinear = c("//PRODUCT/longitude", "//PRODUCT/latitude"), driver = NULL)
-+ if (inherits(nit.c[[1]], "units"))
++  if (inherits(nit.c[[1]], "units"))
 + 	nit.c[[1]] = units::drop_units(nit.c[[1]])
-+ nit.c[[1]][nit.c[[1]] > 9e+36] = NA
-+ st_crs(nit.c) = 4326
-+ print((a <- st_area(nit.c)))
-+ plot(a, axes = TRUE, border = NA)
++  nit.c[[1]][nit.c[[1]] > 9e+36] = NA
++  st_crs(nit.c) = 4326
++  print((a <- st_area(nit.c[,1:5,1:5])))
++  # plot(a, axes = TRUE, border = NA)
 + }
+/PRODUCT/longitude, 
+/PRODUCT/latitude, 
+/PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_summed_total_column, 
+stars object with 2 dimensions and 1 attribute
+attribute(s):
+               Min.  1st Qu.   Median     Mean  3rd Qu.     Max.
+area [m^2] 64503163 64957713 65834712 65849060 66734597 67218777
+dimension(s):
+  from to refsys                              values x/y
+x    1  5 WGS 84 [5x5] -5.81066 [°],...,-5.26234 [°] [x]
+y    1  5 WGS 84   [5x5] 44.4439 [°],...,44.8693 [°] [y]
+curvilinear grid
+There were 15 warnings (use warnings() to see them)
 > 
 > proc.time()
    user  system elapsed 
-  1.154   0.769   1.035 
+   1.98    0.25    2.20 

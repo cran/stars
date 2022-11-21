@@ -76,17 +76,14 @@ aggregate.stars = function(x, by, FUN, ..., drop = FALSE, join = st_intersects,
 			paste(classes, collapse= ", "), "supported"))
 	if (inherits(by, "stars"))
 		by = st_as_sfc(by, as_points = FALSE) # and if not, then use st_normalize(by)
-	if (inherits(by, "sf"))
-		by = st_geometry(by) # sfc
 
 	if (inherits(by, "sf")) {
 		geom = attr(by, "sf_column")
 		by = st_geometry(by)
 	} else
 		geom = "geometry"
+	stopifnot(!missing(FUN), is.function(FUN))
 
-	if (missing(FUN))
-		stop("missing FUN argument")
 	if (exact && inherits(by, c("sf", "sfc_POLYGON", "sfc_MULTIPOLYGON")) && has_raster(x)) {
     	if (!requireNamespace("raster", quietly = TRUE))
         	stop("package raster required, please install it first") # nocov
@@ -234,13 +231,20 @@ aggregate.stars = function(x, by, FUN, ..., drop = FALSE, join = st_intersects,
 
 #' @export
 aggregate.stars_proxy = function(x, by, FUN, ...) {
-	if (inherits(by, "stars"))
-		by = st_as_sfc(by, as_points = FALSE)
-	if (!inherits(by, c("sf", "sfc", "sfg")))
-		stop("aggregate.stars_proxy only implemented for spatial `by' arguments")
-	by = st_geometry(by)
+	if (!inherits(by, c("sf", "sfc", "sfg", "stars")))
+		collect(x, match.call(), "aggregate", c("x", "by", "FUN"), env = environment(), ...)
+	else {
+		if (inherits(by, "stars"))
+			by = st_as_sfc(by, as_points = FALSE)
+		by = st_geometry(by)
 
-	# this assumes the result is small, no need to proxy
-	l = lapply(seq_along(by), function(i) aggregate(st_normalize(st_as_stars(x[by[i]])), by[i], FUN, ...))
-	do.call(c, c(l, along = list(which_sfc(l[[1]]))))
+		# this assumes each result of a [ selection is small enough to hold in memory
+		l = lapply(seq_along(by), 
+		   	function(i) {
+			   	sel_i = st_normalize(st_as_stars(x[by[i]]))
+			   	aggregate(sel_i, by[i], FUN, ...)
+		   	}
+		)
+		do.call(c, c(l, along = list(which_sfc(l[[1]]))))
+	}
 }

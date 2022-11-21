@@ -11,11 +11,10 @@ vignette: >
 **For a better version of the stars vignettes see** https://r-spatial.github.io/stars/articles/
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(collapse = TRUE)
+knitr::opts_chunk$set(echo = TRUE, collapse = TRUE, dev = "png")
+ev = suppressWarnings(require(starsdata, quietly = TRUE))
 knitr::opts_chunk$set(fig.height = 4.5)
 knitr::opts_chunk$set(fig.width = 6)
-ev = suppressWarnings(require(starsdata, quietly = TRUE))
 ```
 
 Package `stars` provides infrastructure for _data cubes_, array

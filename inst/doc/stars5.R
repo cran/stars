@@ -1,10 +1,9 @@
 ## ----setup, include=FALSE-----------------------------------------------------
-knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(collapse = TRUE)
+knitr::opts_chunk$set(echo = TRUE, collapse = TRUE, dev = "png")
+suppressPackageStartupMessages(library(sf))
 knitr::opts_chunk$set(fig.height = 4.5)
 knitr::opts_chunk$set(fig.width = 6)
-suppressPackageStartupMessages(library(sf))
-ev = sf_extSoftVersion()["GDAL"] >= "2.4.0"
+ev = TRUE
 
 ## -----------------------------------------------------------------------------
 library(stars)

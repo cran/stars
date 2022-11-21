@@ -258,6 +258,8 @@ replace_na.stars_proxy = function(data, ...) {
 #' @param sf logical; if \code{TRUE} rasters will be converted to polygons and plotted using \link[ggplot2:ggsf]{geom_sf}.
 #' @param na.action function; if \code{NA} values need to be removed before plotting use the value \code{na.omit} here (only applies to objects with raster dimensions)
 #' @details \code{geom_stars} returns (a call to) either \link[ggplot2:geom_tile]{geom_raster}, \link[ggplot2]{geom_tile}, or \link[ggplot2:ggsf]{geom_sf}, depending on the raster or vector geometry; for the first to, an \link[ggplot2]{aes} call is constructed with the raster dimension names and the first array as fill variable. Further calls to \link[ggplot2:coord_fixed]{coord_equal} and \link[ggplot2]{facet_wrap} are needed to control aspect ratio and the layers to be plotted; see examples. If a \code{stars} array contains hex color values, and no \code{fill} parameter is given, the color values are used as fill color; see the example below.
+#' 
+#' If visual artefacts occur (Moiré-Effekt), then see the details section of \link{plot.stars}
 #' @export
 #' @examples
 #' system.file("tif/L7_ETMs.tif", package = "stars") %>% read_stars() -> x
@@ -278,7 +280,7 @@ geom_stars = function(mapping = NULL, data = NULL, ..., downsample = 0, sf = FAL
 	if (!requireNamespace("ggplot2", quietly = TRUE))
 		stop("package ggplot2 required, please install it first") # nocov
 
-	if (is.null(data)) stop("argument data should not set to a stars or stars_proxy object")
+	if (is.null(data)) stop("argument data should be a stars or stars_proxy object")
 
 	for (i in seq_along(data)) {
 		if (inherits(data[[i]], "units"))
@@ -304,26 +306,35 @@ geom_stars = function(mapping = NULL, data = NULL, ..., downsample = 0, sf = FAL
 	if (has_raster(d) && (is_regular_grid(d) || is_rectilinear(d))) {
 		xy = attr(d, "raster")$dimensions
 		if (is_regular_grid(d)) {
-			if (is.null(mapping))
-				mapping = ggplot2::aes(x = !!rlang::sym(xy[1]), y = !!rlang::sym(xy[2]),
-					fill = !!rlang::sym(names(data)[1]))
+			mapping = if (is.null(mapping))
+					ggplot2::aes(x = !!rlang::sym(xy[1]), y = !!rlang::sym(xy[2]),
+						fill = !!rlang::sym(names(data)[1])) 
+				else 
+           			modifyList( ggplot2::aes(x = !!rlang::sym(xy[1]), y = !!rlang::sym(xy[2]),
+						fill = !!rlang::sym(names(data)[1])), mapping) 
 			data = na.action(dplyr::as_tibble(data))
 			ggplot2::geom_raster(mapping = mapping, data = data, ...)
 		} else {  # rectilinear: use geom_rect, passing on cell boundaries
 			xy_max = paste0(xy, "_max")
-			if (is.null(mapping))
-				mapping = ggplot2::aes(xmin = !!rlang::sym(xy[1]), ymin = !!rlang::sym(xy[2]),
-					xmax = !!rlang::sym(xy_max[1]), ymax = !!rlang::sym(xy_max[2]),
-					fill = !!rlang::sym(names(data)[1]))
+			mapping = if (is.null(mapping))
+					ggplot2::aes(xmin = !!rlang::sym(xy[1]), ymin = !!rlang::sym(xy[2]),
+						xmax = !!rlang::sym(xy_max[1]), ymax = !!rlang::sym(xy_max[2]),
+						fill = !!rlang::sym(names(data)[1]))
+				else 
+					modifyList(ggplot2::aes(xmin = !!rlang::sym(xy[1]), ymin = !!rlang::sym(xy[2]),
+						xmax = !!rlang::sym(xy_max[1]), ymax = !!rlang::sym(xy_max[2]),
+						fill = !!rlang::sym(names(data)[1])), mapping) 
 			data = na.action(dplyr::as_tibble(data, add_max = TRUE))
 			ggplot2::geom_rect(mapping = mapping, data = data, ...)
 		}
 	} else if (has_sfc(d)) {
-		if (is.null(mapping))
-			mapping = ggplot2::aes(fill = !!rlang::sym(names(data)[1]))
+		if (is.null(mapping)) {
+			mapping = ggplot2::aes(fill = !!rlang::sym(names(data)[1])) } else {
+		        mapping = modifyList( ggplot2::aes(fill = !!rlang::sym(names(data)[1])), mapping) }
 		ggplot2::geom_sf(data = st_as_sf(data, long = TRUE), color = NA, mapping = mapping, ...)
 	} else
 		stop("geom_stars only works for objects with raster or vector geometries")
+						     
 }
 
 #' @name geom_stars

@@ -1,9 +1,8 @@
 ## ---- include = FALSE---------------------------------------------------------
-knitr::opts_chunk$set(echo = FALSE, collapse = TRUE, comment = "#>")
-
+knitr::opts_chunk$set(echo = FALSE, collapse = TRUE, comment = "#>", dev = "png")
+suppressPackageStartupMessages(library(dplyr))
 knitr::opts_chunk$set(fig.height = 4.5)
 knitr::opts_chunk$set(fig.width = 6)
-suppressPackageStartupMessages(library(dplyr))
 
 ## -----------------------------------------------------------------------------
 tribble(
@@ -42,7 +41,8 @@ tribble(
   "calc", "st_apply", "",
   "overlay", "c(along = , ...) %>% st_apply(...)", "",
   "cover", "[ ] <-", "",
-  "mask", "[ ] <-", "",
+  "mask", "[ ], st_crop", "when using an sf polygon as mask",
+  "mask", "[ ]<- NA", "when using a stars object to mask",
   "cut", "cut", "",
   "subs", "", "",
   "reclassify", "mutate with case_when", "or forcats::fct_recode ?",
@@ -150,8 +150,8 @@ tribble(
   "res", "st_dimensions", "can also not be a constant in case of rectilinear or curvilinear grids", 
   "nlayers", "-", "there is no concept of layers in stars", 
   "names", "names", "",
-  "xres", "st_dimensions, look for delta", "may not be a constant in case of rectilinear or curvilinear grids", 
-  "yres", "st_dimensions, look for delta", "may not be a constant in case of rectilinear or curvilinear grids", 
+  "xres", "st_res(x)[1]", "may not be a constant in case of rectilinear or curvilinear grids", 
+  "yres", "st_res(x)[2]", "may not be a constant in case of rectilinear or curvilinear grids", 
   "xmin", "st_bbox(x)[1]", "",
   "xmax", "st_bbox(x)[3]", "",
   "ymin", "st_bbox(x)[2]", "",
@@ -179,7 +179,7 @@ tribble(
   "colFromX", "", "*",
   "rowFromY", "", "*", 
   "rowColFromCell", "", "",
-  "cellFromXY", "", "",
+  "cellFromXY", "st_cells()", "",
   "cellFromRowCol", "", "",
   "cellsFromExtent", "", "",
   "coordinates", "st_coordinates", "",

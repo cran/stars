@@ -54,7 +54,7 @@ plot.stars_proxy = function(x, y, ..., downsample = get_downsample(dim(x))) {
 	plot(st_as_stars(x, downsample = downsample, ...), ..., downsample = 0)
 }
 
-st_stars_proxy = function(x, dimensions, ..., NA_value, resolutions, RasterIO = list()) {
+st_stars_proxy = function(x, dimensions, ..., NA_value, resolutions, RasterIO = list(), file_dim = NULL) {
 	stopifnot(!missing(NA_value))
 	stopifnot(!missing(resolutions))
 	stopifnot(length(list(...)) == 0)
@@ -63,7 +63,7 @@ st_stars_proxy = function(x, dimensions, ..., NA_value, resolutions, RasterIO = 
 	if (length(RasterIO) == 0)
 		RasterIO = NULL
 	structure(x, dimensions = dimensions, NA_value = NA_value, resolutions = resolutions,
-		RasterIO = RasterIO, class = c("stars_proxy", "stars"))
+		RasterIO = RasterIO, file_dim = file_dim, class = c("stars_proxy", "stars"))
 }
 
 add_resolution = function(lst) {
@@ -77,7 +77,6 @@ add_resolution = function(lst) {
 	rownames(resolutions) = sapply(lst, names)
 	structure(lst, resolutions = resolutions)
 }
-
 
 #' @export
 #' @param along_crs logical; if \code{TRUE}, combine arrays along a CRS dimension
@@ -96,13 +95,18 @@ c.stars_proxy = function(..., along = NA_integer_, along_crs = FALSE, try_hard =
 		combine_along_crs_proxy(dots)
 	else if (identical(along, NA_integer_)) { 
 		if (identical_dimensions(dots))
-			st_stars_proxy(do.call(c, lapply(dots, unclass)), dimensions = st_dimensions(dots[[1]]),
-				NA_value = attr(dots[[1]], "NA_value"), resolutions = NULL)
+			st_stars_proxy(setNamesIfnn(do.call(c, lapply(dots, unclass)), nms),
+						   dimensions = st_dimensions(dots[[1]]), 
+						   NA_value = attr(dots[[1]], "NA_value"), 
+						   resolutions = NULL,
+						   file_dim = attr(dots[[1]], "file_dim"))
 		else if (identical_dimensions(dots, ignore_resolution = TRUE, tolerance = tolerance)) {
 			dots = add_resolution(dots)
-			st_stars_proxy(do.call(c, lapply(dots, unclass)), dimensions = st_dimensions(dots[[1]]),
-				resolutions = attr(dots, "resolutions"),
-				NA_value = attr(dots[[1]], "NA_value"))
+			st_stars_proxy(setNamesIfnn(do.call(c, lapply(dots, unclass)), nms),
+						   dimensions = st_dimensions(dots[[1]]), 
+						   resolutions = attr(dots, "resolutions"),
+						   NA_value = attr(dots[[1]], "NA_value"), 
+						   file_dim = attr(dots[[1]], "file_dim"))
 		} else {
 			# currently catches only the special case of ... being a broken up time series:
 			along = sort_out_along(dots)
@@ -118,13 +122,16 @@ c.stars_proxy = function(..., along = NA_integer_, along_crs = FALSE, try_hard =
 					"ignored subdataset(s) with dimensions different from first subdataset:", 
 					paste(which(!ident), collapse = ", "), 
 					"\nuse gdal_subdatasets() to find all subdataset names"))
-				setNames(st_stars_proxy(do.call(c, 
-						lapply(dots[ident], unclass)), dimensions = st_dimensions(dots[[1]]),
-						NA_value = attr(dots[[1]], "NA_value"), resolutions = NULL),
-						nms[ident])
+				if (!is.null(nms))
+					nms = nms[ident]
+				st_stars_proxy(setNamesIfnn(do.call(c, lapply(dots[ident], unclass)), nms),
+							   dimensions = st_dimensions(dots[[1]]), 
+							   NA_value = attr(dots[[1]], "NA_value"), 
+							   resolutions = NULL, 
+							   file_dim = attr(dots[[1]], "file_dim"))
 			}
 		}
-	} else {
+	} else { # arrange along "along" dimension:
 		if (is.list(along)) { # custom ordering of ... over dimension(s) with values specified
 			stop("for proxy objects, along argument as list is not implemented")
 		} else { # loop over attributes, abind them:
@@ -150,7 +157,8 @@ c.stars_proxy = function(..., along = NA_integer_, along_crs = FALSE, try_hard =
 			if (along_dim == length(d) + 1)
 				names(dims)[along_dim] = if (is.character(along)) along else "new_dim"
 			st_stars_proxy(ret, dimensions = dims, NA_value = attr(dots[[1]], "NA_value"),
-				resolutions = NULL)
+				resolutions = NULL,
+				file_dim = attr(dots[[1]], "file_dim"))
 		}
 	}
 }
@@ -227,7 +235,7 @@ fetch = function(x, downsample = 0, ...) {
 		} else
 			offset = c(0,0)
 		file_name = unclass(x)[[i]]
-		if (is.function(file_name)) # realise:
+		if (is.function(file_name)) # realise/evaluate:
 			file_name = file_name()
 		ret[[i]] = read_stars(file_name, RasterIO = rasterio, 
 			NA_value = attr(x, "NA_value") %||% NA_real_, normalize_path = FALSE,
@@ -248,7 +256,7 @@ fetch = function(x, downsample = 0, ...) {
 			list(new_dim = names(x))
 	
 	ret = if (length(ret) == 1)
-		st_redimension(ret[[1]], along = along)
+		st_redimension(ret[[1]], name = along)
 	else
 		do.call(c, lapply(ret, st_redimension, along = along))
 	
@@ -442,6 +450,7 @@ merge.stars_proxy = function(x, y, ..., name = "attributes") {
 		else
 			NULL
 	}
+	dim_orig = dim(x)
 	mc = match.call()
 	lst = as.list(mc)
 	cl = attr(x, "call_list")
@@ -454,7 +463,7 @@ merge.stars_proxy = function(x, y, ..., name = "attributes") {
 			if (!is.null(resolutions <- attr(x, "resolutions")))
 				resolutions = resolutions[i, ]
 			x = st_stars_proxy(unclass(x)[i], st_dimensions(x), NA_value = attr(x, "NA_value"),
-				resolutions = resolutions)
+				resolutions = resolutions, file_dim = attr(x, "file_dim"))
 			lst[["i"]] = TRUE # this one has been handled now
 		}
 		ix = 1
@@ -477,9 +486,31 @@ merge.stars_proxy = function(x, y, ..., name = "attributes") {
 	}
 
 	# return:
-	if (length(lst) == 3 && isTRUE(lst[["i"]]) && is.null(cl)) # all is done
+	if (length(lst) == 3 && isTRUE(lst[["i"]]) && is.null(cl)) { # drop a number of files in the lists of files
+		file_dim = attr(x, "file_dim") %||% dim(x)[1:2]
+		n_file_dim = length(file_dim)
+		if (length(x) && length(dim(x)) > n_file_dim && 
+				length(x[[1]]) == prod(dim_orig[-(seq_along(file_dim))])) { # https://github.com/r-spatial/stars/issues/561
+			# select from the vectors of proxy object names:
+			get_ix = function(d) {
+				stopifnot(inherits(d, "dimension"))
+				if (!is.na(d$from))
+					seq(d$from, d$to)
+				else
+					d$values
+			}
+			d = st_dimensions(x)[-seq_along(file_dim)] # dimensions not in the file(s)
+			e = do.call(expand.grid, lapply(dim_orig[-seq_along(file_dim)], seq_len)) # all combinations
+			e$rn = seq_len(nrow(e)) # their index
+			f = do.call(expand.grid, lapply(d, get_ix)) # the ones we want
+			if (!requireNamespace("dplyr", quietly = TRUE))
+				stop("package dplyr required, please install it first") # nocov
+			sel = dplyr::inner_join(e, f, by = colnames(f))$rn
+			for (i in seq_along(x))
+				x[[i]] = x[[i]][sel]
+		}
 		x 
-	else # still processing the geometries inside the bbox:
+	} else # still processing the geometries inside the bbox:
 		collect(x, as.call(lst), "[", c("x", "i", "drop", "crop"), 
 			env = environment()) # postpone every arguments > 3 to after reading cells
 }

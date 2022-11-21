@@ -1,9 +1,8 @@
 ## ----setup, include=FALSE-----------------------------------------------------
-knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(collapse = TRUE)
+knitr::opts_chunk$set(echo = TRUE, collapse = TRUE, dev = "png")
+set.seed(13579)
 knitr::opts_chunk$set(fig.height = 4.5)
 knitr::opts_chunk$set(fig.width = 6)
-set.seed(13579)
 
 ## ----fig.width=4.5, fig.height=4----------------------------------------------
 suppressPackageStartupMessages(library(stars))
@@ -75,40 +74,40 @@ x = st_as_stars(matrix(1:9, 3, 3),
 EVAL = s5p != ""
 
 ## ----eval=EVAL----------------------------------------------------------------
-#  subs = gdal_subdatasets(s5p)
-#  subs[[6]]
+subs = gdal_subdatasets(s5p)
+subs[[6]]
 
 ## ----eval=EVAL----------------------------------------------------------------
-#  gdal_metadata(subs[[6]], "GEOLOCATION")
+gdal_metadata(subs[[6]], "GEOLOCATION")
 
 ## ----eval=EVAL----------------------------------------------------------------
-#  nit.c = read_stars(subs[[6]])
-#  threshold = units::set_units(9e+36, mol/m^2)
-#  nit.c[[1]][nit.c[[1]] > threshold] = NA
-#  nit.c
+nit.c = read_stars(subs[[6]]) 
+threshold = units::set_units(9e+36, mol/m^2)
+nit.c[[1]][nit.c[[1]] > threshold] = NA
+nit.c
 
 ## ----eval=EVAL----------------------------------------------------------------
-#  plot(nit.c, breaks = "equal", reset = FALSE, axes = TRUE, as_points = TRUE,
-#  		 pch = 16,  logz = TRUE, key.length = 1)
-#  maps::map('world', add = TRUE, col = 'red')
+plot(nit.c, breaks = "equal", reset = FALSE, axes = TRUE, as_points = TRUE, 
+		 pch = 16,  logz = TRUE, key.length = 1)
+maps::map('world', add = TRUE, col = 'red')
 
 ## ----eval=EVAL----------------------------------------------------------------
-#  plot(nit.c, breaks = "equal", reset = FALSE, axes = TRUE, as_points = FALSE,
-#  		 border = NA, logz = TRUE, key.length = 1)
-#  maps::map('world', add = TRUE, col = 'red')
+plot(nit.c, breaks = "equal", reset = FALSE, axes = TRUE, as_points = FALSE, 
+		 border = NA, logz = TRUE, key.length = 1)
+maps::map('world', add = TRUE, col = 'red')
 
 ## ----eval=EVAL----------------------------------------------------------------
-#  (nit.c_ds = stars:::st_downsample(nit.c, 8))
-#  plot(nit.c_ds, breaks = "equal", reset = FALSE, axes = TRUE, as_points = TRUE,
-#  		 pch = 16, logz = TRUE, key.length = 1)
-#  maps::map('world', add = TRUE, col = 'red')
+(nit.c_ds = stars:::st_downsample(nit.c, 8))
+plot(nit.c_ds, breaks = "equal", reset = FALSE, axes = TRUE, as_points = TRUE, 
+		 pch = 16, logz = TRUE, key.length = 1)
+maps::map('world', add = TRUE, col = 'red')
 
 ## ----eval=EVAL----------------------------------------------------------------
-#  plot(nit.c_ds, breaks = "equal", reset = FALSE, axes = TRUE, as_points = FALSE,
-#  		 border = NA, logz = TRUE, key.length = 1)
-#  maps::map('world', add = TRUE, col = 'red')
+plot(nit.c_ds, breaks = "equal", reset = FALSE, axes = TRUE, as_points = FALSE, 
+		 border = NA, logz = TRUE, key.length = 1)
+maps::map('world', add = TRUE, col = 'red')
 
 ## ----eval=EVAL----------------------------------------------------------------
-#  w = st_warp(nit.c, crs = 4326, cellsize = 0.25)
-#  plot(w)
+w = st_warp(nit.c, crs = 4326, cellsize = 0.25)
+plot(w)
 

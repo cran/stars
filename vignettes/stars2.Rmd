@@ -11,11 +11,10 @@ vignette: >
 **For a better version of the stars vignettes see** https://r-spatial.github.io/stars/articles/
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(collapse = TRUE)
+knitr::opts_chunk$set(echo = TRUE, collapse = TRUE, dev = "png")
+set.seed(13579)
 knitr::opts_chunk$set(fig.height = 4.5)
 knitr::opts_chunk$set(fig.width = 6)
-set.seed(13579)
 EVAL = x = suppressWarnings(require(starsdata, quietly = TRUE))
 ```
 
@@ -31,7 +30,7 @@ the higher level, using stars proxy objects that delay all reading.
 
 To run all of the examples in this vignette, you must install a package with datasets that are too large (1 Gb) to be held in the `stars` package. They are in a [drat repo](https://github.com/eddelbuettel/drat), installation is done by
 ```{r eval=FALSE}
-install.packages("starsdata", repos = "http://gis-bigdata.uni-muenster.de", type = "source") 
+install.packages("starsdata", repos = "http://gis-bigdata.uni-muenster.de/pebesma", type = "source") 
 # possibly after: options(timeout = 100)
 # or from an alternative repository:
 # install.packages("starsdata", repos = "http://pebesma.staff.ifgi.de", type = "source")
@@ -216,7 +215,8 @@ Fetching the data now involves reading the whole array and then evaluating the `
 For the Sentinel 2 data, band 4 represents NIR and band 1 red, so we can compute NDVI by
 ```{r,eval=EVAL}
 # S2 10m: band 4: near infrared, band 1: red.
-ndvi = function(x) (x[4] - x[1])/(x[4] + x[1])
+#ndvi = function(x) (x[4] - x[1])/(x[4] + x[1])
+ndvi = function(x1, x2, x3, x4) (x4 - x1)/(x4 + x1)
 rm(x)
 (s2.ndvi = st_apply(p, c("x", "y"), ndvi))
 system.time(plot(s2.ndvi)) # read - compute ndvi - plot 
