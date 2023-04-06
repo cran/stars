@@ -149,6 +149,8 @@ st_set_dimensions = function(.x, which, values = NULL, point = NULL, names = NUL
 		d[[which]]$point = point
 	}
 	if (! missing(xy)) {
+		if (is.null(xy) || (length(xy) == 1 && is.na(xy)))
+			xy = c(NA, NA)
 		stopifnot(length(xy) == 2)
 		r = attr(d, "raster")
 		r$dimensions = as.character(xy)
@@ -216,7 +218,7 @@ st_get_dimension_values = function(.x, which, ..., where = NA, max = FALSE, cent
       stop("where, if not NA, must be 'start', 'center' or 'end': ", where)
     }
   }
-	expand_dimensions(.x, ..., max = max, center = center)[[which]]
+  expand_dimensions(.x, ..., max = max, center = center)[[which]]
 }
 
 
@@ -286,7 +288,7 @@ create_dimension = function(from = 1, to, offset = NA_real_, delta = NA_real_,
 			refsys = "udunits"
 
 		if (inherits(values, "sfc")) {
-			point = inherits(values, "sfc_POINT")
+			point = inherits(values, c("sfc_POINT", "sfc_MULTIPOINT"))
 			if (!is.na(st_crs(values)) && is.na(refsys)) # inherit:
 				refsys = st_crs(values)
 		}
@@ -313,8 +315,23 @@ create_dimensions = function(lst, raster = NULL) {
 		names(lst)[sel] = make.names(seq_along(sel))
 	}
 	if (is.null(raster))
-		raster = get_raster(dimensions = c(NA_character_, NA_character_))
-	structure(lst, raster = raster, class = "dimensions")
+		structure(lst, raster = get_raster(dimensions = c(NA_character_, NA_character_)), class = "dimensions")
+	else { 
+		d = structure(lst, raster = raster, class = "dimensions")
+		rd = raster$dimensions
+		if (identical(d[[rd[1]]]$refsys, "udunits") && identical(d[[rd[2]]]$refsys, "udunits")) {
+			deg = units(as_units("degree"))
+			ux = units(d[[rd[1]]])
+			uy = units(d[[rd[2]]])
+			if (inherits(ux, "symbolic_units") && inherits(uy, "symbolic_units") &&
+					units::ud_are_convertible(ux, deg) && units::ud_are_convertible(uy, deg)) {
+				d[[rd[1]]] = drop_units(d[[rd[1]]])
+				d[[rd[2]]] = drop_units(d[[rd[2]]])
+				d[[rd[1]]]$refsys = d[[rd[2]]]$refsys = st_crs('OGC:CRS84') # specifies units
+			}
+		}
+		d
+	}
 }
 
 get_crs = function(pr) {
@@ -670,6 +687,14 @@ identical_dimensions = function(lst, ignore_resolution = FALSE, tolerance = 0) {
 	TRUE
 }
 
+all.equal.dimensions = function(target, current, ..., ignore_blocksizes = TRUE) {
+	if (ignore_blocksizes) {
+		attr(target, "raster")$blocksizes = NULL
+		attr(current, "raster")$blocksizes = NULL
+	}
+	NextMethod()
+}
+
 combine_dimensions = function(dots, along, check_dims_identical = TRUE) {
 	dims = st_dimensions(dots[[1]])
 	if (along > length(dims)) {
@@ -760,4 +785,37 @@ as.POSIXct.stars = function(x, ...) {
 			d[[i]] = create_dimension(values = p)
 	}
 	structure(x, dimensions = d)
+}
+
+drop_units.dimension = function(x) {
+	du = function(y) {
+		if (inherits(y, "units"))
+			units::drop_units(y)
+		else if (inherits(y, "intervals")) {
+			y$start = du(y$start)
+			y$end = du(y$end)
+			y
+		} else
+			y
+	}
+	if (!is.null(x$offset))
+		x$offset = du(x$offset)
+	if (!is.null(x$delta))
+		x$delta  = du(x$delta)
+	if (!is.null(x$values))
+		x$values = du(x$values)
+	x
+}
+
+units.dimension = function(x) {
+	if (inherits(x$offset, "units"))
+		units(x$offset)
+	else if (inherits(x$delta, "units"))
+		units(x$delta)
+	else if (inherits(x$values, "units"))
+		units(x$values)
+	else if (inherits(x$values$start, "units"))
+		units(x$values$start)
+	else
+		NULL
 }

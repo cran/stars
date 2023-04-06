@@ -1,6 +1,6 @@
 
-R Under development (unstable) (2022-10-11 r83083 ucrt) -- "Unsuffered Consequences"
-Copyright (C) 2022 The R Foundation for Statistical Computing
+R version 4.3.0 alpha (2023-04-05 r84174 ucrt)
+Copyright (C) 2023 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -18,7 +18,7 @@ Type 'q()' to quit R.
 > library(stars)
 Loading required package: abind
 Loading required package: sf
-Linking to GEOS 3.9.3, GDAL 3.5.2, PROJ 8.2.1; sf_use_s2() is TRUE
+Linking to GEOS 3.11.1, GDAL 3.6.2, PROJ 9.1.1; sf_use_s2() is TRUE
 > 
 > if (require(spacetime, quietly = TRUE)) {
 + data(air) # this loads several datasets in .GlobalEnv
@@ -78,6 +78,18 @@ y       1  2     12    -6 WGS 84 FALSE [y]
 band    1  6     NA    NA     NA    NA    
 > 
 > sfc = st_set_crs(st_as_sfc(red, as_points = FALSE), st_crs(st))
+> (a = aggregate(st, st_sf(a = 1, geom = sfc), mean))
+stars object with 2 dimensions and 1 attribute
+attribute(s):
+    Min. 1st Qu. Median  Mean 3rd Qu. Max.
+A1    28  194.25  360.5 360.5  526.75  693
+dimension(s):
+     from to     offset  delta refsys point
+geom    1  4         NA     NA WGS 84 FALSE
+t       1  6 2019-02-20 1 days   Date FALSE
+                                                            values
+geom POLYGON ((0 12, 5 12, 5 6...,...,POLYGON ((5 6, 10 6, 10 0...
+t                                                             NULL
 > (a = aggregate(st, sfc, mean))
 stars object with 2 dimensions and 1 attribute
 attribute(s):
@@ -90,13 +102,29 @@ t           1  6 2019-02-20 1 days   Date FALSE
                                                                 values
 geometry POLYGON ((0 12, 5 12, 5 6...,...,POLYGON ((5 6, 10 6, 10 0...
 t                                                                 NULL
-> a[[1]]
+> if (require(raster)) {
++  print(a <- aggregate(st, sfc, mean, exact = TRUE))
++  print(a[[1]])
++  print(sum(a[[1]])*30 == sum(1:720))
++ }
+Loading required package: raster
+Loading required package: sp
+stars object with 2 dimensions and 1 attribute
+attribute(s):
+    Min. 1st Qu. Median  Mean 3rd Qu. Max.
+A1    28  194.25  360.5 360.5  526.75  693
+dimension(s):
+         from to     offset  delta refsys point
+geometry    1  4         NA     NA WGS 84 FALSE
+t           1  6 2019-02-20 1 days   Date FALSE
+                                                                values
+geometry POLYGON ((0 12, 5 12, 5 6...,...,POLYGON ((5 6, 10 6, 10 0...
+t                                                                 NULL
      [,1] [,2] [,3] [,4] [,5] [,6]
 [1,]   28  148  268  388  508  628
 [2,]   33  153  273  393  513  633
 [3,]   88  208  328  448  568  688
 [4,]   93  213  333  453  573  693
-> sum(a[[1]])*30 == sum(1:720)
 [1] TRUE
 > 
 > tm0 = as.Date("2019-02-19") + -1:8
@@ -110,6 +138,27 @@ dimension(s):
 time    1 10 2019-02-18 1 days   Date    NA    
 x       1 10          0      1 WGS 84 FALSE [x]
 y       1 12         12     -1 WGS 84 FALSE [y]
+> (a = aggregate(st, "days", mean, na.rm = TRUE))
+stars object with 3 dimensions and 1 attribute
+attribute(s):
+    Min. 1st Qu. Median  Mean 3rd Qu. Max.
+A1     1  180.75  360.5 360.5  540.25  720
+dimension(s):
+     from to     offset  delta refsys point x/y
+time    1  6 2019-02-20 1 days   Date    NA    
+x       1 10          0      1 WGS 84 FALSE [x]
+y       1 12         12     -1 WGS 84 FALSE [y]
+> yd = function(x) as.POSIXlt(x)$yday
+> (a = aggregate(st, yd, mean, na.rm = TRUE))
+stars object with 3 dimensions and 1 attribute
+attribute(s):
+    Min. 1st Qu. Median  Mean 3rd Qu. Max.
+A1     1  180.75  360.5 360.5  540.25  720
+dimension(s):
+         from to offset delta refsys point    values x/y
+geometry    1  6     NA    NA     NA    NA 50,...,55    
+x           1 10      0     1 WGS 84 FALSE      NULL [x]
+y           1 12     12    -1 WGS 84 FALSE      NULL [y]
 > 
 > # with "by" geometry not overlapping x
 > pt = st_point(c(-10,-10))
@@ -151,4 +200,4 @@ t                                                                 NULL
 > 
 > proc.time()
    user  system elapsed 
-   2.25    0.25    2.48 
+  15.00    0.62   15.78 

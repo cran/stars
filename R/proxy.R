@@ -84,8 +84,12 @@ add_resolution = function(lst) {
 c.stars_proxy = function(..., along = NA_integer_, along_crs = FALSE, try_hard = FALSE, 
 						 nms = names(list(...)), tolerance = sqrt(.Machine$double.eps)) {
 	dots = list(...)
+	get_file_dim = function(dots) {
+			do.call(rbind, lapply(dots, attr, "file_dim"))
+	}
 	if (!all(sapply(dots, function(x) inherits(x, "stars_proxy"))))
 		stop("all arguments to c() should be stars_proxy objects")
+	rio = attr(dots[[1]], "RasterIO")
 
 	# Case 1: merge attributes of several objects by simply putting them together in a single stars object;
 	# dim does not change:
@@ -99,14 +103,16 @@ c.stars_proxy = function(..., along = NA_integer_, along_crs = FALSE, try_hard =
 						   dimensions = st_dimensions(dots[[1]]), 
 						   NA_value = attr(dots[[1]], "NA_value"), 
 						   resolutions = NULL,
-						   file_dim = attr(dots[[1]], "file_dim"))
+						   file_dim = get_file_dim(dots),
+						   RasterIO = rio)
 		else if (identical_dimensions(dots, ignore_resolution = TRUE, tolerance = tolerance)) {
 			dots = add_resolution(dots)
 			st_stars_proxy(setNamesIfnn(do.call(c, lapply(dots, unclass)), nms),
 						   dimensions = st_dimensions(dots[[1]]), 
 						   resolutions = attr(dots, "resolutions"),
 						   NA_value = attr(dots[[1]], "NA_value"), 
-						   file_dim = attr(dots[[1]], "file_dim"))
+						   file_dim = get_file_dim(dots),
+						   RasterIO = rio)
 		} else {
 			# currently catches only the special case of ... being a broken up time series:
 			along = sort_out_along(dots)
@@ -128,7 +134,8 @@ c.stars_proxy = function(..., along = NA_integer_, along_crs = FALSE, try_hard =
 							   dimensions = st_dimensions(dots[[1]]), 
 							   NA_value = attr(dots[[1]], "NA_value"), 
 							   resolutions = NULL, 
-							   file_dim = attr(dots[[1]], "file_dim"))
+							   file_dim = get_file_dim(dots),
+							   RasterIO = rio)
 			}
 		}
 	} else { # arrange along "along" dimension:
@@ -158,7 +165,8 @@ c.stars_proxy = function(..., along = NA_integer_, along_crs = FALSE, try_hard =
 				names(dims)[along_dim] = if (is.character(along)) along else "new_dim"
 			st_stars_proxy(ret, dimensions = dims, NA_value = attr(dots[[1]], "NA_value"),
 				resolutions = NULL,
-				file_dim = attr(dots[[1]], "file_dim"))
+				file_dim = get_file_dim(dots),
+				RasterIO = rio)
 		}
 	}
 }
@@ -216,6 +224,9 @@ fetch = function(x, downsample = 0, ...) {
 				 # && (bands$to - bands$from + 1) < length(x[[1]])
 			)
 			rasterio$bands = seq(bands$from, bands$to)
+		if (!is.null(rasterio$bands) && length(rasterio$bands) > 1 && 
+				length(rasterio$bands) == length(x[[1]])) # one band in each file
+			rasterio$bands = NULL # https://github.com/r-spatial/stars/issues/608
 	}
 
 	# do it:
@@ -271,8 +282,15 @@ fetch = function(x, downsample = 0, ...) {
 		}
 
 	ret = unclass(ret)
-	for (i in seq_along(ret))
+	for (i in seq_along(ret)) {
+		file_dim = attr(x, "file_dim")
+		if (is.null(bands) && !is.null(file_dim) && ncol(file_dim) == length(dim(new_dim)) 
+				&& ncol(file_dim) == 3) { # https://github.com/r-spatial/stars/issues/596
+			r = new_dim[[3]]$from:new_dim[[3]]$to # FIXME: or else use $values?
+			ret[[i]] = ret[[i]][,,r]
+		}
 		dim(ret[[i]]) = dim(new_dim)
+	}
 	adrop(st_set_crs(st_stars(setNames(ret, names(x)), new_dim), st_crs(x)))
 }
 
@@ -407,9 +425,15 @@ is.na.stars_proxy = function(x) {
 	collect(x, match.call(), "is.na", "x", env = environment())
 }
 
+#' @name stars_subset
 #' @export
 "[<-.stars_proxy" = function(x, i, downsample = 0, value) {
-	collect(x, match.call(), "[<-", c("x", "i", "value", "downsample"), env = environment())
+	# https://stackoverflow.com/questions/9965577/copy-move-one-environment-to-another
+	# copy the environment, to avoid side effect later on:
+	# FIXME: to investigate - should this be done to env in every call to collect()?
+	env = as.environment(as.list(environment(), all.names = TRUE)) # copies
+	parent.env(env) = parent.env(environment())
+	collect(x, match.call(), "[<-", c("x", "i", "value", "downsample"), env)
 }
 
 
@@ -450,6 +474,7 @@ merge.stars_proxy = function(x, y, ..., name = "attributes") {
 		else
 			NULL
 	}
+	rio = attr(x, "RasterIO")
 	dim_orig = dim(x)
 	mc = match.call()
 	lst = as.list(mc)
@@ -463,7 +488,8 @@ merge.stars_proxy = function(x, y, ..., name = "attributes") {
 			if (!is.null(resolutions <- attr(x, "resolutions")))
 				resolutions = resolutions[i, ]
 			x = st_stars_proxy(unclass(x)[i], st_dimensions(x), NA_value = attr(x, "NA_value"),
-				resolutions = resolutions, file_dim = attr(x, "file_dim"))
+				resolutions = resolutions, file_dim = attr(x, "file_dim"),
+				RasterIO = rio)
 			lst[["i"]] = TRUE # this one has been handled now
 		}
 		ix = 1
@@ -485,34 +511,37 @@ merge.stars_proxy = function(x, y, ..., name = "attributes") {
 			lst[["i"]] = TRUE # this one has been handled now
 	}
 
-	# return:
-	if (length(lst) == 3 && isTRUE(lst[["i"]]) && is.null(cl)) { # drop a number of files in the lists of files
-		file_dim = attr(x, "file_dim") %||% dim(x)[1:2]
-		n_file_dim = length(file_dim)
-		if (length(x) && length(dim(x)) > n_file_dim && 
-				length(x[[1]]) == prod(dim_orig[-(seq_along(file_dim))])) { # https://github.com/r-spatial/stars/issues/561
-			# select from the vectors of proxy object names:
-			get_ix = function(d) {
-				stopifnot(inherits(d, "dimension"))
-				if (!is.na(d$from))
-					seq(d$from, d$to)
-				else
-					d$values
-			}
-			d = st_dimensions(x)[-seq_along(file_dim)] # dimensions not in the file(s)
-			e = do.call(expand.grid, lapply(dim_orig[-seq_along(file_dim)], seq_len)) # all combinations
-			e$rn = seq_len(nrow(e)) # their index
-			f = do.call(expand.grid, lapply(d, get_ix)) # the ones we want
-			if (!requireNamespace("dplyr", quietly = TRUE))
-				stop("package dplyr required, please install it first") # nocov
-			sel = dplyr::inner_join(e, f, by = colnames(f))$rn
-			for (i in seq_along(x))
-				x[[i]] = x[[i]][sel]
+	# return or collect?
+	file_dim = attr(x, "file_dim") %||% matrix(dim(x)[1:2], 1)
+	n_file_dim = ncol(file_dim)
+	if (length(lst) == 3 && isTRUE(lst[["i"]]) && is.null(cl) &&  # drop a number of files in the lists of files?
+			length(x) && length(dim(x)) > n_file_dim && 
+			length(x[[1]]) == prod(dim_orig[-(seq_len(ncol(file_dim)))])) { # https://github.com/r-spatial/stars/issues/561
+		# select from the vectors of proxy object names:
+		get_ix = function(d) {
+			stopifnot(inherits(d, "dimension"))
+			if (!is.na(d$from))
+				seq(d$from, d$to)
+			else
+				d$values
 		}
-		x 
-	} else # still processing the geometries inside the bbox:
-		collect(x, as.call(lst), "[", c("x", "i", "drop", "crop"), 
-			env = environment()) # postpone every arguments > 3 to after reading cells
+		d = st_dimensions(x)[-seq_len(n_file_dim)] # dimensions not in the file(s)
+		e = do.call(expand.grid, lapply(dim_orig[-seq_len(n_file_dim)], seq_len)) # all combinations
+		e$rn = seq_len(nrow(e)) # their index
+		f = do.call(expand.grid, lapply(d, get_ix)) # the ones we want
+		if (!requireNamespace("dplyr", quietly = TRUE))
+			stop("package dplyr required, please install it first") # nocov
+		sel = dplyr::inner_join(e, f, by = colnames(f))$rn
+		for (i in seq_along(x)) # select:
+			x[[i]] = x[[i]][sel]
+		x
+	} else { # still processing the geometries inside the bbox:
+		if (length(lst) == 3 && isTRUE(lst[["i"]]) && is.null(cl))
+			x
+		else
+			collect(x, as.call(lst), "[", c("x", "i", "drop", "crop"), 
+				env = environment()) # postpone every arguments > 3 to after reading cells
+	}
 }
 
 # shrink bbox with e * width in each direction
@@ -559,7 +588,8 @@ st_crop.stars_proxy = function(x, y, ..., crop = TRUE, epsilon = sqrt(.Machine$d
 		if(!is.null(dm[[ yd ]]$values))
 			dm[[ yd ]]$values = dm[[ yd ]]$values[dm[[ yd ]]$from:dm[[ yd ]]$to]
 	}
-	x = st_stars_proxy(x, dm, NA_value = attr(x, "NA_value"), resolutions = attr(x, "resolutions")) # crop to bb
+	x = st_stars_proxy(x, dm, NA_value = attr(x, "NA_value"), resolutions = attr(x, "resolutions"),
+		file_dim = attr(x, "file_dim")) # crop to bb
 	if (collect)
 		collect(x, match.call(), "st_crop", c("x", "y", "crop", "epsilon"),
 			env = environment(), ...) # crops further when realised
@@ -588,6 +618,14 @@ predict.stars_proxy = function(object, model, ...) {
 	y = unclass(x)
 	y[[i]] = value
 	structure(y, class = class(x))
+}
+
+#' @export
+st_normalize.stars_proxy = function(x, domain = c(0, 0, 1, 1), ...) {
+	stopifnot(all(domain == c(0,0,1,1)))
+	d = st_dimensions(x)
+	stopifnot(d[[1]]$from == 1, d[[2]]$from == 1)
+	x
 }
 
 #nocov start

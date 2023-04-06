@@ -1,3 +1,27 @@
+# version 0.6-1
+
+* remove `rgdal` dependency
+
+* `read_stars()` fixes combining bands with different block sizes; #623
+
+* `st_warp()` gets (proper) default value for `threshold`; #618
+
+* `read_mdim()` reads "raster" with single pixel (as a point)
+
+* `[.stars()`, as in `r[x]` allows `x` to be a logical stars object
+
+* `[<-.stars_proxy()` clones environment, so that after `r[r > 100] = NA` we don't get infinite recursion when realizing `r`
+
+* `read_stars()` avoids reading a raster twice to determine how to choose `proxy`; `proxy` can now be set as (and defaults to) the number of cells (bands * rows * columns) above which data will not be read in memory but returned as `stars_proxy` object; #609
+
+* fix using `RasterIO` in `read_stars()` when `proxy=TRUE`; #608
+
+* `plot.stars()` hook function can handle arguments `row`, `col`, `nrow`, `ncol`, `nr`, `value` and `bbox`; #600
+
+* fix handling of categorical rasters with colors but without category labels; #595, fallout of #565
+
+* fix subsetting of proxy objects over a time range; #596
+
 # version 0.6-0
 
 * `write_stars()` writes scaled and/or shifted values when using argument `scale_offset`; #589

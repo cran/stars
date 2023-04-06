@@ -121,19 +121,18 @@ read_mdim = function(filename, variable = character(0), ..., options = character
 					 offset = integer(0), count = integer(0), step = integer(0), proxy = FALSE, 
 					 debug = FALSE, bounds = TRUE) {
 
-	stopifnot(is.character(filename), is.character(variable), is.character(options));
-	# when releasing to CRAN, require sf 1.0-9 and drop second option
-	ret = if (packageVersion("sf") >= "1.0-9")
-			gdal_read_mdim(filename, variable, options, rev(offset), rev(count), rev(step), proxy, debug)
-		else
-			gdal_read_mdim(filename, variable, options)
+	if (proxy)
+		stop("proxy not yet implemented in read_mdim()")
 
+	stopifnot(is.character(filename), is.character(variable), is.character(options))
+	ret = gdal_read_mdim(filename, variable, options, rev(offset), rev(count), rev(step), proxy, debug)
 	ret = recreate_geometry(ret)
 	if (isTRUE(bounds) || is.character(bounds))
 		ret$dimensions = mdim_use_bounds(ret$dimensions, filename, bounds)
 
 	create_units = function(x) {
-		u <- attr(x, "units")
+		u = attr(x, "units")
+		x = structure(x, units = NULL) # remove attribute
 		if (is.null(u) || u == "")
 			x
 		else {
@@ -141,15 +140,19 @@ read_mdim = function(filename, variable = character(0), ..., options = character
 						cal %in% c("360_day", "365_day", "noleap"))
 				get_pcict(x, u, cal)
 			else {
-				if (inherits(try(tr <- units::set_units(x, u, mode = "standard"), silent = TRUE), "try-error"))
-						return(u)
+				days_since = grepl("days since", u)
+				u = try_as_units(u)
+				if (!inherits(u, "units")) # FAIL:
+					x
+				else {
+					units(x) = u
+					if (days_since && inherits(d <- try(as.Date(x), silent = TRUE), "Date")) 
+						d
+					else if (inherits(p <- try(as.POSIXct(x), silent = TRUE), "POSIXct"))
+						p
 					else
-						u = tr
-				p = try(as.POSIXct(u), silent = TRUE)
-				if (inherits(p, "POSIXct"))
-					p
-				else
-					u
+						x
+				}
 			}
 		}
 	}
@@ -170,9 +173,13 @@ read_mdim = function(filename, variable = character(0), ..., options = character
 			l[[i]] = l[[i]][seq(from = offset[i]+1, length.out = count[i], by = step[i])]
 		}
 	}
+
+	# create dimensions table:
 	sf = any(sapply(l, function(x) inherits(x, "sfc")))
-	d = mapply(function(x, i) create_dimension(values = x, is_raster = !sf && i %in% 1:2), l, seq_along(l),
-			SIMPLIFY = FALSE)
+	# FIXME: i %in% 1:2 always the case?
+	d = mapply(function(x, i) create_dimension(values = x, is_raster = !sf && i %in% 1:2, 
+									   point = ifelse(length(x) == 1, TRUE, NA)),
+			   l, seq_along(l), SIMPLIFY = FALSE)
 	if (is.null(raster)) {
 		raster = if (sf)
 					get_raster(dimensions = rep(NA_character_,2))
@@ -180,18 +187,26 @@ read_mdim = function(filename, variable = character(0), ..., options = character
 					get_raster(dimensions = names(d)[1:2])
 	} else
 		raster = get_raster(dimensions = raster)
-
-	if (proxy)
-		stop("proxy not yet implemented in read_mdim()")
+	dimensions = create_dimensions(d, raster = raster)
 
 	# handle array units:
 	for (i in seq_along(ret$array_list))
-		if (nchar(u <- attr(ret$array_list[[i]], "units")) && 
-				!inherits(try(units::set_units(1.0, u, mode = "standard"), silent = TRUE), "try-error"))
-			ret$array_list[[i]] = units::set_units(ret$array_list[[i]], u, mode = "standard")
-	lst = lapply(ret$array_list, function(x) structure(x, dim = rev(dim(x))))
-	st_set_crs(st_stars(lst, dimensions = structure(d, raster = raster, class = "dimensions")),
-		ret$srs)
+		if (nchar(u <- attr(ret$array_list[[i]], "units")) && inherits(u <- try_as_units(u), "units"))
+			units(ret$array_list[[i]]) = u
+	clean_units = function(x) { 
+		if (identical(attr(x, "units"), "")) 
+			structure(x, units = NULL)
+		else
+			x
+	}
+	lst = lapply(ret$array_list, function(x) structure(clean_units(x), dim = rev(dim(x))))
+
+	# create return object:
+	st = st_stars(lst, dimensions)
+	if (!is.null(ret$srs))
+		st_set_crs(st, ret$srs)
+	else
+		st
 }
 
 
@@ -208,10 +223,11 @@ add_units_attr = function(l) {
 			else if (inherits(x, c("POSIXct", "PCICt"))) {
 				cal = if (!is.null(cal <- attr(x, "cal")))
 					c(calendar = paste0(cal, "_day")) # else NULL, intended
-				if (all(as.numeric(x) %% 86400 == 0))
-					add_attr(as.numeric(x)/86400, c(units = "days since 1970-01-01", cal))
-				else if (all(as.numeric(x) %% 3600 == 0))
-					add_attr(as.numeric(x)/3600, c(units = "hours since 1970-01-01 00:00:00", cal))
+				x = as.numeric(x)
+				if (all(x %% 86400 == 0))
+					add_attr(x/86400, c(units = "days since 1970-01-01", cal))
+				else if (all(x %% 3600 == 0))
+					add_attr(x / 3600, c(units = "hours since 1970-01-01 00:00:00", cal))
 				else
 					add_attr(x, c(units = "seconds since 1970-01-01 00:00:00", cal))
 			} else if (inherits(x, "Date"))
@@ -257,7 +273,7 @@ cdl_add_geometry = function(e, i, sfc) {
 		  	part_node_count = "part_node_count",
 		  	grid_mapping = if (!is.na(st_crs(sfc))) "crs" else NULL))
 	} else { # POINT:
-		if (isTRUE(st_is_longlat(sfc))) {
+		if (ll <- isTRUE(st_is_longlat(sfc))) {
 			e$lon = add_attr(structure(cc[, 1], dim = setNames(nrow(cc), names(e)[i])), 
 						 	c(units = "degrees_north", standard_name = "longitude"))
 			e$lat = add_attr(structure(cc[, 2], dim = setNames(nrow(cc), names(e)[i])), 
@@ -267,7 +283,7 @@ cdl_add_geometry = function(e, i, sfc) {
 			e$y = structure(cc[, 2], dim = setNames(nrow(cc), names(e)[i]))
 		}
 		e$geometry = add_attr(structure(numeric(0), dim = c("somethingNonEx%isting" = 0)),
-				c(geometry_type = "point", node_coordinates = "x y",
+				c(geometry_type = "point", node_coordinates = ifelse(ll, "lon lat", "x y"),
 				grid_mapping = if (!is.na(st_crs(sfc))) "crs" else NULL))
 	}
 	e

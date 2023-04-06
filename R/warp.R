@@ -73,7 +73,7 @@ rename_xy_dimensions = function(x, dims) {
 
 # transform grid x to dimensions target
 # x is a stars object, target is a dimensions object
-transform_grid_grid = function(x, target, threshold = Inf) {
+transform_grid_grid = function(x, target, threshold) {
 	stopifnot(inherits(x, "stars"), inherits(target, "dimensions"))
 	x = rename_xy_dimensions(x, target) # so we can match by name
 	xy_names = attr(target, "raster")$dimensions
@@ -92,7 +92,12 @@ transform_grid_grid = function(x, target, threshold = Inf) {
         		stop("package FNN required, please install it first") #nocov
 			if (st_is_longlat(x))
 				warning("using Euclidean distance measures on geodetic coordinates")
-			fnn = FNN::get.knnx(st_coordinates(x)[,1:2], pts, 1)
+			fnn = FNN::get.knnx(cc_x <- st_coordinates(x)[, 1:2, drop = FALSE], pts, 1)
+			if (is.na(threshold)) {
+				p12 = st_as_sf(as.data.frame(cc_x[1:2,]), coords = 1:2)
+				threshold = signif(st_distance(p12)[1,2])
+				message(paste("threshold set to", threshold, ": set a larger value if you see missing values where they shouldn't be"))
+			}
 			i = fnn$nn.index - 1
 			i[fnn$nn.dist > threshold] = NA
 			ny = dim(x)[1]
@@ -160,7 +165,7 @@ transform_grid_grid = function(x, target, threshold = Inf) {
 #' @export
 st_warp = function(src, dest, ..., crs = NA_crs_, cellsize = NA_real_, segments = 100,
 		use_gdal = FALSE, options = character(0), no_data_value = NA_real_, debug = FALSE,
-		method = "near", threshold = ifelse(is.na(cellsize), Inf, cellsize / 2)) {
+		method = "near", threshold = NA_real_) {
 
 	if (!inherits(src, "stars_proxy"))
 		src = st_normalize(src)

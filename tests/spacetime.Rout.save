@@ -1,6 +1,6 @@
 
-R Under development (unstable) (2022-10-11 r83083 ucrt) -- "Unsuffered Consequences"
-Copyright (C) 2022 The R Foundation for Statistical Computing
+R version 4.3.0 alpha (2023-04-05 r84174 ucrt)
+Copyright (C) 2023 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -234,11 +234,11 @@ Slot "endTime":
 
 
 STFDF> stfdf[1,]
-                    values  ID      timeIndex
-2010-08-05 10:00:00 " 9.38" "ID 1"  "1"      
-2010-08-05 11:00:00 "11.50" "ID 4"  "2"      
-2010-08-05 12:00:00 "10.40" "ID 7"  "3"      
-2010-08-05 13:00:00 "10.30" "ID 10" "4"      
+                    values    ID timeIndex
+2010-08-05 10:00:00   9.38  ID 1         1
+2010-08-05 11:00:00  11.50  ID 4         2
+2010-08-05 12:00:00  10.40  ID 7         3
+2010-08-05 13:00:00  10.30 ID 10         4
 
 STFDF> stfdf[,2]
   coordinates values   ID
@@ -254,11 +254,11 @@ STFDF> as(stfdf[,,1], "xts")
 2010-08-05 13:00:00  10.30   21.4   29.4
 
 STFDF> as(stfdf[,,2], "xts")
-                    point1  point2  point3 
-2010-08-05 10:00:00 "ID 1"  "ID 2"  "ID 3" 
-2010-08-05 11:00:00 "ID 4"  "ID 5"  "ID 6" 
-2010-08-05 12:00:00 "ID 7"  "ID 8"  "ID 9" 
-2010-08-05 13:00:00 "ID 10" "ID 11" "ID 12"
+                    point1 point2 point3
+2010-08-05 10:00:00   ID 1   ID 2   ID 3
+2010-08-05 11:00:00   ID 4   ID 5   ID 6
+2010-08-05 12:00:00   ID 7   ID 8   ID 9
+2010-08-05 13:00:00  ID 10  ID 11  ID 12
 
 STFDF> # examples for [[, [[<-, $ and $<- 
 STFDF> stfdf[[1]]
@@ -329,9 +329,25 @@ The following objects are masked from 'package:base':
 
     as.Date, as.Date.numeric
 
-Warning message:
-In as.xts.stars(x) : all but first attribute will be ignored
+
+################################### WARNING ###################################
+# We noticed you have dplyr installed. The dplyr lag() function breaks how    #
+# base R's lag() function is supposed to work, which breaks lag(my_xts).      #
+#                                                                             #
+# If you call library(dplyr) later in this session, then calls to lag(my_xts) #
+# that you enter or source() into this session won't work correctly.          #
+#                                                                             #
+# All package code is unaffected because it is protected by the R namespace   #
+# mechanism.                                                                  #
+#                                                                             #
+# Set `options(xts.warn_dplyr_breaks_lag = FALSE)` to suppress this warning.  #
+#                                                                             #
+# You can use stats::lag() to make sure you're not using dplyr::lag(), or you #
+# can add conflictRules('dplyr', exclude = 'lag') to your .Rprofile to stop   #
+# dplyr from breaking base R's lag() function.                                #
+################################### WARNING ###################################
+only the first attribute will used; maybe use merge() first?
 > 
 > proc.time()
    user  system elapsed 
-   2.09    0.15    2.25 
+   3.84    0.60    4.50 
