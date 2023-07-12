@@ -165,7 +165,7 @@ read_stars = function(.x, sub = TRUE, ..., options = character(0),
 		curvilinear = setNames(c(st_set_dimensions(lon, names = c("x", "y")),
 			st_set_dimensions(lat, names = c("x", "y"))), c("x", "y"))
 	}
-	if (length(curvilinear) && proxy)
+	if (length(curvilinear) && isTRUE(proxy))
 		warning("proxy = TRUE may not work for curvilinear rasters")
 
 	if (length(x) > 1) { # loop over data sources, read, c() all, and RETURN:
@@ -288,6 +288,8 @@ read_stars = function(.x, sub = TRUE, ..., options = character(0),
 						which(sapply(at[[which.at]], class) == "character")[1]
 				if (length(which.column) == 0)
 					which.column = 1
+			}
+			if (!(all(is.na(which.column)))) {
 				labels = at = at[[ which.at ]][[ which.column ]]
 				levels = 0:(length(at) - 1)
 				if (length(exclude)) {

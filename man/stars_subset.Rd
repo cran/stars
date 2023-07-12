@@ -41,9 +41,9 @@ without(s) changing the dimension properties
 subset stars objects
 }
 \details{
-If \code{i} is an object of class \code{sf}, \code{sfc} or \code{bbox}, the spatial subset covering this geometry is selected, possibly followed by cropping the extent. Array values for which the cell centre is not inside the geometry are assigned \code{NA}. If \code{i} is of class \code{stars}, and attributes of \code{i} are \code{logical}, cells in \code{x} corresponding to \code{NA} or \code{FALSE} cells in \code{i} are assigned an \code{NA}.
+If \code{i} is an object of class \code{sf}, \code{sfc} or \code{bbox}, the spatial subset covering this geometry is selected, possibly followed by cropping the extent. Array values for which the cell centre is not inside the geometry are assigned \code{NA}. If \code{i} is of class \code{stars}, and attributes of \code{i} are \code{logical}, cells in \code{x} corresponding to \code{NA} or \code{FALSE} cells in \code{i} are assigned an \code{NA}. Dimension ranges containing negative values or \code{NA} may be partially supported.
 
-in an assignment (or replacement form, \code{[<-}), argument \code{i} needs to be a \code{stars} object with logical attribute(s) that has dimensions matching (possibly after recycling) those of \code{x}; \code{i} and/or \code{value} will be recycled to the dimensions of the arrays in \code{x}.
+in an assignment (or replacement form, \code{[<-}), argument \code{i} needs to be either (i) a \code{stars} object with logical attribute(s) that has dimensions matching (possibly after recycling) those of \code{x}, in which case the \code{TRUE} cells will be replaced and \code{i} and/or \code{value} will be recycled to the dimensions of the arrays in \code{x}, or (ii) a length-one integer or character vector indicating which array to replace, in which case \code{value} may be stars object or a vector or array (that will be recycled).
 }
 \examples{
 tif = system.file("tif/L7_ETMs.tif", package = "stars")
@@ -74,6 +74,19 @@ plot(buf, add = TRUE, col = NA)
 # with i of class stars:
 x[x > 75] # generates lots of NA's; pattern for each band
 x[x[,,,1] > 75] # recycles a single band template for all bands
+x = read_stars(tif)
+# replace, using a logical stars selector: cuts all values above 90 to 90
+x[x > 90] = 90
+# replace a single attribute when there are more than one:
+s = split(x)
+names(s) = paste0("band", 1:6)
+# rescale only band 1:
+s[1] = s[1] * 0.75 
+# rescale only attribute named "band2":
+s["band2"] = s["band2"] * 0.85 
+# create a new attribute from a numeric vector:
+s["rnorm"] = rnorm(prod(dim(s))) 
+s
 lc = read_stars(system.file("tif/lc.tif", package = "stars"))
 x = c(orig = lc, 
       flip_x = st_flip(lc, "x"), 

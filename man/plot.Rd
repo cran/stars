@@ -22,6 +22,7 @@
   key.pos = get_key_pos(x, ...),
   key.width = lcm(1.8),
   key.length = 0.618,
+  key.lab = main,
   reset = TRUE,
   box_col = grey(0.8),
   center_time = FALSE,
@@ -86,6 +87,8 @@
 \item{key.width}{amount of space reserved for width of the key (labels); relative or absolute (using lcm)}
 
 \item{key.length}{amount of space reserved for length of the key (labels); relative or absolute (using lcm)}
+
+\item{key.lab}{character; label for color key in case of multiple subplots, use \code{""} to suppress}
 
 \item{reset}{logical; if \code{FALSE}, keep the plot in a mode that allows adding further map elements; if \code{TRUE} restore original mode after plotting}
 
@@ -164,8 +167,14 @@ hook2 = function(..., row, col, nr, nrow, ncol, value, bbox) {
    text(pt[,"X"], pt[,"Y"], str, col = 'red', cex = 2)
 }
 plot(x, hook = hook2, col = grey(c(.2,.25,.3,.35)))
+if (isTRUE(dev.capabilities()$rasterImage == "yes")) {
+  lc = system.file("tif/lc.tif", package = "stars")
+  plot(read_stars(lc), key.pos=4, key.width=lcm(5))
+}
 tif = system.file("tif/L7_ETMs.tif", package = "stars")
 x = read_stars(tif)
 image(x, col = grey((3:9)/10))
-image(x, rgb = c(1,3,5)) # false color composite
+if (isTRUE(dev.capabilities()$rasterImage == "yes")) {
+  image(x, rgb = c(1,3,5)) # false color composite
+}
 }

@@ -7,7 +7,7 @@
 #' @param ... further (logical or integer vector) selectors, matched by order, to select on individual dimensions
 #' @param drop logical; if \code{TRUE}, degenerate dimensions (with only one value) are dropped 
 #' @param crop logical; if \code{TRUE} and parameter \code{i} is a spatial geometry (\code{sf} or \code{sfc}) object, the extent (bounding box) of the result is cropped to match the extent of \code{i} using \link{st_crop}. Cropping curvilinear grids is not supported.
-#' @details If \code{i} is an object of class \code{sf}, \code{sfc} or \code{bbox}, the spatial subset covering this geometry is selected, possibly followed by cropping the extent. Array values for which the cell centre is not inside the geometry are assigned \code{NA}. If \code{i} is of class \code{stars}, and attributes of \code{i} are \code{logical}, cells in \code{x} corresponding to \code{NA} or \code{FALSE} cells in \code{i} are assigned an \code{NA}. 
+#' @details If \code{i} is an object of class \code{sf}, \code{sfc} or \code{bbox}, the spatial subset covering this geometry is selected, possibly followed by cropping the extent. Array values for which the cell centre is not inside the geometry are assigned \code{NA}. If \code{i} is of class \code{stars}, and attributes of \code{i} are \code{logical}, cells in \code{x} corresponding to \code{NA} or \code{FALSE} cells in \code{i} are assigned an \code{NA}. Dimension ranges containing negative values or \code{NA} may be partially supported.
 #' @export
 #' @examples
 #' tif = system.file("tif/L7_ETMs.tif", package = "stars")
@@ -122,9 +122,9 @@
 		for (i in seq_along(d)) { # one-at-a-time:
 			name_i = names(d)[i]
 			argi = args[i]
-			if (! (is_curvilinear(d) && name_i %in% xy) &&  # as that was handled above
-					all(argi[[1]] != rlang::missing_arg()) && 
-					is.numeric(eval(argi[[1]])) && ! all(diff(eval(argi[[1]])) == 1))
+			if (!(is_curvilinear(d) && name_i %in% xy) &&  # as that case was handled above
+					!(is.name(argi[[1]]) && all(argi[[1]] == rlang::missing_arg())) &&  # empty arg
+					is.numeric(e <- eval(argi[[1]])) && !any(is.na(e)) && !all(diff(e) == 1)) # sequence with gaps
 				d[[i]]$values = if (isTRUE(d[[i]]$point) || !is.numeric(unclass(ed[[i]][1])))
 						ed[[i]]
 					else
@@ -143,12 +143,37 @@
 #' @param downsample downsampling rate used in case \code{i} is a \code{stars_proxy} object
 #' @param value array of dimensions equal to those in \code{x}, or a vector or value that will be recycled to such an array
 #' @export
-#' @details in an assignment (or replacement form, \code{[<-}), argument \code{i} needs to be a \code{stars} object with logical attribute(s) that has dimensions matching (possibly after recycling) those of \code{x}; \code{i} and/or \code{value} will be recycled to the dimensions of the arrays in \code{x}.
+#' @details in an assignment (or replacement form, \code{[<-}), argument \code{i} needs to be either (i) a \code{stars} object with logical attribute(s) that has dimensions matching (possibly after recycling) those of \code{x}, in which case the \code{TRUE} cells will be replaced and \code{i} and/or \code{value} will be recycled to the dimensions of the arrays in \code{x}, or (ii) a length-one integer or character vector indicating which array to replace, in which case \code{value} may be stars object or a vector or array (that will be recycled).
+#' @examples
+#' x = read_stars(tif)
+#' # replace, using a logical stars selector: cuts all values above 90 to 90
+#' x[x > 90] = 90
+#' # replace a single attribute when there are more than one:
+#' s = split(x)
+#' names(s) = paste0("band", 1:6)
+#' # rescale only band 1:
+#' s[1] = s[1] * 0.75 
+#' # rescale only attribute named "band2":
+#' s["band2"] = s["band2"] * 0.85 
+#' # create a new attribute from a numeric vector:
+#' s["rnorm"] = rnorm(prod(dim(s))) 
+#' s
 "[<-.stars" = function(x, i, value) {
-	if (!inherits(i, "stars"))
-		stop("selector i should be a stars object")
-	fun = function(x, y, value) { x[y] = value; x }
-	st_as_stars(mapply(fun, x, i, value = value, SIMPLIFY = FALSE), dimensions = st_dimensions(x))
+	if (inherits(i, "stars")) {
+		fun = function(x, y, value) { x[y] = value; x }
+		st_as_stars(mapply(fun, x, i, value = value, SIMPLIFY = FALSE), dimensions = st_dimensions(x))
+	} else if (inherits(i, c("numeric", "character")) && length(i) == 1) {
+		if (inherits(value, "stars")) {
+			stopifnot(length(value) == 1, first_dimensions_match(x, value))
+			value = value[[1]]
+		}
+		if (is.numeric(i))
+			stopifnot(i > 0, i <= length(x))
+		y = unclass(x)
+		y[[i]] = array(value, dim(x))
+		st_as_stars(y, dimensions = st_dimensions(x))
+	} else
+		stop("selector i should be a stars object or a lenght-one integer or character vector")
 }
 
 

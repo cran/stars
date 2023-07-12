@@ -12,6 +12,7 @@
 #' @param left.open logical; used for time intervals, see \link{findInterval} and \link{cut.POSIXt}
 #' @param as_points see \link[stars]{st_as_sf}: shall raster pixels be taken as points, or small square polygons?
 #' @param exact logical; if \code{TRUE}, use \link[exactextractr]{coverage_fraction} to compute exact overlap fractions of polygons with raster cells
+#' @seealso \link[sf]{aggregate}, \link{st_interpolate_aw}, \link{st_extract}, https://github.com/r-spatial/stars/issues/317
 #' @export
 #' @aliases aggregate
 #' @examples
@@ -84,7 +85,7 @@ aggregate.stars = function(x, by, FUN, ..., drop = FALSE, join = st_intersects,
 		geom = "geometry"
 	stopifnot(!missing(FUN), is.function(FUN))
 
-	if (exact && inherits(by, c("sf", "sfc_POLYGON", "sfc_MULTIPOLYGON")) && has_raster(x)) {
+	if (exact && inherits(by, c("sfc_POLYGON", "sfc_MULTIPOLYGON")) && has_raster(x)) {
     	if (!requireNamespace("raster", quietly = TRUE))
         	stop("package raster required, please install it first") # nocov
     	if (!requireNamespace("exactextractr", quietly = TRUE))
@@ -95,8 +96,7 @@ aggregate.stars = function(x, by, FUN, ..., drop = FALSE, join = st_intersects,
 		e = exactextractr::coverage_fraction(as(r, "Raster"), by)
 		st = do.call(raster::stack, e)
 		m = raster::getValues(st)
-		#if (identical(FUN, mean)) see https://github.com/r-spatial/stars/issues/289
-		if (!identical(FUN, sum)) {
+		if (!identical(FUN, sum)) { # see https://github.com/r-spatial/stars/issues/289
 			if (isTRUE(as.character(as.list(FUN)[[3]])[2] == "mean"))
 				m = sweep(m, 2, colSums(m), "/") # mean: divide weights by the sum of weights
 			else

@@ -1,7 +1,7 @@
 
-R version 4.3.0 alpha (2023-04-05 r84174 ucrt)
+R Under development (unstable) (2023-07-09 r84667 ucrt) -- "Unsuffered Consequences"
 Copyright (C) 2023 The R Foundation for Statistical Computing
-Platform: x86_64-w64-mingw32/x64 (64-bit)
+Platform: x86_64-w64-mingw32/x64
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -95,4 +95,4 @@ bar     1   2 2001-01-01 365 days                       Date    NA
 > 
 > proc.time()
    user  system elapsed 
-   2.76    0.28    3.01 
+   1.06    0.23    1.29 

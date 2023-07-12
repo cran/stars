@@ -7,7 +7,7 @@ st_extract = function(x, ...) UseMethod("st_extract")
 
 #' @name st_extract
 #' @param x object of class \code{stars} or \code{stars_proxy}
-#' @param at object of class \code{sf} or \code{sfc} with geometries, or two-column matrix with points in rows, indicating where to extract x
+#' @param at object of class \code{sf} or \code{sfc} with geometries, or two-column matrix with coordinate points in rows, indicating where to extract values of \code{x}
 #' @param bilinear logical; use bilinear interpolation rather than nearest neighbour?
 #' @param time_column character or integer; name or index of a column with time or date values that will be matched to values of the dimension "time" in \code{x}, after which this dimension is reduced. This is useful to extract data cube values along a trajectory; see https://github.com/r-spatial/stars/issues/352 .
 #' @param interpolate_time logical; should time be interpolated? if FALSE, time instances are matched using the coinciding or the last preceding time in the data cube.
@@ -57,14 +57,21 @@ st_extract.stars = function(x, at, ..., bilinear = FALSE, time_column =
 	if (bilinear && !inherits(x, "stars_proxy"))
 		x = st_as_stars_proxy(x)
 
+	min_dist = NULL
 	m = if (inherits(x, "stars_proxy")) {
 			try_result = try(x0 <- st_as_stars(x, downsample = dim(x)/2), silent = TRUE)
 			lapply(x, function(y) do.call(abind, lapply(get_names(y), 
 				gdal_extract, pts = pts, bilinear = bilinear)))
 		} else {
 			x = st_normalize(st_upfront(x))
-			cr = colrow_from_xy(pts, x, NA_outside = TRUE)
-			ix = (cr[,2] - 1) * dim(x)[1] + cr[,1]
+			if (is_curvilinear(x)) { # https://github.com/r-spatial/stars/issues/632
+				d = st_distance(at, st_as_sfc(x, as_points = TRUE))
+				ix = apply(d, 1, which.min) # FIXME: handle points outside the raster
+				min_dist = d[cbind(seq_along(at), ix)]
+			} else {
+				cr = colrow_from_xy(pts, x, NA_outside = TRUE)
+				ix = (cr[,2] - 1) * dim(x)[1] + cr[,1]
+			}
 			lapply(x, function(y) 
 				array(y, dim = c(prod(dim(x)[1:2]), prod(dim(x)[-(1:2)])))[ix, , drop = FALSE])
 		}
@@ -74,7 +81,7 @@ st_extract.stars = function(x, at, ..., bilinear = FALSE, time_column =
 			if (is.character(m[[i]]))
 				m[[i]] = match(as.vector(m[[i]]), levels(x[[i]]))
 			m[[i]] = structure(m[[i]], levels = levels(x[[i]]), 
-				colors = attr(x[[i]], "colors"), class = "factor")
+				colors = attr(x[[i]], "colors"), class = class(x[[i]]))
 		} else if (inherits(x[[i]], "units"))
 			units(m[[i]]) = units(x[[i]])
 		else if (inherits(x, "stars_proxy") && !inherits(try_result, "try-error") && inherits(x0[[i]], "units"))
@@ -113,7 +120,10 @@ st_extract.stars = function(x, at, ..., bilinear = FALSE, time_column =
 			d[[1]] = create_dimension(values = at)
 			d[[2]] = NULL
 			names(d)[1] = sf_column
-			setNames(st_as_stars(m, dimensions = d), names(x))
+			st = setNames(st_as_stars(m, dimensions = d), names(x))
+			if (!is.null(min_dist))
+				st$min_dist = min_dist
+			st
 		}
 	} else {
 		df = setNames(as.data.frame(lapply(m, function(i) structure(i, dim = NULL))), names(x))
@@ -127,7 +137,10 @@ st_extract.stars = function(x, at, ..., bilinear = FALSE, time_column =
 				df$time = tm_cube[tm_ix]
 				df[[time_column]] = tm_pts
 			}
-			st_as_sf(df)
+			sf = st_as_sf(df)
+			if (!is.null(min_dist))
+				sf$min_dist = min_dist
+			sf
 		}
 	}
 }

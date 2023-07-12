@@ -1,7 +1,7 @@
 
-R version 4.3.0 alpha (2023-04-05 r84174 ucrt)
+R Under development (unstable) (2023-07-09 r84667 ucrt) -- "Unsuffered Consequences"
 Copyright (C) 2023 The R Foundation for Statistical Computing
-Platform: x86_64-w64-mingw32/x64 (64-bit)
+Platform: x86_64-w64-mingw32/x64
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -21,13 +21,14 @@ Type 'q()' to quit R.
 > 
 > ## test package
 > test_check("stars")
-[ FAIL 0 | WARN 0 | SKIP 4 | PASS 74 ]
+[ FAIL 0 | WARN 1 | SKIP 4 | PASS 71 ]
 
-══ Skipped tests ═══════════════════════════════════════════════════════════════
-• On CRAN (4)
+══ Skipped tests (4) ═══════════════════════════════════════════════════════════
+• On CRAN (4): 'test_ncdf.R:1:1', 'test_ncproxy.R:1:1', 'test_osm.R:4:3',
+  'test_rectilinear.R:89:3'
 
-[ FAIL 0 | WARN 0 | SKIP 4 | PASS 74 ]
+[ FAIL 0 | WARN 1 | SKIP 4 | PASS 71 ]
 > 
 > proc.time()
    user  system elapsed 
-  15.48    0.75   16.35 
+   8.32    0.48    8.71 

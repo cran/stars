@@ -1,7 +1,7 @@
 
-R version 4.3.0 alpha (2023-04-05 r84174 ucrt)
+R Under development (unstable) (2023-07-09 r84667 ucrt) -- "Unsuffered Consequences"
 Copyright (C) 2023 The R Foundation for Statistical Computing
-Platform: x86_64-w64-mingw32/x64 (64-bit)
+Platform: x86_64-w64-mingw32/x64
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -27,7 +27,7 @@ $bar
 dimension(s):
      from to offset  delta  refsys                    values x/y
 x       1 81    -85  0.125      NA                      NULL [x]
-y       1 33 37.125 -0.125      NA                      NULL [y]
+y       1 33  37.12 -0.125      NA                      NULL [y]
 time    1 12     NA     NA POSIXct 1999-01-31,...,1999-12-31    
 > L7_ETMs
 stars_proxy object with 1 attribute in 1 file(s):
@@ -42,16 +42,7 @@ band    1   6      NA    NA                         NA    NA
 > if (require(starsdata, quietly = TRUE)) {
 + 	print(stars_sentinel2)
 + }
-stars_proxy object with 1 attribute in 1 file(s):
-$`MTD_MSIL1C.xml:10m:EPSG_32632`
-[1] "[...]/MTD_MSIL1C.xml:10m:EPSG_32632"
-
-dimension(s):
-     from    to offset delta                refsys    values x/y
-x       1 10980  3e+05    10 WGS 84 / UTM zone 32N      NULL [x]
-y       1 10980  6e+06   -10 WGS 84 / UTM zone 32N      NULL [y]
-band    1     4     NA    NA                    NA B4,...,B8    
 > 
 > proc.time()
    user  system elapsed 
-   1.96    0.46    2.42 
+   0.87    0.17    1.03 

@@ -1,3 +1,29 @@
+# version 0.6-2
+
+* `split.stars()` accepts `stars` objects with multiple attributes; #635
+
+* `[.stars()` supports `NA` values in dimension ranges for vector geometry (`sfc`) dimensions, resulting in empty geometries
+
+* `st_extract()` supports extracting points values from curvilinear grids (when not proxy); #632
+
+* `read_mdim()` reads curvilinear rasters (geolocation arrays), so far only at full extent/resolution
+
+* `st_as_stars.stars()` accepts curvilinear argument that points to arrays in `.x`
+
+* consistently use `OGC:CRS84` instead of `EPSG:4326`
+
+* setting `values=NULL` in `st_set_dimensions()` removes dimension values
+
+* more gracefully handle plotting of global curvilinear grids; #632
+
+* `image.stars()` plots images (e.g. of cross sections) when x and/or y are singular or absent; #628
+
+* `st_as_stars.cubble_df()` adds conversion from cubble; `cubble::as_cubble()` methods converts back
+
+* `[<-.stars()` accepts for `i` an indicator (numeric length character) to the array to be replaced; #626
+
+* `plot.stars()` gains an argument `key.lab` to set the legend key label (requires sf >= 1.0-13)
+
 # version 0.6-1
 
 * remove `rgdal` dependency

@@ -46,17 +46,17 @@ circle = st_sfc(st_buffer(st_point(c(293749.5, 9115745)), 400), crs = st_crs(x))
 plot(x[circle][, , , 1], reset = FALSE)
 plot(circle, col = NA, border = 'red', add = TRUE, lwd = 2)
 
-## ----eval=FALSE---------------------------------------------------------------
-#  x1 = read_stars(tif, options = c("OVERVIEW_LEVEL=1"))
-#  x2 = read_stars(tif, options = c("OVERVIEW_LEVEL=2"))
-#  x3 = read_stars(tif, options = c("OVERVIEW_LEVEL=3"))
-#  dim(x1)
-#  dim(x2)
-#  dim(x3)
-#  par(mfrow = c(1, 3), mar = rep(0.2, 4))
-#  image(x1[,,,1])
-#  image(x2[,,,1])
-#  image(x3[,,,1])
+## -----------------------------------------------------------------------------
+x1 = read_stars(tif, options = c("OVERVIEW_LEVEL=1"))
+x2 = read_stars(tif, options = c("OVERVIEW_LEVEL=2"))
+x3 = read_stars(tif, options = c("OVERVIEW_LEVEL=3"))
+dim(x1)
+dim(x2)
+dim(x3)
+par(mfrow = c(1, 3), mar = rep(0.2, 4))
+image(x1[,,,1])
+image(x2[,,,1])
+image(x3[,,,1])
 
 ## ----eval=ev------------------------------------------------------------------
 system.file("nc/bcsd_obs_1999.nc", package = "stars") |>
@@ -144,19 +144,19 @@ dims = st_dimensions(origin = from, destination = to, mode = mode, day = day, ho
 traffic = array(rpois(prod(n), 10), dim = n) # simulated traffic counts
 (st = st_as_stars(list(traffic = traffic),  dimensions = dims))
 
-## ----eval=FALSE---------------------------------------------------------------
-#  st |> as.tbl_cube()
+## ----eval=ev------------------------------------------------------------------
+st |> as.tbl_cube()
 
-## ----eval=FALSE---------------------------------------------------------------
-#  b <- st |>
-#    as.tbl_cube() |>
-#    filter(mode == "bike") |>
-#    group_by(hour) |>
-#    summarise(traffic = mean(traffic)) |>
-#    as.data.frame()
-#  require(ggforce) # for plotting a units variable
-#  ggplot() +
-#    geom_line(data = b, aes(x = hour, y = traffic))
+## ----eval=ev------------------------------------------------------------------
+b <- st |> 
+  as.tbl_cube() |> 
+  filter(mode == "bike") |> 
+  group_by(hour) |>
+  summarise(traffic = mean(traffic)) |> 
+  as.data.frame()
+require(ggforce) # for plotting a units variable
+ggplot() +  
+  geom_line(data = b, aes(x = hour, y = traffic))
 
 ## -----------------------------------------------------------------------------
 s = system.file("tif/lc.tif", package = "stars")

@@ -1,7 +1,7 @@
 
-R version 4.3.0 alpha (2023-04-05 r84174 ucrt)
+R Under development (unstable) (2023-07-09 r84667 ucrt) -- "Unsuffered Consequences"
 Copyright (C) 2023 The R Foundation for Statistical Computing
-Platform: x86_64-w64-mingw32/x64 (64-bit)
+Platform: x86_64-w64-mingw32/x64
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -20,7 +20,7 @@ Type 'q()' to quit R.
 > library(stars)
 Loading required package: abind
 Loading required package: sf
-Linking to GEOS 3.11.1, GDAL 3.6.2, PROJ 9.1.1; sf_use_s2() is TRUE
+Linking to GEOS 3.11.2, GDAL 3.6.2, PROJ 9.2.0; sf_use_s2() is TRUE
 > L = st_as_stars(L7_ETMs)[,,,1]
 > set.seed(123432)
 > st_bbox(L) |> 
@@ -48,4 +48,4 @@ Linking to GEOS 3.11.1, GDAL 3.6.2, PROJ 9.1.1; sf_use_s2() is TRUE
 > 
 > proc.time()
    user  system elapsed 
-   2.25    0.28    2.54 
+   0.95    0.26    1.20 

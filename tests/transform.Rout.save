@@ -1,7 +1,7 @@
 
-R version 4.3.0 alpha (2023-04-05 r84174 ucrt)
+R Under development (unstable) (2023-07-09 r84667 ucrt) -- "Unsuffered Consequences"
 Copyright (C) 2023 The R Foundation for Statistical Computing
-Platform: x86_64-w64-mingw32/x64 (64-bit)
+Platform: x86_64-w64-mingw32/x64
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -17,11 +17,6 @@ Type 'q()' to quit R.
 
 > suppressPackageStartupMessages(library(stars))
 > suppressPackageStartupMessages(library(lwgeom))
-Warning messages:
-1: In fun(libname, pkgname) :
-  GEOS versions differ: lwgeom has 3.9.1 sf has 3.11.1
-2: In fun(libname, pkgname) :
-  PROJ versions differ: lwgeom has 7.2.1 sf has 9.1.1
 > geomatrix = system.file("tif/geomatrix.tif", package = "stars")
 > (x = read_stars(geomatrix))
 stars object with 2 dimensions and 1 attribute
@@ -90,4 +85,4 @@ Error in st_transform_proj.stars(st_as_stars(list(matrix(1, 10, 10))),  :
 > 
 > proc.time()
    user  system elapsed 
-   2.59    0.39    2.92 
+   1.14    0.14    1.28 

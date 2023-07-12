@@ -1,7 +1,7 @@
 
-R version 4.3.0 alpha (2023-04-05 r84174 ucrt)
+R Under development (unstable) (2023-07-09 r84667 ucrt) -- "Unsuffered Consequences"
 Copyright (C) 2023 The R Foundation for Statistical Computing
-Platform: x86_64-w64-mingw32/x64 (64-bit)
+Platform: x86_64-w64-mingw32/x64
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -16,7 +16,7 @@ Type 'demo()' for some demos, 'help()' for on-line help, or
 Type 'q()' to quit R.
 
 > options(rgdal_show_exportToProj4_warnings = "none")
-> if (require(sp, quietly = TRUE)) {
+> if (suppressPackageStartupMessages(require(sp, quietly = TRUE))) {
 + demo(meuse)
 + # remove +init=xxx
 + meuse@proj4string = CRS(
@@ -77,7 +77,10 @@ Type 'q()' to quit R.
 
 > proj4string(meuse.area) <- crs
 [1] TRUE
+Warning message:
+In CPL_crs_from_input(x) :
+  GDAL Message 1: +init=epsg:XXXX syntax is deprecated. It might return a CRS with a non-EPSG compliant axis order.
 > 
 > proc.time()
    user  system elapsed 
-   2.96    0.43    3.39 
+   1.23    0.20    1.40 
