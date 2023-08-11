@@ -1,3 +1,15 @@
+# version 0.6-3
+
+* `st_downsample()` has argument `offset` to pixel-shift downsampled images
+
+* `st_downsample()` has argument `FUN` to compute sub-tile aggregates; #604
+
+* `st_as_stars.bbox()` retains `factor` values; #640
+
+* fix CRAN error in test script
+
+* `st_crop()` works (and warns) for the case when the crop area does not overlap with the area of the object; #638
+
 # version 0.6-2
 
 * `split.stars()` accepts `stars` objects with multiple attributes; #635
@@ -12,7 +24,7 @@
 
 * consistently use `OGC:CRS84` instead of `EPSG:4326`
 
-* setting `values=NULL` in `st_set_dimensions()` removes dimension values
+* setting `values = NULL` in `st_set_dimensions()` removes dimension values
 
 * more gracefully handle plotting of global curvilinear grids; #632
 
