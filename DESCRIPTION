@@ -1,6 +1,6 @@
 Package: stars
 Title: Spatiotemporal Arrays, Raster and Vector Data Cubes
-Version: 0.6-3
+Version: 0.6-4
 Authors@R: 
     c(person(given = "Edzer",
              family = "Pebesma",
@@ -27,18 +27,18 @@ License: Apache License
 URL: https://r-spatial.github.io/stars/,
         https://github.com/r-spatial/stars/
 BugReports: https://github.com/r-spatial/stars/issues/
-Additional_repositories: http://cran.uni-muenster.de/pebesma/
+Additional_repositories: https://cran.uni-muenster.de/pebesma/
 LazyData: true
 Depends: R (>= 3.3.0), abind, sf (>= 1.0-10)
-Imports: methods, parallel, classInt (>= 0.4-1), lwgeom, rlang, units
+Imports: methods, parallel, classInt (>= 0.4-1), rlang, units
 Suggests: Cairo, OpenStreetMap, PCICt, RNetCDF (>= 1.8-2), clue, covr,
         cubble (>= 0.3.0), cubelyr, digest, dplyr (>= 0.7-0),
         exactextractr, FNN, future.apply, ggforce, ggplot2, ggthemes,
-        gstat, httr, jsonlite, knitr, maps, mapdata, ncdfgeom, ncmeta
-        (>= 0.0.3), pbapply, plm, randomForest, raster, rmarkdown, sp,
-        spacetime, spatstat (>= 2.0-1), spatstat.geom, starsdata, terra
-        (>= 1.4-22), testthat, tibble, tidyr, tsibble, viridis, xts,
-        zoo
+        gstat, httr, jsonlite, knitr, lwgeom, maps, mapdata, ncdfgeom,
+        ncmeta (>= 0.0.3), pbapply, plm, randomForest, raster,
+        rmarkdown, sp, spacetime, spatstat (>= 2.0-1), spatstat.geom,
+        starsdata, terra (>= 1.4-22), testthat, tibble, tidyr, tsibble,
+        viridis, xts, zoo
 VignetteBuilder: knitr
 Encoding: UTF-8
 RoxygenNote: 7.2.3
@@ -50,7 +50,7 @@ Collate: 'init.R' 'stars.R' 'read.R' 'sf.R' 'dimensions.R' 'values.R'
         'OpenStreetMap.R' 'sample.R' 'extract.R' 'datasets.R' 'tile.R'
         'mdim.R' 'cubble.R'
 NeedsCompilation: no
-Packaged: 2023-08-10 18:26:09 UTC; edzer
+Packaged: 2023-09-10 20:29:30 UTC; edzer
 Author: Edzer Pebesma [aut, cre] (<https://orcid.org/0000-0001-8049-7069>),
   Michael Sumner [ctb] (<https://orcid.org/0000-0002-2471-7511>),
   Etienne Racine [ctb],
@@ -58,4 +58,4 @@ Author: Edzer Pebesma [aut, cre] (<https://orcid.org/0000-0001-8049-7069>),
   David Blodgett [ctb]
 Maintainer: Edzer Pebesma <edzer.pebesma@uni-muenster.de>
 Repository: CRAN
-Date/Publication: 2023-08-11 02:30:02 UTC
+Date/Publication: 2023-09-11 11:50:02 UTC

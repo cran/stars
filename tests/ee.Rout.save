@@ -1,5 +1,5 @@
 
-R Under development (unstable) (2023-08-09 r84924 ucrt) -- "Unsuffered Consequences"
+R Under development (unstable) (2023-09-09 r85115 ucrt) -- "Unsuffered Consequences"
 Copyright (C) 2023 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
@@ -17,10 +17,7 @@ Type 'q()' to quit R.
 
 > # show that extract with exact=TRUE equals st_interpolate_aw(), only much faster
 > options(digits=15)
-> library(stars)
-Loading required package: abind
-Loading required package: sf
-Linking to GEOS 3.11.2, GDAL 3.6.2, PROJ 9.2.0; sf_use_s2() is TRUE
+> suppressPackageStartupMessages(library(stars))
 > L = st_as_stars(L7_ETMs)[,,,1]
 > set.seed(123432)
 > st_bbox(L) |> 
@@ -48,4 +45,4 @@ Linking to GEOS 3.11.2, GDAL 3.6.2, PROJ 9.2.0; sf_use_s2() is TRUE
 > 
 > proc.time()
    user  system elapsed 
-   0.96    0.17    1.14 
+   0.95    0.14    1.07 

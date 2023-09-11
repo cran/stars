@@ -3,7 +3,7 @@ title: "6. How `raster` functions map to `stars` functions"
 author: "Sébastien Rochette, Adriano Fantini, Edzer Pebesma"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{6-raster-stars-mapping}
+  %\VignetteIndexEntry{6. How raster functions map to stars functions}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
