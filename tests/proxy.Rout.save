@@ -1,6 +1,6 @@
 
-R Under development (unstable) (2023-09-09 r85115 ucrt) -- "Unsuffered Consequences"
-Copyright (C) 2023 The R Foundation for Statistical Computing
+R version 4.4.0 alpha (2024-04-02 r86304 ucrt)
+Copyright (C) 2024 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -59,7 +59,7 @@ call_list:
 [[1]]
 e1 + e2
 attr(,".Environment")
-<environment: 0x000002304932d430>
+<environment: 0x000001a6ccc8eb90>
 
 This object has pending lazy operations: dimensions as printed may not reflect this.
 > st_as_stars(sin(r), downsample = 2)
@@ -86,7 +86,7 @@ call_list:
 [[1]]
 aperm(a = a, perm = perm)
 attr(,".Environment")
-<environment: 0x0000023048e84d50>
+<environment: 0x000001a6cdcb2588>
 
 This object has pending lazy operations: dimensions as printed may not reflect this.
 > if (interactive()) {
@@ -146,7 +146,7 @@ call_list:
 st_apply(X = X, MARGIN = MARGIN, FUN = FUN, CLUSTER = CLUSTER, 
     PROGRESS = PROGRESS, FUTURE = FUTURE, rename = rename, .fname = .fname)
 attr(,".Environment")
-<environment: 0x000002304981b970>
+<environment: 0x000001a6cd40a500>
 
 This object has pending lazy operations: dimensions as printed may not reflect this.
 > (yy = st_as_stars(y, downsample = 1))
@@ -173,12 +173,12 @@ call_list:
 st_apply(X = X, MARGIN = MARGIN, FUN = FUN, CLUSTER = CLUSTER, 
     PROGRESS = PROGRESS, FUTURE = FUTURE, rename = rename, .fname = .fname)
 attr(,".Environment")
-<environment: 0x0000023049b70318>
+<environment: 0x000001a6cc28cc70>
 
 [[2]]
 adrop(x = x, drop = drop)
 attr(,".Environment")
-<environment: 0x0000023049b6cd28>
+<environment: 0x000001a6cc29c4c8>
 
 This object has pending lazy operations: dimensions as printed may not reflect this.
 > (yy = st_as_stars(y, downsample = 1))
@@ -206,12 +206,12 @@ call_list:
 st_apply(X = X, MARGIN = MARGIN, FUN = FUN, CLUSTER = CLUSTER, 
     PROGRESS = PROGRESS, FUTURE = FUTURE, rename = rename, .fname = .fname)
 attr(,".Environment")
-<environment: 0x00000230507f5ed8>
+<environment: 0x000001a6cc4673b0>
 
 [[2]]
 adrop(x = x, drop = drop)
 attr(,".Environment")
-<environment: 0x0000023050946920>
+<environment: 0x000001a6cc474220>
 
 This object has pending lazy operations: dimensions as printed may not reflect this.
 > (yy = st_as_stars(y, downsample = 1))
@@ -315,7 +315,7 @@ call_list:
 st_apply(X = X, MARGIN = MARGIN, FUN = FUN, CLUSTER = CLUSTER, 
     PROGRESS = PROGRESS, FUTURE = FUTURE, rename = rename, .fname = .fname)
 attr(,".Environment")
-<environment: 0x000002304e006470>
+<environment: 0x000001a6cc8444c0>
 
 This object has pending lazy operations: dimensions as printed may not reflect this.
 > st_as_stars(x)
@@ -330,4 +330,4 @@ y    1 352 9120761 -28.5 SIRGAS 2000 / UTM zone 25S FALSE [y]
 > 
 > proc.time()
    user  system elapsed 
-   2.15    0.25    2.37 
+   2.84    0.32    3.15 

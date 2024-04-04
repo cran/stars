@@ -6,13 +6,31 @@ make_label = function(x, i = 1) {
 		names(x)[i]
 }
 
+#kw_dflt = function(x, key.pos) {
+#	if (is.null(key.pos) || key.pos <= 0)
+#		lcm(0)
+#	else if (key.pos %in% c(2,4) && is.factor(x[[1]]))
+#		lcm(max(strwidth(levels(x[[1]]), "inches")) * 2.54 * 1.1 + par("ps")/12) # cm
+#	else
+#		lcm(1.8 * par("ps")/12)
+#}
+# copy from sf:
 kw_dflt = function(x, key.pos) {
-	if (is.null(key.pos) || key.pos <= 0)
-		lcm(0)
-	else if (key.pos %in% c(2,4) && is.factor(x[[1]]))
-		lcm(max(strwidth(levels(x[[1]]), "inches")) * 2.54 * 1.1 + par("ps")/12) # cm
-	else
-		lcm(1.8 * par("ps")/12)
+	if (is.null(key.pos) || key.pos[1] == 0) # no key:
+		return(lcm(0))
+
+	font_scale = par("ps") / 12
+	if (key.pos[1] == -1)
+		lcm(1.8 * font_scale)
+	else if (key.pos[1] %in% c(2, 4) && (is.character(x[[1]]) || is.factor(x[[1]]))) {
+		strings = if (is.factor(x[[1]]))
+				levels(x[[1]])
+			else
+				x[[1]]
+		lcm(cm(max(strwidth(strings, "inches"))) * 1.3 + font_scale) # cm
+		#lcm(cm(max(strwidth(strings, "inches"))) * 1.3) # cm
+	} else
+		lcm(1.8 * font_scale)
 }
 
 
@@ -28,19 +46,19 @@ kw_dflt = function(x, key.pos) {
 #' @param axes logical; should axes and box be added to the plot?
 #' @param downsample logical or numeric; if \code{TRUE} will try to plot not many more pixels than actually are visible, if \code{FALSE}, no downsampling takes place, if numeric, the number of pixels/lines/bands etc that will be skipped; see Details.
 #' @param nbreaks number of color breaks; should be one more than number of colors. If missing and \code{col} is specified, it is derived from that.
-#' @param breaks actual color breaks, or a method name used for \link[classInt]{classIntervals}.
+#' @param breaks numeric vector with actual color breaks, or a \code{style} name used in \link[classInt]{classIntervals}.
 #' @param col colors to use for grid cells, or color palette function
 #' @param ... further arguments: for \code{plot}, passed on to \code{image.stars}; for \code{image}, passed on to \code{image.default} or \code{rasterImage}.
-#' @param key.pos numeric; side to plot a color key: 1 bottom, 2 left, 3 top, 4 right; set to \code{NULL} to omit key. Ignored if multiple columns are plotted in a single function call. Default depends on plot size, map aspect, and, if set, parameter \code{asp}. If it has lenght 2, the second value, ranging from 0 to 1, determines where the key is placed in the available space (default: 0.5, center).
+#' @param key.pos numeric; side to plot a color key: 1 bottom, 2 left, 3 top, 4 right; set to \code{NULL} to omit key. Ignored if multiple columns are plotted in a single function call. Default depends on plot size, map aspect, and, if set, parameter \code{asp}. If it has length 2, the second value, ranging from 0 to 1, determines where the key is placed in the available space (default: 0.5, center).
 #' @param key.width amount of space reserved for width of the key (labels); relative or absolute (using lcm)
 #' @param key.length amount of space reserved for length of the key (labels); relative or absolute (using lcm)
 #' @param key.lab character; label for color key in case of multiple subplots, use \code{""} to suppress
 #' @param reset logical; if \code{FALSE}, keep the plot in a mode that allows adding further map elements; if \code{TRUE} restore original mode after plotting
-#' @param box_col color for box around sub-plots; use \code{0} to suppress plotting of boxes around sub-plots.
+#' @param box_col color for box around sub-plots; use \code{NA} to suppress plotting of boxes around sub-plots.
 #' @param center_time logical; if \code{TRUE}, sub-plot titles will show the center of time intervals, otherwise their start
 #' @param hook NULL or function; hook function that will be called on every sub-plot; see examples.
 #' @param mfrow length-2 integer vector with nrows, ncolumns of a composite plot, to override the default layout
-#' @param fill logical; fill the plotting area at the lower or right-hand margin?
+#' @param compact logical; place facets compactly (TRUE), or spread over the plotting device area?
 #' @details
 #' Downsampling: a value for \code{downsample} of 0: no downsampling, 1: after every dimension value (pixel/line/band), one value is skipped (half of the original resolution), 2: after every dimension value, 2 values are skipped (one third of the original resolution), etc. If \code{downsample} is \code{TRUE} or a length 1 numeric vector, downsampling is only applied to the raster [x] and [y] dimensions.
 #'
@@ -69,8 +87,8 @@ kw_dflt = function(x, key.pos) {
 plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes = FALSE,
 		downsample = TRUE, nbreaks = 11, breaks = "quantile", col = grey(1:(nbreaks-1)/nbreaks),
 		key.pos = get_key_pos(x, ...), key.width = kw_dflt(x, key.pos), key.length = 0.618, 
-		key.lab = main, reset = TRUE, box_col = grey(.8), center_time = FALSE, hook = NULL, 
-		mfrow = NULL, fill = FALSE) {
+		key.lab = main, reset = TRUE, box_col = NA, center_time = FALSE, hook = NULL, 
+		mfrow = NULL, compact = TRUE) {
 
 	if (!missing(y))
 		stop("y argument should be missing")
@@ -101,8 +119,9 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 	breaks.missing = missing(breaks)
 	if (missing(nbreaks) && !missing(col))
 		nbreaks = length(col) + 1
-	opar = par()
+	opar = par(no.readonly = TRUE)
 	dots = list(...)
+	need_to_reset = TRUE
 
 	#if (any(dim(x) == 1))
 	#	x = adrop(x)
@@ -169,7 +188,8 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 				else
 					.image_scale(values, col, breaks = breaks, key.pos = key.pos,
 						key.width = key.width, key.length = key.length, axes = axes, ..., lab = key.lab)
-			}
+			} else
+				need_to_reset = FALSE
 
 			# map panel:
 			mar = c(axes * 2.1, axes * 2.1, 1.2 * !is.null(main), 0)
@@ -188,16 +208,14 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 			if (! draw.key)
 				key.pos = NULL
 			lt = sf::.get_layout(st_bbox(x), dims[3], par("din"),
-						if (join_zlim && key.pos.missing) -1 else key.pos[1], key.width, mfrow = mfrow)
+						if (join_zlim && key.pos.missing) -1 else key.pos[1], key.width, mfrow = mfrow, main = main)
 			if (key.pos.missing)
 				key.pos = lt$key.pos
 			title_size = if (is.null(main))
 					0
 				else
 					1.2
-			if (key.pos > 0 && fill)
-				lt = fill_layout(lt, st_bbox(x), par("din"), title_size, key.width, key.pos)
-			layout(lt$m, widths = lt$widths, heights = lt$heights, respect = FALSE)
+			layout(lt$m, widths = lt$widths, heights = lt$heights, respect = compact)
 			par(mar = c(axes * 2.1, axes * 2.1, title_size, 0))
 			labels = st_get_dimension_values(x, 3, center = center_time)
 			for (i in seq_len(dims[3])) {
@@ -229,10 +247,12 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 							 bbox = st_bbox(x))
 					}
 				}
-				box(col = box_col)
+				if (!is.na(box_col))
+					box(col = box_col)
 			}
 			for (i in seq_len(prod(lt$mfrow) - dims[3])) # empty panels:
 				plot.new()
+
 			if (draw.key) {
 				if (missing(key.lab) && inherits(x[[1]], "units"))
 					key.lab = units::make_unit_label(names(x)[1], x[[1]])
@@ -254,43 +274,11 @@ plot.stars = function(x, y, ..., join_zlim = TRUE, main = make_label(x, 1), axes
 			key.width = key.width, reset = reset, axes = axes, main = main)
 	} else
 		stop("no raster, no features geometries: no default plot method set up yet!")
-	if (reset) {
+	if (reset && need_to_reset) {
 		layout(matrix(1)) # reset
-		desel = which(names(opar) %in% c("cin", "cra", "csi", "cxy", "din", "page", "pin"))
-		par(opar[-desel])
+		par(opar)
 	}
 	invisible(NULL)
-}
-
-fill_layout = function(lt, bb, din, title_size, key.width, key.pos) {
-    asp = diff(bb[c(2,4)])/diff(bb[c(1,3)]) # > 1 means taller than wide
-    if (!is.finite(asp)) # 0/0
-        asp = 1
-    if (isTRUE(st_is_longlat(bb)))
-        asp = asp / cos(mean(bb[c(2,4)]) * pi /180)
-
-	title_cm = title_size * par("ps") / 72 * 2.54
-	key_cm = as.numeric(strsplit(key.width, " ")[[1]][1])
-	if (key.pos %in% c(1,3)) { # fill @ bottom; din = c(xin, yin)
-		h_one_map_cm = (din[1] * 2.54 / lt$mfrow[2]) * asp
-		h_maps = h_one_map_cm * lt$mfrow[1]
-		h_all = h_maps + lt$mfrow[1] * title_cm + key_cm
-		h_avail = din[2] * 2.54 - h_all
-		if (h_avail > .1) {
-			lt$m = rbind(lt$m, 0)
-			lt$heights = c(lt$heights, lcm(h_avail))
-		}
-	} else { # fill @ rhs:
-		w_one_map = (din[2] * 2.54 - lt$mfrow[1] * title_cm) / (lt$mfrow[1] * asp)
-		w_maps = w_one_map * lt$mfrow[2]
-		w_all = w_maps + key_cm
-		w_avail = din[1] * 2.54 - w_all
-		if (w_avail > .1) {
-			lt$m = cbind(lt$m, 0)
-			lt$widths = c(lt$widths, lcm(w_avail))
-		}
-	}
-	lt
 }
 
 get_breaks = function(x, breaks, nbreaks, logz = NULL) {

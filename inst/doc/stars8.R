@@ -1,4 +1,4 @@
-## ---- include = FALSE---------------------------------------------------------
+## ----include = FALSE----------------------------------------------------------
 knitr::opts_chunk$set(echo = TRUE, collapse = TRUE, dev = "png")
 suppressPackageStartupMessages(library(dplyr))
 knitr::opts_chunk$set(fig.height = 4.5)

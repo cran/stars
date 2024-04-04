@@ -40,7 +40,7 @@ x = read_stars(tif, RasterIO = rasterio)
 dim(x)
 plot(x)
 
-## ---- eval=EVAL---------------------------------------------------------------
+## ----eval=EVAL----------------------------------------------------------------
 granule = system.file("sentinel/S2A_MSIL1C_20180220T105051_N0206_R051_T32ULE_20180221T134037.zip", package = "starsdata")
 s2 = paste0("SENTINEL2_L1C:/vsizip/", granule, "/S2A_MSIL1C_20180220T105051_N0206_R051_T32ULE_20180221T134037.SAFE/MTD_MSIL1C.xml:10m:EPSG_32632")
 (p = read_stars(s2, proxy = TRUE))

@@ -1,6 +1,6 @@
 
-R Under development (unstable) (2023-09-09 r85115 ucrt) -- "Unsuffered Consequences"
-Copyright (C) 2023 The R Foundation for Statistical Computing
+R version 4.4.0 alpha (2024-04-02 r86304 ucrt)
+Copyright (C) 2024 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -114,10 +114,10 @@ attribute(s):
  x2:37       
  x3:35       
 dimension(s):
-        from to offset delta refsys       values x/y
-x          1 10   -180    36 WGS 84         NULL [x]
-y          1 10     90   -18 WGS 84         NULL [y]
-new_dim    1  2     NA    NA     NA lyr.1, lyr.2    
+        from to offset delta         refsys       values x/y
+x          1 10   -180    36 WGS 84 (CRS84)         NULL [x]
+y          1 10     90   -18 WGS 84 (CRS84)         NULL [y]
+new_dim    1  2     NA    NA             NA lyr.1, lyr.2    
 [[1]]
   IDs categories
 1   1         c1
@@ -134,4 +134,4 @@ new_dim    1  2     NA    NA     NA lyr.1, lyr.2
 > 
 > proc.time()
    user  system elapsed 
-   5.07    0.39    5.45 
+   7.98    0.56    8.54 
