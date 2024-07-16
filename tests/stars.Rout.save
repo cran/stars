@@ -1,5 +1,5 @@
 
-R version 4.4.0 alpha (2024-04-02 r86304 ucrt)
+R Under development (unstable) (2024-07-13 r86895 ucrt) -- "Unsuffered Consequences"
 Copyright (C) 2024 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
@@ -450,4 +450,4 @@ X1    1  1 FALSE 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 > 
 > proc.time()
    user  system elapsed 
-   8.07    1.07    9.14 
+   6.00    0.54    6.53 

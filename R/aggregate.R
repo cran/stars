@@ -12,7 +12,7 @@
 #' @param left.open logical; used for time intervals, see \link{findInterval} and \link{cut.POSIXt}
 #' @param as_points see \link[stars]{st_as_sf}: shall raster pixels be taken as points, or small square polygons?
 #' @param exact logical; if \code{TRUE}, use \link[exactextractr]{coverage_fraction} to compute exact overlap fractions of polygons with raster cells
-#' @seealso \link[sf]{aggregate}, \link{st_interpolate_aw}, \link{st_extract}, https://github.com/r-spatial/stars/issues/317
+#' @seealso \link[sf]{aggregate}, \link[sf]{st_interpolate_aw}, \link{st_extract}, https://github.com/r-spatial/stars/issues/317
 #' @export
 #' @aliases aggregate
 #' @examples
@@ -171,17 +171,21 @@ aggregate.stars = function(x, by, FUN, ..., drop = FALSE, join = st_intersects,
 	d = st_dimensions(x)
 	dims = dim(d)
 
-	agr_grps = function(x, grps, uq, FUN, ...) { 
-		do.call(rbind, lapply(uq, function(i) {
+	agr_grps = function(x, grps, uq, FUN, bind, ...) { 
+		do.call(bind, lapply(uq, function(i) {
 				sel <- which(grps == i)
 				if (!isTRUE(any(sel)))
-					rep(NA_real_, ncol(x))
+					NA_real_
 				else
 					apply(x[sel, , drop = FALSE], 2, FUN, ...)
 			}
 		))
 	}
 
+	bind = if (length(FUN(1:10, ...)) > 1)
+			cbind
+		else
+			rbind
 	# rearrange:
 	x = structure(x, dimensions = NULL, class = NULL) # unclass
 	newdims = c(prod(dims[1:ndims]), prod(dims[-(1:ndims)]))
@@ -196,7 +200,7 @@ aggregate.stars = function(x, by, FUN, ..., drop = FALSE, join = st_intersects,
 					NULL
 			} else
 				NULL
-		x[[i]] = agr_grps(a, grps, seq_along(by), FUN, ...)
+		x[[i]] = agr_grps(a, grps, seq_along(by), FUN, bind, ...)
 		if (is.numeric(x[[i]]) && !is.null(u))
 			x[[i]] = units::set_units(x[[i]], u, mode = "standard")
 	}

@@ -1,5 +1,5 @@
 
-R version 4.4.0 alpha (2024-04-02 r86304 ucrt)
+R Under development (unstable) (2024-07-13 r86895 ucrt) -- "Unsuffered Consequences"
 Copyright (C) 2024 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
@@ -53,4 +53,4 @@ In plot.stars(output) :
 > 
 > proc.time()
    user  system elapsed 
-   2.28    0.51    2.81 
+   1.89    0.37    2.25 

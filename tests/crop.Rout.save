@@ -1,5 +1,5 @@
 
-R version 4.4.0 alpha (2024-04-02 r86304 ucrt)
+R Under development (unstable) (2024-07-13 r86895 ucrt) -- "Unsuffered Consequences"
 Copyright (C) 2024 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
@@ -91,4 +91,4 @@ In st_crop.stars(l, b) : st_crop: bounding boxes of x and y do not overlap
 > 
 > proc.time()
    user  system elapsed 
-   4.54    0.60    5.14 
+   3.15    0.39    3.48 
