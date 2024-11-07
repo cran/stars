@@ -1,5 +1,5 @@
 
-R Under development (unstable) (2024-07-13 r86895 ucrt) -- "Unsuffered Consequences"
+R Under development (unstable) (2024-11-05 r87288 ucrt) -- "Unsuffered Consequences"
 Copyright (C) 2024 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
@@ -333,4 +333,4 @@ only the first attribute will used; maybe use merge() first?
 > 
 > proc.time()
    user  system elapsed 
-   1.78    0.23    1.95 
+   1.43    0.23    1.65 

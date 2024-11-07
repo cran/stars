@@ -106,7 +106,7 @@ transform_grid_grid = function(x, target, threshold) {
 			ny = dim(x)[1]
 			cbind(i %% ny, i %/% ny) + 1
 		} else
-			colrow_from_xy(pts, x, NA_outside = TRUE)
+			colrow_from_xy(pts, x, NA_outside = TRUE, flip = TRUE)
 	dims = dim(x)
 	index = matrix(seq_len(prod(dims[dxy])), dims[ dxy[1] ], dims[ dxy[2] ])[xy]
 	x = unclass(x) # avoid using [[<-.stars:
@@ -231,7 +231,7 @@ st_warp = function(src, dest, ..., crs = NA_crs_, cellsize = NA_real_, segments 
 		}
 		if (debug)
 			cat("Writing result to: ", dest, "\n")
-		else if (delete)
+		else if (delete && !inherits(src, "stars_proxy"))
 			on.exit(unlink(dest)) # a temp file
 		read_stars(dest)
 	} else {

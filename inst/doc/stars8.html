@@ -28,46 +28,31 @@ document.addEventListener('DOMContentLoaded', function(e) {
   }
 });
 </script>
-<script>// Hide empty <a> tag within highlighted CodeBlock for screen reader accessibility (see https://github.com/jgm/pandoc/issues/6352#issuecomment-626106786) -->
-// v0.0.1
-// Written by JooYoung Seo (jooyoung@psu.edu) and Atsushi Yasumoto on June 1st, 2020.
-
-document.addEventListener('DOMContentLoaded', function() {
-  const codeList = document.getElementsByClassName("sourceCode");
-  for (var i = 0; i < codeList.length; i++) {
-    var linkList = codeList[i].getElementsByTagName('a');
-    for (var j = 0; j < linkList.length; j++) {
-      if (linkList[j].innerHTML === "") {
-        linkList[j].setAttribute('aria-hidden', 'true');
-      }
-    }
-  }
-});
-</script>
 
 <style type="text/css">
-  code{white-space: pre-wrap;}
-  span.smallcaps{font-variant: small-caps;}
-  span.underline{text-decoration: underline;}
-  div.column{display: inline-block; vertical-align: top; width: 50%;}
-  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
-  ul.task-list{list-style: none;}
-    </style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
 
 
 
 <style type="text/css">
-  code {
-    white-space: pre;
-  }
-  .sourceCode {
-    overflow: visible;
-  }
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
 </style>
 <style type="text/css" data-origin="pandoc">
 pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span { line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
 code.sourceCode > span { color: inherit; text-decoration: inherit; }
 div.sourceCode { margin: 1em 0; }
 pre.sourceCode { margin: 0; }
@@ -79,55 +64,54 @@ pre > code.sourceCode { white-space: pre-wrap; }
 pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
 }
 pre.numberSource code
-  { counter-reset: source-line 0; }
+{ counter-reset: source-line 0; }
 pre.numberSource code > span
-  { position: relative; left: -4em; counter-increment: source-line; }
+{ position: relative; left: -4em; counter-increment: source-line; }
 pre.numberSource code > span > a:first-child::before
-  { content: counter(source-line);
-    position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; display: inline-block;
-    -webkit-touch-callout: none; -webkit-user-select: none;
-    -khtml-user-select: none; -moz-user-select: none;
-    -ms-user-select: none; user-select: none;
-    padding: 0 4px; width: 4em;
-    color: #aaaaaa;
-  }
-pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
 div.sourceCode
-  {   }
+{ }
 @media screen {
 pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
-code span.al { color: #ff0000; font-weight: bold; } /* Alert */
-code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
-code span.at { color: #7d9029; } /* Attribute */
-code span.bn { color: #40a070; } /* BaseN */
-code span.bu { } /* BuiltIn */
-code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
-code span.ch { color: #4070a0; } /* Char */
-code span.cn { color: #880000; } /* Constant */
-code span.co { color: #60a0b0; font-style: italic; } /* Comment */
-code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
-code span.do { color: #ba2121; font-style: italic; } /* Documentation */
-code span.dt { color: #902000; } /* DataType */
-code span.dv { color: #40a070; } /* DecVal */
-code span.er { color: #ff0000; font-weight: bold; } /* Error */
-code span.ex { } /* Extension */
-code span.fl { color: #40a070; } /* Float */
-code span.fu { color: #06287e; } /* Function */
-code span.im { } /* Import */
-code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
-code span.kw { color: #007020; font-weight: bold; } /* Keyword */
-code span.op { color: #666666; } /* Operator */
-code span.ot { color: #007020; } /* Other */
-code span.pp { color: #bc7a00; } /* Preprocessor */
-code span.sc { color: #4070a0; } /* SpecialChar */
-code span.ss { color: #bb6688; } /* SpecialString */
-code span.st { color: #4070a0; } /* String */
-code span.va { color: #19177c; } /* Variable */
-code span.vs { color: #4070a0; } /* VerbatimString */
-code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
-
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
 </style>
 <script>
 // apply pandoc div.sourceCode style to pre.sourceCode instead
@@ -359,96 +343,130 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 <p><strong>For a better version of the stars vignettes see</strong> <a href="https://r-spatial.github.io/stars/articles/" class="uri">https://r-spatial.github.io/stars/articles/</a></p>
-<p>NetCDF data sources are available via more <em>and</em> less granular files and/or OPeNDAP endpoints. This article demonstrates how <code>stars</code> enables discovery, access, and processing of NetCDF data across a wide range of such source-data organization schemes.</p>
-<p>We’ll start with some basics using datasets included with the <code>stars</code> installation. A call to <code>read_ncdf()</code>, for a dataset smaller than the default threshold, will just read in all the data. Below we read in and display the <code>reduced.nc</code> NetCDF file.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true"></a><span class="kw">library</span>(stars)</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true"></a>f &lt;-<span class="st"> </span><span class="kw">system.file</span>(<span class="st">&quot;nc/reduced.nc&quot;</span>, <span class="dt">package =</span> <span class="st">&quot;stars&quot;</span>)</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true"></a>(nc &lt;-<span class="st"> </span><span class="kw">read_ncdf</span>(f))</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true"></a><span class="co">## no &#39;var&#39; specified, using sst, anom, err, ice</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true"></a><span class="co">## other available variables:</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true"></a><span class="co">##  lon, lat, zlev, time</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true"></a><span class="co">## 0-360 longitude crossing the international date line encountered.</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true"></a><span class="co">## Longitude coordinates will be 0-360 in output.</span></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true"></a><span class="co">## Will return stars object with 16200 cells.</span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true"></a><span class="co">## No projection information found in nc file. </span></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true"></a><span class="co">##  Coordinate variable units found to be degrees, </span></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true"></a><span class="co">##  assuming WGS84 Lat/Lon.</span></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true"></a><span class="co">## stars object with 4 dimensions and 4 attributes</span></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true"></a><span class="co">## attribute(s):</span></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true"></a><span class="co">##                Min. 1st Qu. Median       Mean 3rd Qu.  Max.  NA&#39;s</span></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true"></a><span class="co">## sst [°C]      -1.80   -0.03 13.655 12.9940841 24.8125 32.97  4448</span></span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true"></a><span class="co">## anom [°C]     -7.95   -0.58 -0.080 -0.1847324  0.2100  2.99  4449</span></span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true"></a><span class="co">## err [°C]       0.11    0.16  0.270  0.2626872  0.3200  0.84  4448</span></span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true"></a><span class="co">## ice [percent]  0.01    0.47  0.920  0.7178118  0.9600  1.00 13266</span></span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true"></a><span class="co">## dimension(s):</span></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true"></a><span class="co">##      from  to offset delta         refsys         values x/y</span></span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true"></a><span class="co">## lon     1 180     -1     2 WGS 84 (CRS84)           NULL [x]</span></span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true"></a><span class="co">## lat     1  90    -90     2 WGS 84 (CRS84)           NULL [y]</span></span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true"></a><span class="co">## zlev    1   1     NA    NA             NA              0    </span></span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true"></a><span class="co">## time    1   1     NA    NA        POSIXct 1981-12-31 UTC</span></span></code></pre></div>
-<p>Let’s assume <code>reduced.nc</code> was 10 years of hourly data, rather than 1 time step. It would be over 10GB rather than about 130KB and we would not be able to just read it all into memory. In this case, we need a way to read the file’s metadata such that we could iterate over it in a way that meets the needs of our workflow objectives. This is where <code>proxy = TRUE</code> comes in. Below, we’ll lower the option that controls whether <code>read_ncdf()</code> defaults to proxy <em>and</em> use <code>proxy = TRUE</code> to show both ways of getting the same result.</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true"></a>old_options &lt;-<span class="st"> </span><span class="kw">options</span>(<span class="st">&quot;stars.n_proxy&quot;</span> =<span class="st"> </span><span class="dv">100</span>)</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true"></a>(nc &lt;-<span class="st"> </span><span class="kw">read_ncdf</span>(f, <span class="dt">proxy =</span> <span class="ot">TRUE</span>))</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true"></a><span class="co">## no &#39;var&#39; specified, using sst, anom, err, ice</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true"></a><span class="co">## other available variables:</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true"></a><span class="co">##  lon, lat, zlev, time</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true"></a><span class="co">## 0-360 longitude crossing the international date line encountered.</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true"></a><span class="co">## Longitude coordinates will be 0-360 in output.</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true"></a><span class="co">## No projection information found in nc file. </span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true"></a><span class="co">##  Coordinate variable units found to be degrees, </span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true"></a><span class="co">##  assuming WGS84 Lat/Lon.</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true"></a><span class="co">## netcdf source stars proxy object from:</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true"></a><span class="co">## [1] &quot;[...]/reduced.nc&quot;</span></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true"></a><span class="co">## </span></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true"></a><span class="co">## Available nc variables:</span></span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true"></a><span class="co">## sst</span></span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true"></a><span class="co">## anom</span></span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true"></a><span class="co">## err</span></span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true"></a><span class="co">## ice</span></span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true"></a><span class="co">## </span></span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true"></a><span class="co">## dimension(s):</span></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true"></a><span class="co">##      from  to offset delta         refsys         values x/y</span></span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true"></a><span class="co">## lon     1 180     -1     2 WGS 84 (CRS84)           NULL [x]</span></span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true"></a><span class="co">## lat     1  90    -90     2 WGS 84 (CRS84)           NULL [y]</span></span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true"></a><span class="co">## zlev    1   1     NA    NA             NA              0    </span></span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true"></a><span class="co">## time    1   1     NA    NA        POSIXct 1981-12-31 UTC</span></span></code></pre></div>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true"></a><span class="kw">options</span>(old_options)</span></code></pre></div>
-<p>The above shows that we have a NetCDF sourced stars proxy derived from the <code>reduced.nc</code> file. We see it has four variables and their units are displayed. The normal <code>stars</code> <code>dimension(s)</code> are available and a <code>nc_request</code> object is also available. The <code>nc_request</code> object contains the information needed to make requests for data according to the dimensions of the NetCDF data source. With this information, we have what we need to request a chunk of data that is what we want and not too large.</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true"></a>(nc &lt;-<span class="st"> </span><span class="kw">read_ncdf</span>(f, </span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true"></a>                 <span class="dt">var =</span> <span class="st">&quot;sst&quot;</span>, </span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true"></a>                 <span class="dt">ncsub =</span> <span class="kw">cbind</span>(<span class="dt">start =</span> <span class="kw">c</span>(<span class="dv">90</span>, <span class="dv">45</span>, <span class="dv">1</span> , <span class="dv">1</span>), </span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true"></a>                              <span class="dt">count =</span> <span class="kw">c</span>(<span class="dv">90</span>, <span class="dv">45</span>, <span class="dv">1</span>, <span class="dv">1</span>))))</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true"></a><span class="co">## 0-360 longitude crossing the international date line encountered.</span></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true"></a><span class="co">## Longitude coordinates will be 0-360 in output.</span></span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true"></a><span class="co">## Will return stars object with 4050 cells.</span></span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true"></a><span class="co">## No projection information found in nc file. </span></span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true"></a><span class="co">##  Coordinate variable units found to be degrees, </span></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true"></a><span class="co">##  assuming WGS84 Lat/Lon.</span></span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true"></a><span class="co">## stars object with 4 dimensions and 1 attribute</span></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true"></a><span class="co">## attribute(s):</span></span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true"></a><span class="co">##          Min. 1st Qu. Median     Mean 3rd Qu.  Max. NA&#39;s</span></span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true"></a><span class="co">## sst [°C] -1.8   -1.04     14 12.92722   25.13 29.81  757</span></span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true"></a><span class="co">## dimension(s):</span></span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true"></a><span class="co">##      from to offset delta         refsys         values x/y</span></span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true"></a><span class="co">## lon     1 90    177     2 WGS 84 (CRS84)           NULL [x]</span></span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true"></a><span class="co">## lat     1 45     -2     2 WGS 84 (CRS84)           NULL [y]</span></span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true"></a><span class="co">## zlev    1  1     NA    NA             NA              0    </span></span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true"></a><span class="co">## time    1  1     NA    NA        POSIXct 1981-12-31 UTC</span></span></code></pre></div>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true"></a></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true"></a><span class="kw">plot</span>(nc)</span></code></pre></div>
-<p><img src="data:image/png;base64,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" /><!-- --></p>
-<p>The ability to view NetCDF metadata so we can make well formed requests against the data is useful, but the real power of a proxy object is that we can use it in a “lazy evaluation” coding style. That is, we can do virtual operations on the object, like subsetting with another dataset, prior to actually accessing the data volume.</p>
+<p>NetCDF data sources are available via more <em>and</em> less granular
+files and/or OPeNDAP endpoints. This article demonstrates how
+<code>stars</code> enables discovery, access, and processing of NetCDF
+data across a wide range of such source-data organization schemes.</p>
+<p>We’ll start with some basics using datasets included with the
+<code>stars</code> installation. A call to <code>read_ncdf()</code>, for
+a dataset smaller than the default threshold, will just read in all the
+data. Below we read in and display the <code>reduced.nc</code> NetCDF
+file.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(stars)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>f <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;nc/reduced.nc&quot;</span>, <span class="at">package =</span> <span class="st">&quot;stars&quot;</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>(nc <span class="ot">&lt;-</span> <span class="fu">read_ncdf</span>(f))</span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="do">## no &#39;var&#39; specified, using sst, anom, err, ice</span></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="do">## other available variables:</span></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="do">##  lon, lat, zlev, time</span></span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="do">## 0-360 longitude crossing the international date line encountered.</span></span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a><span class="do">## Longitude coordinates will be 0-360 in output.</span></span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a><span class="do">## Will return stars object with 16200 cells.</span></span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a><span class="do">## No projection information found in nc file. </span></span>
+<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a><span class="do">##  Coordinate variable units found to be degrees, </span></span>
+<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a><span class="do">##  assuming WGS84 Lat/Lon.</span></span>
+<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a><span class="do">## stars object with 4 dimensions and 4 attributes</span></span>
+<span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a><span class="do">## attribute(s):</span></span>
+<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a><span class="do">##                Min. 1st Qu. Median       Mean 3rd Qu.  Max.  NA&#39;s</span></span>
+<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a><span class="do">## sst [°C]      -1.80   -0.03 13.655 12.9940841 24.8125 32.97  4448</span></span>
+<span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a><span class="do">## anom [°C]     -7.95   -0.58 -0.080 -0.1847324  0.2100  2.99  4449</span></span>
+<span id="cb1-18"><a href="#cb1-18" tabindex="-1"></a><span class="do">## err [°C]       0.11    0.16  0.270  0.2626872  0.3200  0.84  4448</span></span>
+<span id="cb1-19"><a href="#cb1-19" tabindex="-1"></a><span class="do">## ice [percent]  0.01    0.47  0.920  0.7178118  0.9600  1.00 13266</span></span>
+<span id="cb1-20"><a href="#cb1-20" tabindex="-1"></a><span class="do">## dimension(s):</span></span>
+<span id="cb1-21"><a href="#cb1-21" tabindex="-1"></a><span class="do">##      from  to offset delta         refsys         values x/y</span></span>
+<span id="cb1-22"><a href="#cb1-22" tabindex="-1"></a><span class="do">## lon     1 180     -1     2 WGS 84 (CRS84)           NULL [x]</span></span>
+<span id="cb1-23"><a href="#cb1-23" tabindex="-1"></a><span class="do">## lat     1  90    -90     2 WGS 84 (CRS84)           NULL [y]</span></span>
+<span id="cb1-24"><a href="#cb1-24" tabindex="-1"></a><span class="do">## zlev    1   1     NA    NA             NA              0    </span></span>
+<span id="cb1-25"><a href="#cb1-25" tabindex="-1"></a><span class="do">## time    1   1     NA    NA        POSIXct 1981-12-31 UTC</span></span></code></pre></div>
+<p>Let’s assume <code>reduced.nc</code> was 10 years of hourly data,
+rather than 1 time step. It would be over 10GB rather than about 130KB
+and we would not be able to just read it all into memory. In this case,
+we need a way to read the file’s metadata such that we could iterate
+over it in a way that meets the needs of our workflow objectives. This
+is where <code>proxy = TRUE</code> comes in. Below, we’ll lower the
+option that controls whether <code>read_ncdf()</code> defaults to proxy
+<em>and</em> use <code>proxy = TRUE</code> to show both ways of getting
+the same result.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>old_options <span class="ot">&lt;-</span> <span class="fu">options</span>(<span class="st">&quot;stars.n_proxy&quot;</span> <span class="ot">=</span> <span class="dv">100</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>(nc <span class="ot">&lt;-</span> <span class="fu">read_ncdf</span>(f, <span class="at">proxy =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="do">## no &#39;var&#39; specified, using sst, anom, err, ice</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="do">## other available variables:</span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="do">##  lon, lat, zlev, time</span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="do">## 0-360 longitude crossing the international date line encountered.</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="do">## Longitude coordinates will be 0-360 in output.</span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="do">## No projection information found in nc file. </span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="do">##  Coordinate variable units found to be degrees, </span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="do">##  assuming WGS84 Lat/Lon.</span></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="do">## netcdf source stars proxy object from:</span></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="do">## [1] &quot;[...]/reduced.nc&quot;</span></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="do">## </span></span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a><span class="do">## Available nc variables:</span></span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a><span class="do">## sst</span></span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="do">## anom</span></span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a><span class="do">## err</span></span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a><span class="do">## ice</span></span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="do">## </span></span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a><span class="do">## dimension(s):</span></span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a><span class="do">##      from  to offset delta         refsys         values x/y</span></span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="do">## lon     1 180     -1     2 WGS 84 (CRS84)           NULL [x]</span></span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a><span class="do">## lat     1  90    -90     2 WGS 84 (CRS84)           NULL [y]</span></span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a><span class="do">## zlev    1   1     NA    NA             NA              0    </span></span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a><span class="do">## time    1   1     NA    NA        POSIXct 1981-12-31 UTC</span></span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a><span class="fu">options</span>(old_options)</span></code></pre></div>
+<p>The above shows that we have a NetCDF sourced stars proxy derived
+from the <code>reduced.nc</code> file. We see it has four variables and
+their units are displayed. The normal <code>stars</code>
+<code>dimension(s)</code> are available and a <code>nc_request</code>
+object is also available. The <code>nc_request</code> object contains
+the information needed to make requests for data according to the
+dimensions of the NetCDF data source. With this information, we have
+what we need to request a chunk of data that is what we want and not too
+large.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>(nc <span class="ot">&lt;-</span> <span class="fu">read_ncdf</span>(f, </span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>                 <span class="at">var =</span> <span class="st">&quot;sst&quot;</span>, </span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>                 <span class="at">ncsub =</span> <span class="fu">cbind</span>(<span class="at">start =</span> <span class="fu">c</span>(<span class="dv">90</span>, <span class="dv">45</span>, <span class="dv">1</span> , <span class="dv">1</span>), </span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>                              <span class="at">count =</span> <span class="fu">c</span>(<span class="dv">90</span>, <span class="dv">45</span>, <span class="dv">1</span>, <span class="dv">1</span>))))</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="do">## 0-360 longitude crossing the international date line encountered.</span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="do">## Longitude coordinates will be 0-360 in output.</span></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="do">## Will return stars object with 4050 cells.</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="do">## No projection information found in nc file. </span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="do">##  Coordinate variable units found to be degrees, </span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="do">##  assuming WGS84 Lat/Lon.</span></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="do">## stars object with 4 dimensions and 1 attribute</span></span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="do">## attribute(s):</span></span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a><span class="do">##          Min. 1st Qu. Median     Mean 3rd Qu.  Max. NA&#39;s</span></span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a><span class="do">## sst [°C] -1.8   -1.04     14 12.92722   25.13 29.81  757</span></span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a><span class="do">## dimension(s):</span></span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a><span class="do">##      from to offset delta         refsys         values x/y</span></span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a><span class="do">## lon     1 90    177     2 WGS 84 (CRS84)           NULL [x]</span></span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a><span class="do">## lat     1 45     -2     2 WGS 84 (CRS84)           NULL [y]</span></span>
+<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a><span class="do">## zlev    1  1     NA    NA             NA              0    </span></span>
+<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a><span class="do">## time    1  1     NA    NA        POSIXct 1981-12-31 UTC</span></span>
+<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a></span>
+<span id="cb3-22"><a href="#cb3-22" tabindex="-1"></a><span class="fu">plot</span>(nc)</span></code></pre></div>
+<p><img src="data:image/png;base64,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" /><!-- --></p>
+<p>The ability to view NetCDF metadata so we can make well formed
+requests against the data is useful, but the real power of a proxy
+object is that we can use it in a “lazy evaluation” coding style. That
+is, we can do virtual operations on the object, like subsetting with
+another dataset, prior to actually accessing the data volume.</p>
 <p>Lazy operations.</p>
-<p>There are two kinds of lazy operations possible with <code>stars_proxy</code> objects. Some can be applied to the <code>stars_proxy</code> object itself without accessing underlying data. Others must be composed as a chain of calls that will be applied when data is actually required.</p>
+<p>There are two kinds of lazy operations possible with
+<code>stars_proxy</code> objects. Some can be applied to the
+<code>stars_proxy</code> object itself without accessing underlying
+data. Others must be composed as a chain of calls that will be applied
+when data is actually required.</p>
 <p>Methods applied to a <code>stars_proxy</code> object:</p>
 <ul>
 <li><code>[</code> - Nearly the same as stars_proxy</li>
 <li><code>[[&lt;-</code> - stars_proxy method works</li>
-<li><code>print</code> - unique method for nc_proxy to facilitate unique workflows</li>
+<li><code>print</code> - unique method for nc_proxy to facilitate unique
+workflows</li>
 <li><code>dim</code> - stars_proxy method works</li>
 <li><code>c</code> - stars_proxy method works</li>
-<li><code>st_redimension</code> - Not sure what this entails but it might not make sense for nc_proxy.</li>
-<li><code>st_mosaic</code> * Calls read_stars on assembled list. Not supported for now.</li>
+<li><code>st_redimension</code> - Not sure what this entails but it
+might not make sense for nc_proxy.</li>
+<li><code>st_mosaic</code> * Calls read_stars on assembled list. Not
+supported for now.</li>
 <li><code>st_set_bbox</code></li>
 </ul>
 <p>Methods that add a call to the <code>call_list</code>.</p>
@@ -471,11 +489,13 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <li><code>select</code></li>
 <li><code>rename</code></li>
 <li><code>pull</code></li>
-<li><code>slice</code> * hyperslabbing for NetCDF could be as above?</li>
+<li><code>slice</code> * hyperslabbing for NetCDF could be as
+above?</li>
 <li><code>pull</code></li>
 <li><code>replace_na</code></li>
 </ul>
-<p>Methods that cause a <code>stars_proxy</code> object to be fetched and turned into a <code>stars</code> object.</p>
+<p>Methods that cause a <code>stars_proxy</code> object to be fetched
+and turned into a <code>stars</code> object.</p>
 <ul>
 <li><code>as.data.frame</code></li>
 <li><code>plot</code></li>

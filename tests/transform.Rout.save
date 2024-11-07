@@ -1,5 +1,5 @@
 
-R Under development (unstable) (2024-07-13 r86895 ucrt) -- "Unsuffered Consequences"
+R Under development (unstable) (2024-11-05 r87288 ucrt) -- "Unsuffered Consequences"
 Copyright (C) 2024 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
@@ -75,4 +75,4 @@ Error in st_transform_proj.stars(st_as_stars(list(m = matrix(1, 10, 10))),  :
 > 
 > proc.time()
    user  system elapsed 
-   0.76    0.21    0.95 
+   1.00    0.17    1.17 
