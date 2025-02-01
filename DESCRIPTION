@@ -1,6 +1,6 @@
 Package: stars
 Title: Spatiotemporal Arrays, Raster and Vector Data Cubes
-Version: 0.6-7
+Version: 0.6-8
 Authors@R: 
     c(person(given = "Edzer",
              family = "Pebesma",
@@ -54,7 +54,7 @@ Collate: 'aggregate.R' 'cubble.R' 'datasets.R' 'dimensions.R'
         'spatstat.R' 'sp.R' 'stars.R' 'subset.R' 'tidyverse.R' 'tile.R'
         'transform.R' 'values.R' 'warp.R' 'write.R' 'xts.R'
 NeedsCompilation: no
-Packaged: 2024-11-07 10:40:17 UTC; edzer
+Packaged: 2025-02-01 17:31:06 UTC; edzer
 Author: Edzer Pebesma [aut, cre] (<https://orcid.org/0000-0001-8049-7069>),
   Michael Sumner [ctb] (<https://orcid.org/0000-0002-2471-7511>),
   Etienne Racine [ctb],
@@ -63,4 +63,4 @@ Author: Edzer Pebesma [aut, cre] (<https://orcid.org/0000-0001-8049-7069>),
   Krzysztof Dyba [ctb] (<https://orcid.org/0000-0002-8614-3816>)
 Maintainer: Edzer Pebesma <edzer.pebesma@uni-muenster.de>
 Repository: CRAN
-Date/Publication: 2024-11-07 20:40:02 UTC
+Date/Publication: 2025-02-01 18:50:02 UTC

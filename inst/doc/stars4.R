@@ -65,7 +65,7 @@ x = st_as_stars(matrix(1:9, 3, 3),
                 st_dimensions(x = c(1, 2, 3), y = c(2, 3, 10), cell_midpoints = TRUE))
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  install.packages("starsdata", repos = "http://pebesma.staff.ifgi.de", type = "source")
+# install.packages("starsdata", repos = "http://pebesma.staff.ifgi.de", type = "source")
 
 ## -----------------------------------------------------------------------------
 (s5p = system.file("sentinel5p/S5P_NRTI_L2__NO2____20180717T120113_20180717T120613_03932_01_010002_20180717T125231.nc", package = "starsdata"))

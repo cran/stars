@@ -1,6 +1,6 @@
 
-R Under development (unstable) (2024-11-05 r87288 ucrt) -- "Unsuffered Consequences"
-Copyright (C) 2024 The R Foundation for Statistical Computing
+R Under development (unstable) (2025-01-31 r87670 ucrt) -- "Unsuffered Consequences"
+Copyright (C) 2025 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -53,7 +53,7 @@ sheared raster with parameters: -5 -5
 +   (x__ = st_transform_proj(x, st_crs(4326)))
 +   print(all.equal(x_,x__,check.attributes = FALSE))
 + }
-Linking to liblwgeom 3.0.0beta1 r16016, GEOS 3.12.1, PROJ 9.3.1
+Linking to liblwgeom 3.0.0beta1 r16016, GEOS 3.13.0, PROJ 9.5.1
 
 Attaching package: 'lwgeom'
 
@@ -75,4 +75,4 @@ Error in st_transform_proj.stars(st_as_stars(list(m = matrix(1, 10, 10))),  :
 > 
 > proc.time()
    user  system elapsed 
-   1.00    0.17    1.17 
+   1.28    0.34    1.57 

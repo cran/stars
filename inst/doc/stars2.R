@@ -6,10 +6,10 @@ knitr::opts_chunk$set(fig.width = 6)
 EVAL = x = suppressWarnings(require(starsdata, quietly = TRUE))
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  install.packages("starsdata", repos = "http://gis-bigdata.uni-muenster.de/pebesma", type = "source")
-#  # possibly after: options(timeout = 100)
-#  # or from an alternative repository:
-#  # install.packages("starsdata", repos = "http://pebesma.staff.ifgi.de", type = "source")
+# install.packages("starsdata", repos = "http://gis-bigdata.uni-muenster.de/pebesma", type = "source")
+# # possibly after: options(timeout = 100)
+# # or from an alternative repository:
+# # install.packages("starsdata", repos = "http://pebesma.staff.ifgi.de", type = "source")
 
 ## -----------------------------------------------------------------------------
 library(stars)
@@ -49,7 +49,7 @@ s2 = paste0("SENTINEL2_L1C:/vsizip/", granule, "/S2A_MSIL1C_20180220T105051_N020
 system.time(plot(p))
 
 ## ----eval = FALSE-------------------------------------------------------------
-#  p = read_stars(s2, proxy = FALSE)
+# p = read_stars(s2, proxy = FALSE)
 
 ## -----------------------------------------------------------------------------
 methods(class = "stars_proxy")
@@ -85,7 +85,7 @@ st_dimensions(yyy) # and dimensions not adjusted
 attr(yyy, "call_list") # the name of object in the call (y) is replaced with x:
 
 ## ----eval = FALSE-------------------------------------------------------------
-#  plot(st_apply(x, c("x", "y"), range))
+# plot(st_apply(x, c("x", "y"), range))
 
 ## ----eval=EVAL----------------------------------------------------------------
 (x = st_as_stars(yyy)) # read, adrop, subset

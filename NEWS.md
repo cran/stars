@@ -1,3 +1,13 @@
+# version 0.6-8
+
+* address difftime issue new in R-devel rev 87670
+
+* `c.stars()` is more strict when combining time sequences; #703
+
+* fix plotting when breaks contain duplicates; #728
+
+* fix `st_as_stars.im()`; #727 and #648, thanks to Barry Rowlingson
+
 # version 0.6-7
 
 * `st_extract()` fix if points coincide with boundary grid cell centers and bilinear interpolation is used; #720

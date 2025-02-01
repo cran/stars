@@ -1,6 +1,6 @@
 
-R Under development (unstable) (2024-11-05 r87288 ucrt) -- "Unsuffered Consequences"
-Copyright (C) 2024 The R Foundation for Statistical Computing
+R Under development (unstable) (2025-01-31 r87670 ucrt) -- "Unsuffered Consequences"
+Copyright (C) 2025 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -91,4 +91,4 @@ In st_crop.stars(l, b) : st_crop: bounding boxes of x and y do not overlap
 > 
 > proc.time()
    user  system elapsed 
-   3.17    0.34    3.45 
+   4.34    0.64    4.96 

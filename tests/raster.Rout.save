@@ -1,6 +1,6 @@
 
-R Under development (unstable) (2024-11-05 r87288 ucrt) -- "Unsuffered Consequences"
-Copyright (C) 2024 The R Foundation for Statistical Computing
+R Under development (unstable) (2025-01-31 r87670 ucrt) -- "Unsuffered Consequences"
+Copyright (C) 2025 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -134,4 +134,4 @@ new_dim    1  2     NA    NA             NA lyr.1, lyr.2
 > 
 > proc.time()
    user  system elapsed 
-   6.57    0.43    7.00 
+   8.37    0.67    9.06 
