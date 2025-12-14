@@ -6,7 +6,7 @@ knitr::opts_chunk$set(fig.width = 6)
 EVAL = x = suppressWarnings(require(starsdata, quietly = TRUE))
 
 ## ----eval=FALSE---------------------------------------------------------------
-# install.packages("starsdata", repos = "http://gis-bigdata.uni-muenster.de/pebesma", type = "source")
+# install.packages("starsdata", repos = "https://cran.uni-muenster.de/pebesma/")
 # # possibly after: options(timeout = 100)
 # # or from an alternative repository:
 # # install.packages("starsdata", repos = "http://pebesma.staff.ifgi.de", type = "source")

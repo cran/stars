@@ -612,7 +612,7 @@ longitudes and latitudes for every corresponding pixel of remaining
 layers.</p>
 <p>As an example, we will use a Sentinel 5P dataset available from
 package <code>starsdata</code>; this package can be installed with</p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;starsdata&quot;</span>, <span class="at">repos =</span> <span class="st">&quot;http://pebesma.staff.ifgi.de&quot;</span>, <span class="at">type =</span> <span class="st">&quot;source&quot;</span>) </span></code></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;starsdata&quot;</span>, <span class="at">repos =</span> <span class="st">&quot;https://cran.uni-muenster.de/pebesma/&quot;</span>)</span></code></pre></div>
 <p>The dataset is found here:</p>
 <div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a>(<span class="at">s5p =</span> <span class="fu">system.file</span>(<span class="st">&quot;sentinel5p/S5P_NRTI_L2__NO2____20180717T120113_20180717T120613_03932_01_010002_20180717T125231.nc&quot;</span>, <span class="at">package =</span> <span class="st">&quot;starsdata&quot;</span>))</span>
 <span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a><span class="do">## [1] &quot;/home/edzer/R/x86_64-pc-linux-gnu-library/4.4/starsdata/sentinel5p/S5P_NRTI_L2__NO2____20180717T120113_20180717T120613_03932_01_010002_20180717T125231.nc&quot;</span></span></code></pre></div>
@@ -624,35 +624,35 @@ package <code>starsdata</code>; this package can be installed with</p>
 <p>For this array, we can see the GDAL metadata under item
 <code>GEOLOCATION</code>:</p>
 <div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a><span class="fu">gdal_metadata</span>(subs[[<span class="dv">6</span>]], <span class="st">&quot;GEOLOCATION&quot;</span>)</span>
-<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a><span class="do">## $GEOREFERENCING_CONVENTION</span></span>
-<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a><span class="do">## [1] &quot;PIXEL_CENTER&quot;</span></span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a><span class="do">## $SRS</span></span>
+<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a><span class="do">## [1] &quot;GEOGCS[\&quot;WGS 84\&quot;,DATUM[\&quot;WGS_1984\&quot;,SPHEROID[\&quot;WGS 84\&quot;,6378137,298.257223563,AUTHORITY[\&quot;EPSG\&quot;,\&quot;7030\&quot;]],AUTHORITY[\&quot;EPSG\&quot;,\&quot;6326\&quot;]],PRIMEM[\&quot;Greenwich\&quot;,0,AUTHORITY[\&quot;EPSG\&quot;,\&quot;8901\&quot;]],UNIT[\&quot;degree\&quot;,0.0174532925199433,AUTHORITY[\&quot;EPSG\&quot;,\&quot;9122\&quot;]],AXIS[\&quot;Latitude\&quot;,NORTH],AXIS[\&quot;Longitude\&quot;,EAST],AUTHORITY[\&quot;EPSG\&quot;,\&quot;4326\&quot;]]&quot;</span></span>
 <span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a><span class="do">## </span></span>
-<span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a><span class="do">## $LINE_OFFSET</span></span>
-<span id="cb18-6"><a href="#cb18-6" tabindex="-1"></a><span class="do">## [1] &quot;0&quot;</span></span>
+<span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a><span class="do">## $X_DATASET</span></span>
+<span id="cb18-6"><a href="#cb18-6" tabindex="-1"></a><span class="do">## [1] &quot;NETCDF:\&quot;/home/edzer/R/x86_64-pc-linux-gnu-library/4.4/starsdata/sentinel5p/S5P_NRTI_L2__NO2____20180717T120113_20180717T120613_03932_01_010002_20180717T125231.nc\&quot;:/PRODUCT/longitude&quot;</span></span>
 <span id="cb18-7"><a href="#cb18-7" tabindex="-1"></a><span class="do">## </span></span>
-<span id="cb18-8"><a href="#cb18-8" tabindex="-1"></a><span class="do">## $LINE_STEP</span></span>
+<span id="cb18-8"><a href="#cb18-8" tabindex="-1"></a><span class="do">## $X_BAND</span></span>
 <span id="cb18-9"><a href="#cb18-9" tabindex="-1"></a><span class="do">## [1] &quot;1&quot;</span></span>
 <span id="cb18-10"><a href="#cb18-10" tabindex="-1"></a><span class="do">## </span></span>
-<span id="cb18-11"><a href="#cb18-11" tabindex="-1"></a><span class="do">## $PIXEL_OFFSET</span></span>
-<span id="cb18-12"><a href="#cb18-12" tabindex="-1"></a><span class="do">## [1] &quot;0&quot;</span></span>
+<span id="cb18-11"><a href="#cb18-11" tabindex="-1"></a><span class="do">## $Y_DATASET</span></span>
+<span id="cb18-12"><a href="#cb18-12" tabindex="-1"></a><span class="do">## [1] &quot;NETCDF:\&quot;/home/edzer/R/x86_64-pc-linux-gnu-library/4.4/starsdata/sentinel5p/S5P_NRTI_L2__NO2____20180717T120113_20180717T120613_03932_01_010002_20180717T125231.nc\&quot;:/PRODUCT/latitude&quot;</span></span>
 <span id="cb18-13"><a href="#cb18-13" tabindex="-1"></a><span class="do">## </span></span>
-<span id="cb18-14"><a href="#cb18-14" tabindex="-1"></a><span class="do">## $PIXEL_STEP</span></span>
+<span id="cb18-14"><a href="#cb18-14" tabindex="-1"></a><span class="do">## $Y_BAND</span></span>
 <span id="cb18-15"><a href="#cb18-15" tabindex="-1"></a><span class="do">## [1] &quot;1&quot;</span></span>
 <span id="cb18-16"><a href="#cb18-16" tabindex="-1"></a><span class="do">## </span></span>
-<span id="cb18-17"><a href="#cb18-17" tabindex="-1"></a><span class="do">## $SRS</span></span>
-<span id="cb18-18"><a href="#cb18-18" tabindex="-1"></a><span class="do">## [1] &quot;GEOGCS[\&quot;WGS 84\&quot;,DATUM[\&quot;WGS_1984\&quot;,SPHEROID[\&quot;WGS 84\&quot;,6378137,298.257223563,AUTHORITY[\&quot;EPSG\&quot;,\&quot;7030\&quot;]],AUTHORITY[\&quot;EPSG\&quot;,\&quot;6326\&quot;]],PRIMEM[\&quot;Greenwich\&quot;,0,AUTHORITY[\&quot;EPSG\&quot;,\&quot;8901\&quot;]],UNIT[\&quot;degree\&quot;,0.0174532925199433,AUTHORITY[\&quot;EPSG\&quot;,\&quot;9122\&quot;]],AXIS[\&quot;Latitude\&quot;,NORTH],AXIS[\&quot;Longitude\&quot;,EAST],AUTHORITY[\&quot;EPSG\&quot;,\&quot;4326\&quot;]]&quot;</span></span>
+<span id="cb18-17"><a href="#cb18-17" tabindex="-1"></a><span class="do">## $PIXEL_OFFSET</span></span>
+<span id="cb18-18"><a href="#cb18-18" tabindex="-1"></a><span class="do">## [1] &quot;0&quot;</span></span>
 <span id="cb18-19"><a href="#cb18-19" tabindex="-1"></a><span class="do">## </span></span>
-<span id="cb18-20"><a href="#cb18-20" tabindex="-1"></a><span class="do">## $X_BAND</span></span>
+<span id="cb18-20"><a href="#cb18-20" tabindex="-1"></a><span class="do">## $PIXEL_STEP</span></span>
 <span id="cb18-21"><a href="#cb18-21" tabindex="-1"></a><span class="do">## [1] &quot;1&quot;</span></span>
 <span id="cb18-22"><a href="#cb18-22" tabindex="-1"></a><span class="do">## </span></span>
-<span id="cb18-23"><a href="#cb18-23" tabindex="-1"></a><span class="do">## $X_DATASET</span></span>
-<span id="cb18-24"><a href="#cb18-24" tabindex="-1"></a><span class="do">## [1] &quot;NETCDF:\&quot;/home/edzer/R/x86_64-pc-linux-gnu-library/4.4/starsdata/sentinel5p/S5P_NRTI_L2__NO2____20180717T120113_20180717T120613_03932_01_010002_20180717T125231.nc\&quot;:/PRODUCT/longitude&quot;</span></span>
+<span id="cb18-23"><a href="#cb18-23" tabindex="-1"></a><span class="do">## $LINE_OFFSET</span></span>
+<span id="cb18-24"><a href="#cb18-24" tabindex="-1"></a><span class="do">## [1] &quot;0&quot;</span></span>
 <span id="cb18-25"><a href="#cb18-25" tabindex="-1"></a><span class="do">## </span></span>
-<span id="cb18-26"><a href="#cb18-26" tabindex="-1"></a><span class="do">## $Y_BAND</span></span>
+<span id="cb18-26"><a href="#cb18-26" tabindex="-1"></a><span class="do">## $LINE_STEP</span></span>
 <span id="cb18-27"><a href="#cb18-27" tabindex="-1"></a><span class="do">## [1] &quot;1&quot;</span></span>
 <span id="cb18-28"><a href="#cb18-28" tabindex="-1"></a><span class="do">## </span></span>
-<span id="cb18-29"><a href="#cb18-29" tabindex="-1"></a><span class="do">## $Y_DATASET</span></span>
-<span id="cb18-30"><a href="#cb18-30" tabindex="-1"></a><span class="do">## [1] &quot;NETCDF:\&quot;/home/edzer/R/x86_64-pc-linux-gnu-library/4.4/starsdata/sentinel5p/S5P_NRTI_L2__NO2____20180717T120113_20180717T120613_03932_01_010002_20180717T125231.nc\&quot;:/PRODUCT/latitude&quot;</span></span>
+<span id="cb18-29"><a href="#cb18-29" tabindex="-1"></a><span class="do">## $GEOREFERENCING_CONVENTION</span></span>
+<span id="cb18-30"><a href="#cb18-30" tabindex="-1"></a><span class="do">## [1] &quot;PIXEL_CENTER&quot;</span></span>
 <span id="cb18-31"><a href="#cb18-31" tabindex="-1"></a><span class="do">## </span></span>
 <span id="cb18-32"><a href="#cb18-32" tabindex="-1"></a><span class="do">## attr(,&quot;class&quot;)</span></span>
 <span id="cb18-33"><a href="#cb18-33" tabindex="-1"></a><span class="do">## [1] &quot;gdal_metadata&quot;</span></span></code></pre></div>

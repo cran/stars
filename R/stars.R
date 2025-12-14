@@ -393,9 +393,8 @@ which_time = function(x) {
 	if (inherits(x, "stars"))
 		x = st_dimensions(x)
 	which(sapply(x, function(i) 
-		inherits(i$values, c("POSIXct", "Date", "PCICt")) ||
-		(is.character(i$refsys) && (i$refsys %in% c("POSIXct", "Date", "PCICt") ||
-									grepl("PCICt", i$refsys)))))
+		inherits(i$values, c("POSIXct", "Date", "CFTime")) ||
+		(is.character(i$refsys) && (i$refsys %in% c("POSIXct", "Date", "CFtime")))))
 }
 
 #' @export
@@ -473,11 +472,11 @@ st_coordinates.dimensions = function(x, ...) {
 #' @param add_coordinates logical; if `TRUE`, columns with dimension values preceed the array values, 
 #' otherwise they are omitted
 as.data.frame.stars = function(x, ..., add_max = FALSE, center = NA, add_coordinates = TRUE) {
+	df = setNames(as.data.frame(lapply(x, function(y) structure(y, dim = NULL))), names(x))
 	if (add_coordinates)
-		data.frame(st_coordinates(x, add_max = add_max, center = center, ...), 
-			lapply(x, function(y) structure(y, dim = NULL)))
+		cbind(st_coordinates(x, add_max = add_max, center = center, ...), df)
 	else
-		as.data.frame(lapply(x, function(y) structure(y, dim = NULL)))
+		df
 }
 
 add_units = function(x) {
@@ -626,7 +625,7 @@ c.stars = function(..., along = NA_integer_, try_hard = FALSE, nms = names(list(
 	} else {
 		if (is.list(along)) { # custom ordering of ... over dimension(s) with values specified
 			if (prod(lengths(along)) != length(dots))
-				stop("number of objects does not match the product of lenghts of the along argument", call. = FALSE)
+				stop("number of objects does not match the product of lengths of the along argument", call. = FALSE)
 			# abind all:
 			d = st_dimensions(dots[[1]])
 			ret = mapply(abind, ..., along = length(d) + 1, SIMPLIFY = FALSE)
@@ -912,7 +911,7 @@ sort_out_along = function(ret) {
 	# 2. check that time values do not overlap
 	lv = lapply(l, st_get_dimension_values, "time")
 	for (i in seq_along(lv)) {
-		if (!inherits(lv[[i]], c("POSIXt", "Date", "PCICt")))
+		if (!inherits(lv[[i]], c("POSIXt", "Date", "CFTime")))
 			return(NA_integer_)
 		if (i < length(lv) && max(lv[[i]]) >= min(lv[[i+1]])) # no sequence
 			return(NA_integer_)
@@ -973,8 +972,12 @@ st_redimension.stars = function(x, new_dims = st_dimensions(x),
 			dims = create_dimensions(c(d, new_dim = list(new_dim)), attr(d, "raster"))
 			if (length(names(along)) == 1)
 				names(dims)[names(dims) == "new_dim"] = names(along)
-			ret = structure(do.call(c, x), dim = dim(dims))
-			st_stars(setNames(list(ret), paste(names(x), collapse = ".")), dimensions = dims)
+			ns = names(x)
+			x = if (inherits(x[[1]], c("factor", "Date", "POSIXt")))
+					structure(do.call(c, x), dim = dim(dims)) # don't do this on large data sets!!
+				else
+					do.call(abind, append(unclass(x), list(along = length(dims))))
+			st_stars(setNames(list(x), paste(ns, collapse = ".")), dimensions = dims)
 		}
 	}
 }

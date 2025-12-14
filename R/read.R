@@ -1,5 +1,5 @@
 maybe_normalizePath = function(.x, np = FALSE) {
-	prefixes = c("NETCDF:", "HDF5:", "HDF4:", "HDF4_EOS:", "SENTINEL2_L1", "SENTINEL2_L2", "GPKG:", "/vsi", "http://", "https://")
+	prefixes = c("ZARR:", "NETCDF:", "HDF5:", "HDF4:", "HDF4_EOS:", "SENTINEL2_L1", "SENTINEL2_L2", "GPKG:", "/vsi", "http://", "https://")
 	has_prefix = function(pf, x) substr(x, 1, nchar(pf)) == pf
 	if (is.function(.x) || !np || any(sapply(prefixes, has_prefix, x = .x)))
 		.x
@@ -197,6 +197,8 @@ read_stars = function(.x, sub = TRUE, ..., options = character(0),
 	if (length(data$bands) == 0) { # read sub-datasets: different attributes
 		sub_names = split_strings(data$sub) # get named list
 		sub_datasets = sub_names[seq(1, length(sub_names), by = 2)]
+		if (length(sub_datasets) == 1 && is.na(sub_datasets[1]))
+			stop("cannot derive subdataset names from data source: please provide manually")
 		# sub_datasets = gdal_subdatasets(x, options)[sub] # -> would open x twice
 
 		# FIXME: only tested for NetCDF:
@@ -214,9 +216,9 @@ read_stars = function(.x, sub = TRUE, ..., options = character(0),
 				RasterIO = as.list(RasterIO), proxy = proxy, curvilinear = curvilinear)
 		}
 
-		driver = if (is.null(driver) || data$driver[1] == "HDF5") # to override auto-detection:
+		driver = if (is.null(driver) || data$driver[1] %in% c("HDF5", "HDF4"))
 				character(0)
-			else
+			else # override auto-detection:
 				data$driver[1]
 
 		ret = lapply(sub_datasets, .read_stars, options = options,
@@ -301,10 +303,14 @@ read_stars = function(.x, sub = TRUE, ..., options = character(0),
 			} else
 				which.column = NA
 			if (!(all(is.na(which.column)))) {
-				labels = at = at[[ which.at ]][[ which.column ]]
-				levels = 0:(length(at) - 1)
+				at = at[[ which.at ]]
+				labels = at[[ which.column ]]
+				levels = if (!is.na(v <-  match("value", tolower(names(at)))))
+						at[[ v ]]
+					else 
+						0:(length(labels) - 1) # why not 1:length(labels)? renumbered in match()
 				if (length(exclude)) {
-					ex = at %in% exclude
+					ex = labels %in% exclude
 					labels = labels[!ex]
 					levels = levels[!ex]
 					if (!is.null(co))
@@ -321,7 +327,14 @@ read_stars = function(.x, sub = TRUE, ..., options = character(0),
 			# f = factor(as.vector(data), levels = levels, labels = labels) # is too costly;
 			# see https://github.com/r-spatial/stars/issues/565:
 			# construct factor array manually:
-			data = structure(match(as.integer(as.vector(data)), levels),
+			data = if (any(du <- duplicated(labels))) {
+				ul = labels[!du] # unique, non-duplicated
+				m = match(labels, ul) # renumber table
+				dm = match(as.vector(data), levels)
+				structure(m[dm], levels = ul, dim = dim(data), 
+							 colors = co, exclude = ex, class = "factor")
+			} else
+				structure(match(as.integer(as.vector(data)), levels),
 							 levels = labels, dim = dim(data), 
 							 colors = co, exclude = ex, class = "factor")
 		}

@@ -353,23 +353,23 @@ by</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">methods</span>(<span class="at">class =</span> <span class="st">&quot;stars&quot;</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="do">##  [1] $&lt;-               %in%              Math              Ops              </span></span>
 <span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="do">##  [5] [                 [&lt;-               [[&lt;-              adrop            </span></span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="do">##  [9] aggregate         aperm             as.POSIXct        as.data.frame    </span></span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="do">## [13] as.tbl_cube       as_tibble         c                 coerce           </span></span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="do">## [17] contour           cut               dim               dimnames         </span></span>
-<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="do">## [21] dimnames&lt;-        drop_units        droplevels        expand_dimensions</span></span>
-<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="do">## [25] filter            hist              image             initialize       </span></span>
-<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="do">## [29] is.na             merge             mutate            plot             </span></span>
-<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="do">## [33] prcomp            predict           print             pull             </span></span>
-<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="do">## [37] rename            select            show              slice            </span></span>
-<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="do">## [41] slotsFromS3       split             st_apply          st_area          </span></span>
-<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="do">## [45] st_as_sf          st_as_sfc         st_as_stars       st_bbox          </span></span>
-<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a><span class="do">## [49] st_coordinates    st_crop           st_crs            st_crs&lt;-         </span></span>
-<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a><span class="do">## [53] st_dimensions     st_dimensions&lt;-   st_downsample     st_extract       </span></span>
-<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="do">## [57] st_geometry       st_geotransform   st_geotransform&lt;- st_interpolate_aw</span></span>
-<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a><span class="do">## [61] st_intersects     st_join           st_mosaic         st_normalize     </span></span>
-<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a><span class="do">## [65] st_redimension    st_rotate         st_sample         st_set_bbox      </span></span>
-<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="do">## [69] st_transform      st_write          time              transmute        </span></span>
-<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a><span class="do">## [73] write_stars      </span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="do">##  [9] aggregate         aperm             as.Date           as.POSIXct       </span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="do">## [13] as.data.frame     as.tbl_cube       as_tibble         c                </span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="do">## [17] coerce            contour           cut               dim              </span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="do">## [21] dimnames          dimnames&lt;-        drop_units        droplevels       </span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="do">## [25] expand_dimensions filter            hist              image            </span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="do">## [29] initialize        is.na             merge             mutate           </span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="do">## [33] plot              prcomp            predict           print            </span></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="do">## [37] pull              rename            select            show             </span></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="do">## [41] slice             slotsFromS3       split             st_apply         </span></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="do">## [45] st_area           st_as_sf          st_as_sfc         st_as_stars      </span></span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a><span class="do">## [49] st_bbox           st_coordinates    st_crop           st_crs           </span></span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a><span class="do">## [53] st_crs&lt;-          st_dimensions     st_dimensions&lt;-   st_downsample    </span></span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="do">## [57] st_extract        st_geometry       st_geotransform   st_geotransform&lt;-</span></span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a><span class="do">## [61] st_interpolate_aw st_intersects     st_join           st_mosaic        </span></span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a><span class="do">## [65] st_normalize      st_redimension    st_rotate         st_sample        </span></span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="do">## [69] st_set_bbox       st_transform      st_write          time             </span></span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a><span class="do">## [73] transmute         write_stars      </span></span>
 <span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a><span class="do">## see &#39;?methods&#39; for accessing help and source code</span></span></code></pre></div>
 <p>We will work with a three-band section of a landsat image:</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">system.file</span>(<span class="st">&quot;tif/L7_ETMs.tif&quot;</span>, <span class="at">package =</span> <span class="st">&quot;stars&quot;</span>) <span class="sc">%&gt;%</span></span>

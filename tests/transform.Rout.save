@@ -1,5 +1,5 @@
 
-R Under development (unstable) (2025-01-31 r87670 ucrt) -- "Unsuffered Consequences"
+R Under development (unstable) (2025-12-09 r89129 ucrt) -- "Unsuffered Consequences"
 Copyright (C) 2025 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
@@ -53,13 +53,13 @@ sheared raster with parameters: -5 -5
 +   (x__ = st_transform_proj(x, st_crs(4326)))
 +   print(all.equal(x_,x__,check.attributes = FALSE))
 + }
-Linking to liblwgeom 3.0.0beta1 r16016, GEOS 3.13.0, PROJ 9.5.1
+Linking to liblwgeom 3.0.0beta1 r16016, GEOS 3.13.1, PROJ 9.7.0
 
 Attaching package: 'lwgeom'
 
-The following object is masked from 'package:sf':
+The following objects are masked from 'package:sf':
 
-    st_perimeter
+    st_minimum_bounding_circle, st_perimeter
 
 [1] TRUE
 [1] TRUE
@@ -75,4 +75,4 @@ Error in st_transform_proj.stars(st_as_stars(list(m = matrix(1, 10, 10))),  :
 > 
 > proc.time()
    user  system elapsed 
-   1.28    0.34    1.57 
+   0.75    0.18    0.92 

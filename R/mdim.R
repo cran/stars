@@ -107,7 +107,6 @@ match_raster_dims = function(nms) {
 		1:2
 }
 
-
 #' Read or write data using GDAL's multidimensional array API
 #'
 #' Read or write data using GDAL's multidimensional array API
@@ -124,16 +123,26 @@ match_raster_dims = function(nms) {
 #' @param bounds logical or character: if \code{TRUE} tries to infer from "bounds" attribute; if character, 
 #' named vector of the form \code{c(longitude="lon_bnds", latitude="lat_bnds")} with names dimension names
 #' @param curvilinear control reading curvilinear (geolocation) coordinate arrays; if \code{NA} try reading the x/y dimension names; if character, defines the arrays to read; if \code{FALSE} do not try; see also \link{read_stars}
+#' @param normalize_path logical; if \code{FALSE}, suppress a call to \link{normalizePath} on \code{filename}
 #' @details it is assumed that the first two dimensions are easting and northing
 #' @param ... ignored
 #' @seealso \link[sf]{gdal_utils}, in particular util \code{mdiminfo} to query properties of a file or data source containing arrays
 #' @export
 read_mdim = function(filename, variable = character(0), ..., options = character(0), 
 					 raster = NULL, offset = integer(0), count = integer(0), step = integer(0), proxy = FALSE, 
-					 debug = FALSE, bounds = TRUE, curvilinear = NA) {
+					 debug = FALSE, bounds = TRUE, curvilinear = NA, normalize_path = TRUE) {
 
 	stopifnot(is.character(filename), is.character(variable), is.character(options))
+	cftime_installed = requireNamespace("CFtime", quietly = TRUE) 
+	if (! cftime_installed)
+		message("for reading time stamps, package CFtime is required: please install it first") # nocov
+
+	if (normalize_path)
+		filename = enc2utf8char(maybe_normalizePath(filename, np = normalize_path))
 	ret = gdal_read_mdim(filename, variable, options, rev(offset), rev(count), rev(step), proxy, debug)
+
+	if (identical(variable, "?"))
+		return(ret) # RETURNS
 
 	if (length(ret$dimensions) == 1 && length(ret$array_list) == 1 && is.data.frame(ret$array_list[[1]]))
 		return(ret$array_list[[1]]) ## composite data: RETURNS
@@ -148,23 +157,18 @@ read_mdim = function(filename, variable = character(0), ..., options = character
 		if (is.null(u) || u %in% c("", "none"))
 			x
 		else {
-			if (!is.null(a <- attr(x, "attributes")) && !is.na(cal <- a["calendar"]) && 
-						cal %in% c("360_day", "365_day", "noleap"))
-				get_pcict(x, u, cal)
+			cal = if (!is.null(a <- attr(x, "attributes"))) a["calendar"] else NULL
+			time = if (cftime_installed)
+					time = try(CFtime::CFtime(u, cal), silent = TRUE)     # cheaply try if we can make CFTime
+				else
+					FALSE
+			if (inherits(time, "CFTime"))
+				time + as.numeric(x)                       # if we have CFTime, add the offsets
 			else {
-				days_since = grepl("days since", u)
 				u = try_as_units(u)
-				if (!inherits(u, "units")) # FAIL:
-					x
-				else {
+				if (inherits(u, "units"))
 					units(x) = u
-					if (days_since && inherits(d <- try(as.Date(x), silent = TRUE), "Date")) 
-						d
-					else if (inherits(p <- try(as.POSIXct(x), silent = TRUE), "POSIXct"))
-						p
-					else
-						x
-				}
+				x
 			}
 		}
 	}
@@ -190,8 +194,7 @@ read_mdim = function(filename, variable = character(0), ..., options = character
 	sf = any(sapply(l, function(x) inherits(x, "sfc")))
 	# FIXME: i %in% 1:2 always the case?
 	raster_dims = match_raster_dims(names(l))
-	d = mapply(function(x, i) create_dimension(values = x, is_raster = !sf && i %in% raster_dims,
-									   point = ifelse(length(x) == 1, TRUE, NA)),
+	d = mapply(function(x, i) create_dimension(values = x, is_raster = !sf && i %in% raster_dims, point = NA),
 			   l, seq_along(l), SIMPLIFY = FALSE)
 	if (is.null(raster)) {
 		raster = if (sf)
@@ -254,25 +257,27 @@ add_attr = function(x, at) { # append at to attribute "attrs"
 }
 
 add_units_attr = function(l) {
-		f = function(x) {
-			if (inherits(x, "units"))
-				add_attr(x, c(units = as.character(units(x))))
-			else if (inherits(x, c("POSIXct", "PCICt"))) {
-				cal = if (!is.null(cal <- attr(x, "cal")))
-					c(calendar = paste0(cal, "_day")) # else NULL, intended
-				x = as.numeric(x)
-				if (all(x %% 86400 == 0))
-					add_attr(x/86400, c(units = "days since 1970-01-01", cal))
-				else if (all(x %% 3600 == 0))
-					add_attr(x / 3600, c(units = "hours since 1970-01-01 00:00:00", cal))
-				else
-					add_attr(x, c(units = "seconds since 1970-01-01 00:00:00", cal))
-			} else if (inherits(x, "Date"))
-				add_attr(as.numeric(x), c(units = "days since 1970-01-01"))
+	f = function(x) {
+		if (inherits(x, "units"))
+			add_attr(x, c(units = as.character(units(x))))
+		else if (inherits(x, "POSIXct")) {
+			cal = if (!is.null(cal <- attr(x, "cal")))
+				c(calendar = paste0(cal, "_day")) # else NULL, intended
+			x = as.numeric(x)
+			if (all(x %% 86400 == 0))
+				add_attr(x/86400, c(units = "days since 1970-01-01", cal))
+			else if (all(x %% 3600 == 0))
+				add_attr(x / 3600, c(units = "hours since 1970-01-01 00:00:00", cal))
 			else
-				x
-		}
-		lapply(l, f)
+				add_attr(x, c(units = "seconds since 1970-01-01 00:00:00", cal))
+		} else if (inherits(x, "CFTime")) {
+			add_attr(CFtime::offsets(x), c(units = CFtime::definition(x), CFtime::calendar(x)))
+		} else if (inherits(x, "Date"))
+			add_attr(as.numeric(x), c(units = "days since 1970-01-01"))
+		else
+			x
+	}
+	lapply(l, f)
 }
 
 cdl_add_geometry = function(e, i, sfc) {
@@ -419,8 +424,10 @@ st_as_cdl = function(x) {
 #' }
 write_mdim = function(x, filename, driver = detect.driver(filename), ..., 
 					  root_group_options = character(0), options = character(0),
-					  as_float = TRUE) {
+					  as_float = TRUE, normalize_path = TRUE) {
 
+	if (normalize_path)
+		filename = enc2utf8(maybe_normalizePath(filename, TRUE))
 	if (inherits(x, "stars_proxy"))
 		x = st_as_stars(x)
 	cdl = st_as_cdl(x)

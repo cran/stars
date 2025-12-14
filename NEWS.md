@@ -1,6 +1,40 @@
+# version 0.7-0
+
+* use `values` column from RAT table, and merge duplicate labels; #761
+
+* `st_extract()` no longer stops when GDAL's `InterpolateAtPoint` returns error value(s); #760
+
+* add `st_as_stars()` methods for `CFVariable` and `CFDataset`, provided by package `ncdfCF`; #756, #757 by @pvanlaake
+
+* try harder to convert `CFTime` times to `Date` when they are dates.
+
+* if set, `options("stars.regular")` controls the threshold below which dimension coordinates are considered regular, with default 1.0e-4
+
+* removed dependency on PCICt, added dependency on CFtime; #754 by @pvanlaake
+
+* handling of dimensions with a single value is now more consistent; #754
+
+* `slice.stars_proxy()` works (again) for single-file proxy objects; #751, #527
+
+* `[.stars()` with a `character` selector selects on names of a dimension if it has names; #747
+
+* handle "intervals" dimension in aggregate.stars() and `st_as_sf.stars()`; #745
+
+* fix `c.stars()` for the case where some of the objects have a single slice on the `along=` dimension; #743
+
+* `st_redimension()` (and by that, `merge.stars()`) use `abind()` for numeric variables rather than `c()`, reducing memory overhead.
+
+* fix problem with reading HDF4 files; #741 by Alexys Rodriguez
+
+* use, by default, `normalizePath()` on `filename` in `read_mdim()`;  #735
+
+* `st_extract()` accepts empty points as target; #734
+
+* `st_sfc2xy()` passes `...` on to `st_as_stars()`; #733 
+
 # version 0.6-8
 
-* address difftime issue new in R-devel rev 87670
+* address `/.difftime` issue new in R-devel rev 87670
 
 * `c.stars()` is more strict when combining time sequences; #703
 

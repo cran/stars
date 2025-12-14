@@ -7,15 +7,22 @@ st_extract = function(x, ...) UseMethod("st_extract")
 
 #' @name st_extract
 #' @param x object of class \code{stars} or \code{stars_proxy}
-#' @param at object of class \code{sf} or \code{sfc} with geometries, or two-column matrix with coordinate points in rows, indicating where to extract values of \code{x}
+#' @param at object of class \code{sf} or \code{sfc} with geometries, or two-column matrix with coordinate points in rows, indicating where to extract values of \code{x}, or a \code{stars} object with geometry and temporal dimensions (vector data cube)
 #' @param bilinear logical; use bilinear interpolation rather than nearest neighbour?
-#' @param time_column character or integer; name or index of a column with time or date values that will be matched to values of the first temporal dimension (matching classes \code{POSIXct}, \code{POSIXt}, \code{Date}, or \code{PCICt}), in \code{x}, after which this dimension is reduced. This is useful to extract data cube values along a trajectory; see https://github.com/r-spatial/stars/issues/352 .
+#' @param time_column character or integer; name or index of a column with time or date values that will be matched to values of the first temporal dimension (matching classes \code{POSIXct}, \code{POSIXt}, \code{Date}, or \code{CFTime}), in \code{x}, after which this dimension is reduced. This is useful to extract data cube values along a trajectory; see https://github.com/r-spatial/stars/issues/352 .
 #' @param interpolate_time logical; should time be interpolated? if FALSE, time instances are matched using the coinciding or the last preceding time in the data cube.
 #' @param FUN function used to aggregate pixel values when geometries of \code{at} intersect with more than one pixel
 #' @param resampling character; resampling method; for method cubic or cubicspline,
 #' `stars_proxy` objects should be used and GDAL should have version >= 3.10.0
+#' @param sfc_attribute character; if \code{at} is of class \code{stars} should the aggregation be performed
+#' for the attribute geometry rather than the dimension geometry? If \code{NULL} (default),
+#' the aggregation is performed at the dimension geometries, else the name of the attribute geometry to perform the aggregation on.
+#' If the given attribute geometry does not exist, the aggregation defaults to the dimension geometry.
 #' @param ... passed on to \link{aggregate.stars} when geometries are not exclusively POINT geometries
 #' @returns if \code{at} is of class \code{matrix}, a matrix with extracted values is returned; 
+#' if \code{at} is of class \code{stars} and a temporal dimension was passed to \code{time_column},
+#' a \code{stars} object with the original \code{at} dimensions
+#' and the extracted values as attributes.
 #' otherwise: if \code{x} has more dimensions than only x and y (raster), an 
 #' object of class \code{stars} with POINT geometries replacing x and y raster
 #' dimensions, if this is not the case, an object of \code{sf} with extracted values.
@@ -31,28 +38,77 @@ st_extract = function(x, ...) UseMethod("st_extract")
 #' st_extract(r, pnt) %>% st_as_sf()
 #' st_extract(r[,,,1], pnt)
 #' st_extract(r, st_coordinates(pnt)) # "at" is a matrix: return a matrix
+#' # Extraction on non-POINT geometries
+#' poly = st_buffer(pnt, 1000)
+#' st_extract(r, poly)
+#' 
+#' # Extraction with time matching
+#' rdate = c(r, r*2, along = "date")
+#' dates = c(Sys.Date()-1, Sys.Date())
+#' rdate = st_set_dimensions(rdate, "date", values = c(dates))
+#' 
+#' pntsf = st_sf(date = dates, geometry = pnt)
+#' st_extract(split(rdate, "band"), pntsf) # POINT geometries
+#' 
+#' polysf = st_buffer(pntsf, 1000)
+#' st_extract(split(rdate, "band"), polysf, time_column = "date") # POLYGON geometries
+#' 
+#' vdc = st_sf(rdm = rnorm(20), polygons = st_buffer(st_sample(st_bbox(pnt), 20), 500),
+#' 			geometry = rep(pnt, 2), date = rep(dates, each = 10)) |> 
+#' 	st_as_stars(dims = c("geometry", "date"))
+#' 
+#' (vdc_new = st_extract(split(rdate, "band"), vdc)) # stars vector data cube
+#' merge(vdc_new, name = "band")
+#' 
+#' ### Extraction applied to the geometries inside the vector data cube (cell values)
+#' (vdc_new2 = st_extract(split(rdate, "band"), vdc,
+#' 					   sfc_attribute = "polygons")) # stars vector data cube
+#' merge(vdc_new2, name = "band")
 st_extract.stars = function(x, at, ..., bilinear = FALSE, time_column = 
 		attr(at, "time_column") %||% attr(at, "time_col"),
 		interpolate_time = bilinear, FUN = mean,
-		resampling = c("nearest", "bilinear", "cubic", "cubicspline")) {
+		resampling = c("nearest", "bilinear", "cubic", "cubicspline"),
+		sfc_attribute = NULL) {
 
-	stopifnot(inherits(at, c("sf", "sfc", "matrix")))
+	stopifnot(inherits(at, c("sf", "sfc", "stars", "matrix")))
 	resampling = match.arg(resampling)
 	if (bilinear) {
 		stopifnot(resampling %in% c("nearest", "bilinear"))
 		resampling = "bilinear"
 	}
+	at_orig = at
+	use_x_agg = FALSE
+	if (inherits(at_orig, "stars")) {
+		if (is.null(time_column) && length(which_time(at)) > 0)
+			time_column = names(which_time(at))[1] # later on matched by name in sf object
+		at = st_as_sf(at, long = TRUE) 
+		if (!is.null(sfc_attribute)) {
+			stopifnot(is.character(sfc_attribute), length(sfc_attribute) == 1)
+			sfc_dim = st_geometry(at)
+			sfc_dim_name = attr(at, "sf_column")
+			if (!is.null(at[[sfc_attribute]])) 
+				st_geometry(at) = sfc_attribute
+			else
+				stop(paste(sfc_attribute, "should be an array in x"))
+		}
+	}
 	if (inherits(at, "matrix"))
 		pts = at
 	else {
 		stopifnot(st_crs(at) == st_crs(x))
-		if (! all(st_dimension(at) == 0)) { # should check & branch here in case of MULTIPOINT?
-			stopifnot(is.null(time_column), !bilinear, !interpolate_time)
+		if (! all(st_dimension(at, FALSE) == 0)) { # should check & branch here in case of MULTIPOINT?
+			stopifnot(!bilinear) # bilinear interpolation not supported for time matching with lines/polygons
 			# from aggregate.stars_proxy:
 			by = st_geometry(at)
 			# this assumes the result is small, no need to proxy
 			l = lapply(seq_along(by), function(i) aggregate(st_normalize(st_as_stars(x[by[i]])), by[i], FUN, ...))
-			return(do.call(c, c(l, along = list(which_sfc(l[[1]]))))) # RETURNS!
+			if(is.null(time_column)) {
+				return(do.call(c, c(l, along = list(which_sfc(l[[1]]))))) # RETURNS!
+			} else {
+				# to pass to time matching		
+				x_agg = do.call(c, c(l, along = list(which_sfc(l[[1]]))))
+				use_x_agg = TRUE
+			}
 		}
 		sf_column = attr(at, "sf_column") %||% "geometry"
 
@@ -72,6 +128,9 @@ st_extract.stars = function(x, at, ..., bilinear = FALSE, time_column =
 			try_result = try(x0 <- st_as_stars(x, downsample = dim(x)/2), silent = TRUE)
 			lapply(x, function(y) do.call(abind, lapply(get_names(y), 
 				gdal_extract, pts, resampling)))
+		} else if (use_x_agg) {
+			# Allow time matching for lines and polygons using aggregate
+			st_normalize(st_upfront(x_agg))
 		} else {
 			x = st_normalize(st_upfront(x))
 			if (is_curvilinear(x)) { # https://github.com/r-spatial/stars/issues/632
@@ -85,6 +144,7 @@ st_extract.stars = function(x, at, ..., bilinear = FALSE, time_column =
 			lapply(x, function(y) 
 				array(y, dim = c(prod(dim(x)[1:2]), prod(dim(x)[-(1:2)])))[ix, , drop = FALSE])
 		}
+	
 	# reset factors & units attributes:
 	for (i in seq_along(m)) {
 		if (inherits(x[[i]], "factor")) {
@@ -99,7 +159,7 @@ st_extract.stars = function(x, at, ..., bilinear = FALSE, time_column =
 	}
 	# match times:
 	if (!is.null(time_column)) {
-		refsys_time = c("POSIXct", "POSIXt", "Date", "PCICt")
+		refsys_time = c("POSIXct", "POSIXt", "Date", "CFtime")
 		## If there are more than two temporal dimensions, the first one is taken
 		tm = names(which(sapply(
 			st_dimensions(x),
@@ -110,19 +170,46 @@ st_extract.stars = function(x, at, ..., bilinear = FALSE, time_column =
 		tm_ix = match_time(tm_pts, tm_cube,
 						   intervals = !st_dimensions(x)[[tm]]$point,
 						   interpolate_time)
-		if (!interpolate_time)
-			m = lapply(m, function(p) p[cbind(seq_along(at), tm_ix)])
-		else {
-			interpolate = function(x, ix) { 
-				i = floor(ix)
-				di = ix - i
-				if (is.na(ix) || di == 0)
-					x[i]
-				else 
-					(1 - di) * x[i] + di * x[i+1]
+		# need to handle the case that there is more than time, besides space, in x; 
+		# https://github.com/r-spatial/stars/issues/748
+		if (has_raster(x) && length(dim(x)) > 3 && dim(m[[1]])[2] > length(tm_cube)) {
+			# check time is last dimension:
+			if (names(dim(x))[length(dim(x))] != tm)
+				stop(paste(tm, 'needs to be the last dimensions'))
+			if (interpolate_time)
+				stop("to use interpolate_time=TRUE, first drop additional dimensions")
+			do = dim(x)[-(c(1:2, length(dim(x))))]
+			if (length(do) > 1)
+				warning("this may not work for higher than 4-dimensional cubes")
+			r = rep(1:dim(m[[1]])[1], each = prod(do))
+			c = rep(1:prod(do), dim(m[[1]])[1]) + rep((tm_ix - 1) * prod(do), each = prod(do))
+			# print(rbind(r,c))
+			# print(m[[1]][cbind(r,c)])
+			m = lapply(m, function(a) structure(a[cbind(r,c)], dim = NULL))
+			df = setNames(as.data.frame(m), names(x))
+			df[[sf_column]] = rep(st_geometry(at), each = do)
+			# if (inherits(tm_cube, "intervals"))
+			#	tm_cube = as.list(tm_cube)
+			# df[[tm]] = tm_cube[tm_ix]
+			df[[time_column]] = rep(tm_pts, each = do)
+			# depth, or whatever is in do: assuming now there is only one dimension in do
+			df[[ names(do)[1] ]] = st_get_dimension_values(x, names(do)[1])
+			return(st_as_sf(df))
+		} else {
+			if (!interpolate_time)
+				m = lapply(m, function(p) p[cbind(seq_along(at), tm_ix)])
+			else {
+				interpolate = function(x, ix) { 
+					i = floor(ix)
+					di = ix - i
+					if (is.na(ix) || di == 0)
+						x[i]
+					else 
+						(1 - di) * x[i] + di * x[i+1]
+				}
+				# each time series is reduced to a _single_ time step, interpolated:
+				m = lapply(m, function(n) mapply(interpolate, asplit(n, 1), tm_ix))
 			}
-			# each time series is reduced to a _single_ time step, interpolated:
-			m = lapply(m, function(n) mapply(interpolate, asplit(n, 1), tm_ix))
 		}
 	}
 	if (NCOL(m[[1]]) > 1) { # multi-band:
@@ -156,7 +243,15 @@ st_extract.stars = function(x, at, ..., bilinear = FALSE, time_column =
 			sf = st_as_sf(df)
 			if (!is.null(min_dist))
 				sf$min_dist = min_dist
-			sf
+			if (!inherits(at_orig, "stars")) 
+				sf
+			else {
+				if (!is.null(sfc_attribute)) { # add dimension geometry back
+					st_geometry(sf) = sfc_dim
+					st_geometry(sf) = sfc_dim_name
+				}
+				st_as_stars(sf, dims = attr(attr(at_orig, "dimensions"), "names"))
+			}
 		}
 	}
 }
@@ -165,6 +260,13 @@ st_extract.stars = function(x, at, ..., bilinear = FALSE, time_column =
 # if interpolate = FALSE, returns an integer in 1...length(b) or NA if outside
 # if interpolate = TRUE, returns a continuous index in 1...length(b) or NA if outside
 match_time = function(a, b, intervals = FALSE, interpolate = FALSE) {
+	if (inherits(b, "CFTime")) {
+		if (interpolate && isFALSE(intervals) && is.null(b$bounds))
+			return(b$indexOf(a, method = "linear"))
+		else
+			return(b$indexOf(a))
+	}
+	
 	if (inherits(a, "POSIXct") && inherits(b, "Date"))
 		a = as.Date(a)
 	if (inherits(b, "POSIXct") && inherits(a, "Date"))

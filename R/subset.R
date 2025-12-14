@@ -7,7 +7,7 @@
 #' @param ... further (logical or integer vector) selectors, matched by order, to select on individual dimensions
 #' @param drop logical; if \code{TRUE}, degenerate dimensions (with only one value) are dropped 
 #' @param crop logical; if \code{TRUE} and parameter \code{i} is a spatial geometry (\code{sf} or \code{sfc}) object, the extent (bounding box) of the result is cropped to match the extent of \code{i} using \link{st_crop}. Cropping curvilinear grids is not supported.
-#' @details If \code{i} is an object of class \code{sf}, \code{sfc} or \code{bbox}, the spatial subset covering this geometry is selected, possibly followed by cropping the extent. Array values for which the cell centre is not inside the geometry are assigned \code{NA}. If \code{i} is of class \code{stars}, and attributes of \code{i} are \code{logical}, cells in \code{x} corresponding to \code{NA} or \code{FALSE} cells in \code{i} are assigned an \code{NA}. Dimension ranges containing negative values or \code{NA} may be partially supported.
+#' @details If \code{i} is an object of class \code{sf}, \code{sfc} or \code{bbox}, the spatial subset covering this geometry is selected, possibly followed by cropping the extent. Array values for which the cell centre is not inside the geometry are assigned \code{NA}. If \code{i} is of class \code{stars}, and attributes of \code{i} are \code{logical}, cells in \code{x} corresponding to \code{NA} or \code{FALSE} cells in \code{i} are assigned an \code{NA}. Dimension ranges containing negative values or \code{NA} may be partially supported. Character selectors are matched against the names of a dimension if it has names, otherwise to the dimension values.
 #' @export
 #' @examples
 #' tif = system.file("tif/L7_ETMs.tif", package = "stars")
@@ -79,7 +79,10 @@
 			mc[[i]] = eval(mc[[i]], parent.frame())
 		if (is.numeric(mc[[i]]) || is.call(mc[[i]]) || is.name(mc[[i]]) || is.character(mc[[i]])) { # FIXME: or something else?
 			args[[i]] = if (is.character(mc[[i]])) {
-						m = match(mc[[i]], d[[i]]$values)
+						m = if (!is.null(names(d[[i]]$values)))
+								match(mc[[i]], names(d[[i]]$values))
+							else
+								match(mc[[i]], d[[i]]$values)
 						if (length(m) == 0 || any(is.na(m)))
 							stop("selecting using invalid value label(s)?")
 						m
@@ -120,16 +123,28 @@
 		# dimensions:
 		#mc0 = mc[1:3] # "[", x, first dim
 		for (i in seq_along(d)) { # one-at-a-time:
-			name_i = names(d)[i]
-			argi = args[i]
-			if (!(is_curvilinear(d) && name_i %in% xy) &&  # as that case was handled above
-					!(is.name(argi[[1]]) && all(argi[[1]] == rlang::missing_arg())) &&  # empty arg
-					is.numeric(e <- eval(argi[[1]])) && !any(is.na(e)) && !all(diff(e) == 1)) # sequence with gaps
-				d[[i]]$values = if (isTRUE(d[[i]]$point) || !is.numeric(unclass(ed[[i]][1])))
-						ed[[i]]
-					else
-						as_intervals(ed[[i]], add_last = TRUE)
-			d[[i]] = eval(rlang::expr(d[[i]] [!!!argi]))
+			if (is_CFTime(d[[i]]$refsys)) {
+				time = d[[i]]$values
+				bnds = CFtime::bounds(time)
+				time = CFtime::CFtime(CFtime::definition(time), 
+									  CFtime::calendar(time), 
+									  CFtime::offsets(time)[ args[[i]] ])
+				if (!is.null(bnds))
+					CFtime::bounds(time) <- bnds[, args[[i]] ]
+				d[[i]]$values = time
+				d[[i]]$to = length(args[[i]])
+			} else {
+				name_i = names(d)[i]
+				argi = args[i]
+				if (!(is_curvilinear(d) && name_i %in% xy) &&  # as that case was handled above
+						!(is.name(argi[[1]]) && all(argi[[1]] == rlang::missing_arg())) &&  # empty arg
+						is.numeric(e <- eval(argi[[1]])) && !any(is.na(e)) && !all(diff(e) == 1)) # sequence with gaps
+					d[[i]]$values = if (isTRUE(d[[i]]$point) || !is.numeric(unclass(ed[[i]][1])))
+							ed[[i]]
+						else
+							as_intervals(ed[[i]], add_last = TRUE)
+				d[[i]] = eval(rlang::expr(d[[i]] [!!!argi]))
+			}
 		}
 	}
 	x = st_as_stars(x, dimensions = d)

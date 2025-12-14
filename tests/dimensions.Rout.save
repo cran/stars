@@ -1,5 +1,5 @@
 
-R Under development (unstable) (2025-01-31 r87670 ucrt) -- "Unsuffered Consequences"
+R Under development (unstable) (2025-12-09 r89129 ucrt) -- "Unsuffered Consequences"
 Copyright (C) 2025 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
@@ -39,10 +39,10 @@ attribute(s):
 pr   16.133519 70.371665 84.55774 87.72969 101.94830 278.6427 7116
 tas  -2.354958  9.632157 15.32671 14.61650  19.99331  24.7976 7116
 dimension(s):
-     from to offset  delta  refsys                    values x/y
-time    1 12     NA     NA POSIXct 1999-01-31,...,1999-12-31    
-x       1 81    -85  0.125      NA                      NULL [x]
-y       1 33  37.12 -0.125      NA                      NULL [y]
+     from to offset  delta refsys                    values x/y
+time    1 12     NA     NA   Date 1999-01-31,...,1999-12-31    
+x       1 81    -85  0.125     NA                      NULL [x]
+y       1 33  37.12 -0.125     NA                      NULL [y]
 > 
 > raw %>%
 +   st_apply(MARGIN = c("x", "y"), FUN = foo, idx = timeline) %>%
@@ -53,11 +53,11 @@ attribute(s):
 pr   16.133519 70.371665 84.55774 87.72969 101.94830 278.6427 7116
 tas  -2.354958  9.632157 15.32671 14.61650  19.99331  24.7976 7116
 dimension(s):
-     from to offset  delta  refsys                    values x/y
-time    1 12     NA     NA POSIXct 1999-01-31,...,1999-12-31    
-x       1 81    -85  0.125      NA                      NULL [x]
-y       1 33  37.12 -0.125      NA                      NULL [y]
+     from to offset  delta refsys                    values x/y
+time    1 12     NA     NA   Date 1999-01-31,...,1999-12-31    
+x       1 81    -85  0.125     NA                      NULL [x]
+y       1 33  37.12 -0.125     NA                      NULL [y]
 > 
 > proc.time()
    user  system elapsed 
-   1.95    0.25    2.18 
+   1.21    0.15    1.34 
