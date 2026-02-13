@@ -1,6 +1,6 @@
 
-R Under development (unstable) (2025-12-09 r89129 ucrt) -- "Unsuffered Consequences"
-Copyright (C) 2025 The R Foundation for Statistical Computing
+R Under development (unstable) (2026-02-12 r89409 ucrt) -- "Unsuffered Consequences"
+Copyright (C) 2026 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -23,8 +23,8 @@ Type 'q()' to quit R.
 > (r = st_as_stars(t(volcano)))
 stars object with 2 dimensions and 1 attribute
 attribute(s):
-    Min. 1st Qu. Median     Mean 3rd Qu. Max. NA's
-A1    94     108    124 130.1879     150  195  732
+    Min. 1st Qu. Median     Mean 3rd Qu. Max. NAs
+A1    94     108    124 130.1879     150  195 732
 dimension(s):
    from to offset delta point x/y
 X1    1 61      0     1 FALSE [x]
@@ -146,4 +146,4 @@ X2    1 99      0     1 FALSE [y]
 > 
 > proc.time()
    user  system elapsed 
-   0.81    0.07    0.87 
+   1.04    0.40    1.37 

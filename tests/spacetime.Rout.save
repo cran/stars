@@ -1,6 +1,6 @@
 
-R Under development (unstable) (2025-12-09 r89129 ucrt) -- "Unsuffered Consequences"
-Copyright (C) 2025 The R Foundation for Statistical Computing
+R Under development (unstable) (2026-02-12 r89409 ucrt) -- "Unsuffered Consequences"
+Copyright (C) 2026 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -333,4 +333,4 @@ only the first attribute will used; maybe use merge() first?
 > 
 > proc.time()
    user  system elapsed 
-   1.64    0.14    1.76 
+   2.01    0.45    2.43 

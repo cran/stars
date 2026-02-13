@@ -1,6 +1,6 @@
 
-R Under development (unstable) (2025-12-09 r89129 ucrt) -- "Unsuffered Consequences"
-Copyright (C) 2025 The R Foundation for Statistical Computing
+R Under development (unstable) (2026-02-12 r89409 ucrt) -- "Unsuffered Consequences"
+Copyright (C) 2026 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -35,7 +35,7 @@ Linking to GEOS 3.13.1, GDAL 3.11.4, PROJ 9.7.0; sf_use_s2() is TRUE
 + }
 stars object with 2 dimensions and 1 attribute
 attribute(s):
-      Min. 1st Qu. Median     Mean 3rd Qu.    Max.   NA's
+      Min. 1st Qu. Median     Mean 3rd Qu.    Max.    NAs
 PM10     0   9.921 14.792 17.69728  21.992 274.333 157659
 dimension(s):
         from   to     offset  delta refsys point
@@ -46,7 +46,7 @@ station POINT (9.585911 53.67057),...,POINT (9.446661 49.24068)
 time                                                       NULL
 stars object with 2 dimensions and 1 attribute
 attribute(s):
-      Min. 1st Qu.   Median    Mean  3rd Qu.    Max. NA's
+      Min. 1st Qu.   Median    Mean  3rd Qu.    Max.  NAs
 PM10     1      11 15.57425 18.1715 22.17197 183.271 8429
 dimension(s):
          from   to     offset  delta refsys point
@@ -132,8 +132,8 @@ t                                                                 NULL
 > (a = aggregate(st, tm0, mean, na.rm = TRUE))
 stars object with 3 dimensions and 1 attribute
 attribute(s):
-    Min. 1st Qu. Median  Mean 3rd Qu. Max. NA's
-A1     1  180.75  360.5 360.5  540.25  720  480
+    Min. 1st Qu. Median  Mean 3rd Qu. Max. NAs
+A1     1  180.75  360.5 360.5  540.25  720 480
 dimension(s):
      from to     offset  delta refsys point x/y
 time    1 10 2019-02-18 1 days   Date    NA    
@@ -177,8 +177,8 @@ POINT (-10 -10)
 > (a = aggregate(st, sfc, mean))
 stars object with 2 dimensions and 1 attribute
 attribute(s):
-    Min. 1st Qu. Median  Mean 3rd Qu. Max. NA's
-A1    28  194.25  360.5 360.5  526.75  693    6
+    Min. 1st Qu. Median  Mean 3rd Qu. Max. NAs
+A1    28  194.25  360.5 360.5  526.75  693   6
 dimension(s):
          from to     offset  delta refsys point
 geometry    1  5         NA     NA WGS 84 FALSE
@@ -201,4 +201,4 @@ t                                                                 NULL
 > 
 > proc.time()
    user  system elapsed 
-   5.82    0.34    6.18 
+   8.75    0.59    9.34 

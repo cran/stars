@@ -1,6 +1,6 @@
 
-R Under development (unstable) (2025-12-09 r89129 ucrt) -- "Unsuffered Consequences"
-Copyright (C) 2025 The R Foundation for Statistical Computing
+R Under development (unstable) (2026-02-12 r89409 ucrt) -- "Unsuffered Consequences"
+Copyright (C) 2026 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -63,7 +63,7 @@ was `contains'
 > st_crop(l, b)
 stars object with 3 dimensions and 1 attribute
 attribute(s):
-         Min. 1st Qu. Median Mean 3rd Qu. Max.   NA's
+         Min. 1st Qu. Median Mean 3rd Qu. Max.    NAs
 L7_ETMs    NA      NA     NA  NaN      NA   NA 737088
 dimension(s):
      from  to  offset delta                     refsys point x/y
@@ -79,7 +79,7 @@ In st_crop.stars(l, b) : st_crop: bounding boxes of x and y do not overlap
 > st_crop(l, b)
 stars object with 3 dimensions and 1 attribute
 attribute(s):
-         Min. 1st Qu. Median Mean 3rd Qu. Max.   NA's
+         Min. 1st Qu. Median Mean 3rd Qu. Max.    NAs
 L7_ETMs    NA      NA     NA  NaN      NA   NA 737088
 dimension(s):
      from  to  offset delta                     refsys point x/y
@@ -91,4 +91,4 @@ In st_crop.stars(l, b) : st_crop: bounding boxes of x and y do not overlap
 > 
 > proc.time()
    user  system elapsed 
-   2.75    0.26    3.01 
+   4.60    0.64    5.25 

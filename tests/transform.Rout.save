@@ -1,6 +1,6 @@
 
-R Under development (unstable) (2025-12-09 r89129 ucrt) -- "Unsuffered Consequences"
-Copyright (C) 2025 The R Foundation for Statistical Computing
+R Under development (unstable) (2026-02-12 r89409 ucrt) -- "Unsuffered Consequences"
+Copyright (C) 2026 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -75,4 +75,4 @@ Error in st_transform_proj.stars(st_as_stars(list(m = matrix(1, 10, 10))),  :
 > 
 > proc.time()
    user  system elapsed 
-   0.75    0.18    0.92 
+   1.42    0.25    1.65 

@@ -1,6 +1,6 @@
 
-R Under development (unstable) (2025-12-09 r89129 ucrt) -- "Unsuffered Consequences"
-Copyright (C) 2025 The R Foundation for Statistical Computing
+R Under development (unstable) (2026-02-12 r89409 ucrt) -- "Unsuffered Consequences"
+Copyright (C) 2026 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -35,7 +35,7 @@ pr, tas,
 + )
 stars object with 3 dimensions and 2 attributes
 attribute(s):
-          Min.   1st Qu.   Median     Mean   3rd Qu.     Max. NA's
+          Min.   1st Qu.   Median     Mean   3rd Qu.     Max.  NAs
 pr   16.133519 70.371665 84.55774 87.72969 101.94830 278.6427 7116
 tas  -2.354958  9.632157 15.32671 14.61650  19.99331  24.7976 7116
 dimension(s):
@@ -49,7 +49,7 @@ y       1 33  37.12 -0.125     NA                      NULL [y]
 +   st_set_dimensions("foo", st_dimensions(raw)["time"])
 stars object with 3 dimensions and 2 attributes
 attribute(s):
-          Min.   1st Qu.   Median     Mean   3rd Qu.     Max. NA's
+          Min.   1st Qu.   Median     Mean   3rd Qu.     Max.  NAs
 pr   16.133519 70.371665 84.55774 87.72969 101.94830 278.6427 7116
 tas  -2.354958  9.632157 15.32671 14.61650  19.99331  24.7976 7116
 dimension(s):
@@ -60,4 +60,4 @@ y       1 33  37.12 -0.125     NA                      NULL [y]
 > 
 > proc.time()
    user  system elapsed 
-   1.21    0.15    1.34 
+   2.09    0.26    2.29 

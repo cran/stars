@@ -1,4 +1,10 @@
+# version 0.7-1
+
+* `write_stars()` supports drivers that only provide CreateCopy(); requires sf >= 1.0-24; #762
+
 # version 0.7-0
+
+* `read_mdim()` passes if `CFtime` is not installed, with a message that times will not be read.
 
 * use `values` column from RAT table, and merge duplicate labels; #761
 
